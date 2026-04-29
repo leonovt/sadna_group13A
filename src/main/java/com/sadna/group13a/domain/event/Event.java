@@ -24,6 +24,7 @@ public class Event {
     private String category;
     private VenueMap venueMap;
     private boolean published;      // whether the event is visible to buyers
+    private EventSaleMode saleMode; // REGULAR or RAFFLE
 
     public Event(String id, String title, String description,
                  String companyId, LocalDateTime eventDate, String category) {
@@ -47,6 +48,7 @@ public class Event {
         this.category = category;
         this.venueMap = null;
         this.published = false;
+        this.saleMode = EventSaleMode.REGULAR;
     }
 
     public Event(String title, String description,
@@ -89,6 +91,20 @@ public class Event {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    // ── Sale Mode (Raffle/Lottery) ────────────────────────────────
+
+    public EventSaleMode getSaleMode() { return saleMode; }
+
+    public void setSaleMode(EventSaleMode saleMode) {
+        if (published) {
+            throw new DomainException("Cannot change sale mode of a published event");
+        }
+        if (saleMode == null) {
+            throw new IllegalArgumentException("Sale mode cannot be null");
+        }
+        this.saleMode = saleMode;
     }
 
     // ── Publishing ────────────────────────────────────────────────

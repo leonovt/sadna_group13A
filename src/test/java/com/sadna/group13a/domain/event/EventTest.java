@@ -189,6 +189,41 @@ class EventTest {
         }
     }
 
+    // ── Sale Mode (Raffle/Lottery) ────────────────────────────────
+
+    @Nested
+    @DisplayName("Sale Mode (Raffle/Lottery)")
+    class SaleModeTests {
+
+        @Test
+        @DisplayName("Given new event — When getting sale mode — Then defaults to REGULAR")
+        void GivenNewEvent_WhenGetSaleMode_ThenDefaultIsRegular() {
+            assertEquals(EventSaleMode.REGULAR, event.getSaleMode());
+        }
+
+        @Test
+        @DisplayName("Given unpublished event — When setting sale mode to RAFFLE — Then mode is updated")
+        void GivenUnpublishedEvent_WhenSetSaleModeRaffle_ThenUpdated() {
+            event.setSaleMode(EventSaleMode.RAFFLE);
+            assertEquals(EventSaleMode.RAFFLE, event.getSaleMode());
+        }
+
+        @Test
+        @DisplayName("Given published event — When setting sale mode — Then throws DomainException")
+        void GivenPublishedEvent_WhenSetSaleMode_ThenThrows() {
+            event.setVenueMap(venueMap);
+            event.publish();
+            
+            assertThrows(DomainException.class, () -> event.setSaleMode(EventSaleMode.RAFFLE));
+        }
+
+        @Test
+        @DisplayName("Given event — When setting null sale mode — Then throws IllegalArgumentException")
+        void GivenEvent_WhenSetNullSaleMode_ThenThrows() {
+            assertThrows(IllegalArgumentException.class, () -> event.setSaleMode(null));
+        }
+    }
+
     // ── Convenience Delegations ───────────────────────────────────
 
     @Nested
