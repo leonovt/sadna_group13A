@@ -160,6 +160,13 @@ public class ProductionCompany {
         return staff.containsKey(userId);
     }
 
+    public boolean hasPermission(String userId, CompanyPermission permission) {
+        CompanyStaffMember member = staff.get(userId);
+        if (member == null) return false;
+        if (member.getRole() == CompanyRole.FOUNDER || member.getRole() == CompanyRole.OWNER) return true;
+        return member.getRole() == CompanyRole.MANAGER && member.getPermissions() != null && member.getPermissions().contains(permission);
+    }
+
     /**
      * Nominates a user for a staff role.
      * @param actingUserId the user performing the action (must be OWNER/FOUNDER)
