@@ -21,6 +21,7 @@ public class ActiveOrder {
     private final List<OrderItem> items;
     private final LocalDateTime createdAt;
     private LocalDateTime expiresAt;
+    private String transactionId;
 
     public ActiveOrder(String orderId, String userId, UserType userType) {
         if (orderId == null || orderId.isBlank()) throw new IllegalArgumentException("orderId cannot be blank");
@@ -34,6 +35,7 @@ public class ActiveOrder {
         this.items = new ArrayList<>();
         this.createdAt = LocalDateTime.now();
         this.expiresAt = null; // Timer starts when first item is added
+        this.transactionId = null;
     }
 
     public String getOrderId() { return orderId; }
@@ -42,6 +44,7 @@ public class ActiveOrder {
     public OrderStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
+    public String getTransactionId() { return transactionId; }
     public List<OrderItem> getItems() { return Collections.unmodifiableList(items); }
 
     public boolean isExpired() {
@@ -87,7 +90,7 @@ public class ActiveOrder {
         return items.stream().mapToDouble(OrderItem::getBasePrice).sum();
     }
 
-    public void complete() {
+    public void complete(String transactionId) {
         if (isExpired()) {
             this.status = OrderStatus.CANCELLED;
             throw new DomainException("Order has expired and cannot be completed");
@@ -98,6 +101,10 @@ public class ActiveOrder {
         if (items.isEmpty()) {
             throw new DomainException("Cannot complete an empty order");
         }
+        if (transactionId == null || transactionId.isBlank()) {
+            throw new IllegalArgumentException("Transaction ID is required to complete an order");
+        }
+        this.transactionId = transactionId;
         this.status = OrderStatus.COMPLETED;
     }
 

@@ -54,7 +54,7 @@ class ActiveOrderTest {
     @DisplayName("Given non-DRAFT order — When adding item — Then throws DomainException")
     void GivenNonDraftOrder_WhenAddingItem_ThenThrows() {
         order.addItem(new OrderItem("event-1", "zone-1", "seat-A1", 50.0));
-        order.complete();
+        order.complete("txn-123");
 
         assertThrows(DomainException.class, 
             () -> order.addItem(new OrderItem("event-1", "zone-1", "seat-A2", 50.0)));
@@ -64,15 +64,16 @@ class ActiveOrderTest {
     @DisplayName("Given DRAFT order with items — When completing — Then status becomes COMPLETED")
     void GivenDraftOrderWithItems_WhenCompleting_ThenSuccess() {
         order.addItem(new OrderItem("event-1", "zone-1", "seat-A1", 50.0));
-        order.complete();
+        order.complete("txn-123");
 
         assertEquals(OrderStatus.COMPLETED, order.getStatus());
+        assertEquals("txn-123", order.getTransactionId());
     }
 
     @Test
     @DisplayName("Given empty DRAFT order — When completing — Then throws DomainException")
     void GivenEmptyDraftOrder_WhenCompleting_ThenThrows() {
-        assertThrows(DomainException.class, () -> order.complete());
+        assertThrows(DomainException.class, () -> order.complete("txn-123"));
     }
 
     @Test
