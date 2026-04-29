@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: sadna-group13a
+
+# JWT Configuration
+app:
+  jwt:
+    secret-key: sadna-group13a-secret-key-must-be-at-least-256-bits-long-for-hs256
+    expiration-ms: 3600000  # 1 hour
+
+  # Seat hold duration
+  seat:
+    hold-duration-minutes: 10
+
+logging:
+  level:
+    com.sadna.group13a.domain: DEBUG
+    com.sadna.group13a.application: INFO
+    com.sadna.group13a.infrastructure: WARN
+    root: INFO
