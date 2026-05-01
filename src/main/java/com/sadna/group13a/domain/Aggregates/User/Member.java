@@ -1,6 +1,6 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
-import com.sadna.group13a.domain.shared.AuthenticationException;
+
 import com.sadna.group13a.domain.shared.UserRole;
 
 /**
