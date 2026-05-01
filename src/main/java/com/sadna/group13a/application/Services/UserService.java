@@ -1,19 +1,25 @@
 package com.sadna.group13a.application.Services;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.domain.shared.UserRole;
 import com.sadna.group13a.domain.shared.UserState;
+import com.sadna.group13a.application.DTO.OrderHistoryDTO;
+import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPasswordEncoder;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.User.User;
 
 public class UserService
@@ -23,14 +29,16 @@ public class UserService
     private final IUserRepository userRepository;
     private final IAuth authGateway;
     private final IPasswordEncoder passwordEncoder;
+    private final IOrderHistoryRepository historyRepository;
 
     private final ObjectMapper objectMapper;
 
-    public UserService(IUserRepository userRepository, IAuth authGateway, IPasswordEncoder passwordEncoder, ObjectMapper objectMapper) 
+    public UserService(IUserRepository userRepository, IAuth authGateway, IPasswordEncoder passwordEncoder, IOrderHistoryRepository historyRepository, ObjectMapper objectMapper) 
     {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
         this.passwordEncoder = passwordEncoder;
+        this.historyRepository = historyRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -126,5 +134,23 @@ public class UserService
         
         logger.info("Successfully retrieved profile for user: {}", user.getUsername());
         return Result.success(dto);
+    }
+
+    public Result<List<OrderHistoryDTO>> viewOrderHistory(String token) 
+    {
+        if(!authGateway.validateToken(token)) 
+        {
+            logger.warn("Unauthorized order history access attempt with invalid token.");
+            return Result.failure("Unauthorized.");
+        }
+        String userId = authGateway.extractUserId(token);
+        
+        List<OrderHistory> histories = historyRepository.findByUserId(userId);
+
+        List<OrderHistoryDTO> dtos = histories.stream()
+            .map(history -> objectMapper.convertValue(history, OrderHistoryDTO.class))
+            .collect(Collectors.toList());
+
+        return Result.success(dtos);
     }
 }
