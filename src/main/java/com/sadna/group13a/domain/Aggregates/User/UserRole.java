@@ -1,4 +1,4 @@
-package com.sadna.group13a.domain.shared;
+package com.sadna.group13a.domain.Aggregates.User;
 
 /**
  * User roles in the system.

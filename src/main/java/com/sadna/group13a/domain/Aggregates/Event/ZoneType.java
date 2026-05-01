@@ -1,4 +1,4 @@
-package com.sadna.group13a.domain.shared;
+package com.sadna.group13a.domain.Aggregates.Event;
 
 /**
  * Zone types within a VenueMap.

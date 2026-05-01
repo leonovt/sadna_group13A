@@ -16,10 +16,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import com.sadna.group13a.domain.Aggregates.Company.Company;
-import com.sadna.group13a.domain.shared.CompanyRole;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.sadna.group13a.application.DTO.CompanyDTO;
 import com.sadna.group13a.application.DTO.StaffMemberDTO;
-import com.sadna.group13a.domain.shared.CompanyPermission;
 
 public class CompanyService
 {

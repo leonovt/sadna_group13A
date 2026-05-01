@@ -1,7 +1,8 @@
 package com.sadna.group13a.application.DTO;
 
 import java.util.List;
-import com.sadna.group13a.domain.shared.CompanyStatus;
+
+import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
 
 /**
  * Data Transfer Object for a Production Company.

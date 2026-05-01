@@ -1,4 +1,4 @@
-package com.sadna.group13a.domain.shared;
+package com.sadna.group13a.domain.Aggregates.Company;
 
 /**
  * Granular permissions that can be assigned to Managers.

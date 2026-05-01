@@ -11,8 +11,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
-import com.sadna.group13a.domain.shared.UserRole;
-import com.sadna.group13a.domain.shared.UserState;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
 import com.sadna.group13a.application.DTO.UserDTO;
@@ -21,6 +19,8 @@ import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPasswordEncoder;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.User.User;
+import com.sadna.group13a.domain.Aggregates.User.UserRole;
+import com.sadna.group13a.domain.Aggregates.User.UserState;
 
 public class UserService
 {

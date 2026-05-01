@@ -1,9 +1,9 @@
 package com.sadna.group13a.application.DTO;
 
-import com.sadna.group13a.domain.shared.CompanyPermission;
-import com.sadna.group13a.domain.shared.CompanyRole;
-
 import java.util.Set;
+
+import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 
 /**
  * Data Transfer Object for a Company Staff Member.
