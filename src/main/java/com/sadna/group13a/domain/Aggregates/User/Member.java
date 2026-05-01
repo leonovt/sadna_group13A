@@ -1,8 +1,5 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
-
-import com.sadna.group13a.domain.shared.UserRole;
-
 /**
  * Registered member — authenticated user who can purchase tickets.
  * Owns a SessionToken for JWT-based authentication.

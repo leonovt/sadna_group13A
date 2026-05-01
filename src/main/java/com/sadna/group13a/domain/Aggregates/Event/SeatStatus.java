@@ -1,4 +1,4 @@
-package com.sadna.group13a.domain.shared;
+package com.sadna.group13a.domain.Aggregates.Event;
 
 /**
  * Seat status lifecycle supporting the 10-minute hold mechanism.

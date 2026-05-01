@@ -1,6 +1,5 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
-import com.sadna.group13a.domain.shared.ZoneType;
 
 /**
  * Abstract entity within the Event aggregate — represents a zone in a venue.

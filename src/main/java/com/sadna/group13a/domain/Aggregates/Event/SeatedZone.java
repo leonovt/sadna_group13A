@@ -1,5 +1,6 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+<<<<<<< HEAD
 import com.sadna.group13a.domain.shared.SeatStatus;
 import com.sadna.group13a.domain.shared.ZoneType;
 
@@ -8,6 +9,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+=======
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Collections;
+import java.util.Optional;
+
+
+
+>>>>>>> origin/feature/application-layer
 /**
  * A zone composed of individual assigned seats.
  */
@@ -58,4 +68,8 @@ public class SeatedZone extends Zone {
                 .filter(s -> s.getEffectiveStatus() == SeatStatus.SOLD)
                 .count();
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> origin/feature/application-layer
