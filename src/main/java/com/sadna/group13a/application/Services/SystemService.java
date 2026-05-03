@@ -11,9 +11,11 @@ import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.application.Interfaces.IPasswordEncoder;
-
+import com.sadna.group13a.domain.Aggregates.User.Admin;
 import com.sadna.group13a.application.Result;
+import org.springframework.stereotype.Service;
 
+@Service
 public class SystemService
 {
     private static final Logger logger = LoggerFactory.getLogger(SystemService.class);

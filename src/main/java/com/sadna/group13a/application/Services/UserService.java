@@ -12,16 +12,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
-import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPasswordEncoder;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
-import com.sadna.group13a.domain.Aggregates.User.UserRole;
-import com.sadna.group13a.domain.Aggregates.User.UserState;
+import org.springframework.stereotype.Service;
 
+@Service
 public class UserService
 {
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
@@ -56,12 +56,10 @@ public class UserService
 
             String hashedPassword = passwordEncoder.encodePassword(rawPassword);
             
-            // Assuming default new users are CUSTOMERs and are ACTIVE
-            User newUser = new User(
-                UUID.randomUUID().toString(), 
-                username, 
-                hashedPassword, 
-                UserRole.MEMBER, 
+            User newUser = new Member(
+                UUID.randomUUID().toString(),
+                username,
+                hashedPassword
             );
 
             userRepository.save(newUser);
@@ -99,7 +97,7 @@ public class UserService
             }
 
 
-            String jwtToken = authGateway.generateToken(user.getID());
+            String jwtToken = authGateway.generateToken(user.getId());
             
             logger.info("Successfully authenticated user: {}", username);
             return Result.success(jwtToken);
@@ -136,21 +134,8 @@ public class UserService
         return Result.success(dto);
     }
 
-    public Result<List<OrderHistoryDTO>> viewOrderHistory(String token) 
-    {
-        if(!authGateway.validateToken(token)) 
-        {
-            logger.warn("Unauthorized order history access attempt with invalid token.");
-            return Result.failure("Unauthorized.");
-        }
-        String userId = authGateway.extractUserId(token);
-        
-        List<OrderHistory> histories = historyRepository.findByUserId(userId);
-
-        List<OrderHistoryDTO> dtos = histories.stream()
-            .map(history -> objectMapper.convertValue(history, OrderHistoryDTO.class))
-            .collect(Collectors.toList());
-
-        return Result.success(dtos);
+    public Result<Void> logout(String token) {
+        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
+        logger.info("User {} logged out.", authGateway.extractUserId(token));
+        return Result.success();
     }
-}

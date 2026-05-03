@@ -5,7 +5,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.sadna.group13a.application.Result;
-import com.sadna.group13a.domain.Aggregates.Company.Company;
+import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
@@ -17,10 +17,10 @@ import com.sadna.group13a.domain.Interfaces.IUserRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
-
-
-public class EventService 
+@Service
+public class EventService
 {
     private static final Logger logger = LoggerFactory.getLogger(EventService.class);
     private final IEventRepository eventRepository;
@@ -46,15 +46,15 @@ public class EventService
             return Result.failure("Unauthorized: Invalid token.");
         }
         String initiatorId = authGateway.extractUserId(tokenString);
-        Optional<Company> compOpt = companyRepository.findById(companyId);
+        Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
         if (compOpt.isEmpty()) return Result.failure("Company not found");
-        
-        Company company = compOpt.get();
+
+        ProductionCompany company = compOpt.get();
         if (!company.hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
             return Result.failure("User lacks permission to manage events");
         }
 
-        Event event = new Event(UUID.randomUUID().toString(), companyId, title, description, date, category);
+        Event event = new Event(UUID.randomUUID().toString(), title, description, companyId, date, category);
         eventRepository.save(event);
         return Result.success(event.getId());
     }
@@ -72,7 +72,7 @@ public class EventService
         if (eventOpt.isEmpty()) return Result.failure("Event not found");
         
         Event event = eventOpt.get();
-        Optional<Company> compOpt = companyRepository.findById(event.getCompanyId());
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
         if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
             return Result.failure("User lacks permission to publish this event");
         }
@@ -121,7 +121,7 @@ public class EventService
         if (eventOpt.isEmpty()) return Result.failure("Event not found");
         
         Event event = eventOpt.get();
-        Optional<Company> compOpt = companyRepository.findById(event.getCompanyId());
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
         if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
             return Result.failure("User lacks permission to manage events");
         }
@@ -146,7 +146,7 @@ public class EventService
         if (eventOpt.isEmpty()) return Result.failure("Event not found");
         
         Event event = eventOpt.get();
-        Optional<Company> compOpt = companyRepository.findById(event.getCompanyId());
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
         if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
             return Result.failure("User lacks permission to manage events");
         }
@@ -166,7 +166,7 @@ public class EventService
         if (eventOpt.isEmpty()) return Result.failure("Event not found");
         
         Event event = eventOpt.get();
-        Optional<Company> compOpt = companyRepository.findById(event.getCompanyId());
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
         if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
             return Result.failure("User lacks permission to manage events");
         }
