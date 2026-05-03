@@ -1,0 +1,154 @@
+package com.sadna.group13a.domain.Aggregates.TicketQueue;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Aggregate Root for the virtual waiting queue of a single event.
+ * Controls how many users can access the ticket-selection screen concurrently.
+ * Pure domain logic — no framework dependencies.
+ */
+public class TicketQueue {
+
+    private final String eventId;
+    private int maxConcurrentUsers;
+
+    // userId -> granted ticket (with expiry). Expired entries are lazily evicted.
+    private final Map<String, QueueTicket> activeUsers;
+    private final LinkedList<QueueTicket> waitingUsers;
+
+    public TicketQueue(String eventId, int maxConcurrentUsers) {
+        if (maxConcurrentUsers < 1) throw new IllegalArgumentException("maxConcurrentUsers must be >= 1");
+        this.eventId = eventId;
+        this.maxConcurrentUsers = maxConcurrentUsers;
+        this.activeUsers = new ConcurrentHashMap<>();
+        this.waitingUsers = new LinkedList<>();
+    }
+
+    // ── Commands ──────────────────────────────────────────────────
+
+    /**
+     * Adds a user to the end of the waiting list.
+     * Throws if they are already active or already waiting.
+     */
+    public void joinQueue(String userId) {
+        evictExpiredActiveUsers();
+
+        if (activeUsers.containsKey(userId)) {
+            throw new IllegalArgumentException("User is already active and allowed to purchase.");
+        }
+        if (waitingUsers.stream().anyMatch(t -> t.getUserId().equals(userId))) {
+            throw new IllegalArgumentException("User is already in the waiting queue.");
+        }
+
+        int newPosition = waitingUsers.size() + 1;
+        waitingUsers.add(new QueueTicket(userId, newPosition));
+    }
+
+    /**
+     * Admits up to batchSize users from the front of the waiting list, respecting maxConcurrentUsers.
+     * Returns the list of newly admitted tickets so their expiry times can be communicated.
+     */
+    public List<QueueTicket> processBatch(int batchSize, int validMinutes) {
+        evictExpiredActiveUsers();
+
+        int availableSlots = maxConcurrentUsers - activeUsers.size();
+        int toProcess = Math.min(Math.min(batchSize, availableSlots), waitingUsers.size());
+
+        List<QueueTicket> granted = new ArrayList<>();
+        for (int i = 0; i < toProcess; i++) {
+            QueueTicket ticket = waitingUsers.poll();
+            if (ticket != null) {
+                ticket.grantAccess(validMinutes);
+                activeUsers.put(ticket.getUserId(), ticket);
+                granted.add(ticket);
+            }
+        }
+
+        int admitted = granted.size();
+        for (QueueTicket t : waitingUsers) {
+            t.decrementPosition(admitted);
+        }
+
+        return granted;
+    }
+
+    /**
+     * Removes a user from the active set (e.g. they finished or abandoned checkout).
+     */
+    public void removeActiveUser(String userId) {
+        activeUsers.remove(userId);
+    }
+
+    /**
+     * Admin operation: clears all waiting and active users.
+     */
+    public void clearQueue() {
+        waitingUsers.clear();
+        activeUsers.clear();
+    }
+
+    /**
+     * Admin operation: adjusts the maximum concurrent user limit.
+     */
+    public void adjustMaxConcurrentUsers(int newMax) {
+        if (newMax < 1) throw new IllegalArgumentException("Max concurrent users must be at least 1.");
+        this.maxConcurrentUsers = newMax;
+    }
+
+    // ── Queries ───────────────────────────────────────────────────
+
+    public boolean isUserActive(String userId) {
+        QueueTicket ticket = activeUsers.get(userId);
+        if (ticket == null) return false;
+        if (!ticket.hasAccess()) {
+            activeUsers.remove(userId);
+            return false;
+        }
+        return true;
+    }
+
+    /** Returns the active ticket for a user if they have valid access. */
+    public Optional<QueueTicket> getActiveTicket(String userId) {
+        QueueTicket ticket = activeUsers.get(userId);
+        if (ticket == null) return Optional.empty();
+        if (!ticket.hasAccess()) {
+            activeUsers.remove(userId);
+            return Optional.empty();
+        }
+        return Optional.of(ticket);
+    }
+
+    /** Returns the waiting ticket for a user if they are still in line. */
+    public Optional<QueueTicket> getWaitingTicket(String userId) {
+        return waitingUsers.stream()
+                .filter(t -> t.getUserId().equals(userId))
+                .findFirst();
+    }
+
+    public int getWaitingCount() { return waitingUsers.size(); }
+    public int getActiveCount() { return activeUsers.size(); }
+    public String getEventId() { return eventId; }
+    public int getMaxConcurrentUsers() { return maxConcurrentUsers; }
+
+    public Set<String> getActiveUserIds() {
+        evictExpiredActiveUsers();
+        return Collections.unmodifiableSet(activeUsers.keySet());
+    }
+
+    public List<QueueTicket> getWaitingUsers() {
+        return Collections.unmodifiableList(waitingUsers);
+    }
+
+    // ── Private helpers ───────────────────────────────────────────
+
+    private void evictExpiredActiveUsers() {
+        activeUsers.entrySet().removeIf(e -> !e.getValue().hasAccess());
+    }
+}
