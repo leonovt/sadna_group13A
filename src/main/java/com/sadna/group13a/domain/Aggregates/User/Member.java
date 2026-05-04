@@ -28,7 +28,8 @@ public class Member extends User {
 
     // ── Authentication & Session ──────────────────────────────────
 
-    public String getPasswordHash() {
+    @Override
+    public String getHashedPassword() {
         return passwordHash;
     }
 

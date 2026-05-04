@@ -1,20 +1,16 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
-<<<<<<< HEAD
-import com.sadna.group13a.domain.shared.SeatStatus;
-import com.sadna.group13a.domain.shared.SeatUnavailableException;
-
-=======
->>>>>>> origin/feature/application-layer
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
-<<<<<<< HEAD
-=======
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
 
->>>>>>> origin/feature/application-layer
+import com.sadna.group13a.domain.shared.SeatUnavailableException;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
 /**
  * Entity within the Event aggregate — represents a single numbered seat
  * in a SEATED zone.
@@ -178,8 +174,5 @@ public class Seat {
         this.heldByUserId = null;
         this.holdExpiresAt = null;
     }
-<<<<<<< HEAD
 }
-=======
 }
->>>>>>> origin/feature/application-layer

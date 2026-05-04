@@ -20,6 +20,7 @@ public class ProductionCompany {
 
     private final String id;
     private String name;
+    private String description;
     private CompanyStatus status;
     
     // userId -> CompanyStaffMember
@@ -31,7 +32,7 @@ public class ProductionCompany {
     private final List<PurchasePolicy> purchasePolicies;
     private final List<DiscountPolicy> discountPolicies;
 
-    public ProductionCompany(String id, String name, String ownerId) {
+    public ProductionCompany(String id, String name, String description, String ownerId) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Company id cannot be null or blank");
         }
@@ -44,6 +45,7 @@ public class ProductionCompany {
 
         this.id = id;
         this.name = name;
+        this.description = description != null ? description : "";
         this.status = CompanyStatus.ACTIVE;
         this.staff = new ConcurrentHashMap<>();
         this.pendingAppointments = new ConcurrentHashMap<>();
@@ -61,6 +63,14 @@ public class ProductionCompany {
 
     public String getName() {
         return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description != null ? description : "";
     }
 
     public void setName(String name) {
@@ -82,6 +92,24 @@ public class ProductionCompany {
         if (!isFounder(actingUserId)) {
             throw new DomainException("Only the founder can suspend or close the company");
         }
+        this.status = CompanyStatus.INACTIVE;
+    }
+
+    /**
+     * Admin override: removes a staff member and their entire subtree without permission checks.
+     * Called when a user is banned system-wide.
+     */
+    public void forceRemoveStaff(String userId) {
+        if (staff.containsKey(userId)) {
+            removeSubtree(userId);
+        }
+    }
+
+    /**
+     * Admin override: force-closes the company without a founder check.
+     * Only called from AdminService after verifying admin authority.
+     */
+    public void forceClose() {
         this.status = CompanyStatus.INACTIVE;
     }
 
@@ -158,6 +186,13 @@ public class ProductionCompany {
 
     public boolean isManager(String userId) {
         return staff.containsKey(userId);
+    }
+
+    public boolean hasPermission(String userId, CompanyPermission permission) {
+        CompanyStaffMember member = staff.get(userId);
+        if (member == null) return false;
+        if (CompanyRole.FOUNDER.equals(member.getRole()) || CompanyRole.OWNER.equals(member.getRole())) return true;
+        return member.getPermissions().contains(permission);
     }
 
     /**

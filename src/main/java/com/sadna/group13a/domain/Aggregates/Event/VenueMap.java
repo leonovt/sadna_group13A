@@ -1,16 +1,12 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
-<<<<<<< HEAD
-import com.sadna.group13a.domain.shared.EntityNotFoundException;
-
-import java.util.*;
-
-=======
 import java.util.*;
 
 import com.sadna.group13a.domain.shared.EntityNotFoundException;
 
->>>>>>> origin/feature/application-layer
+import com.sadna.group13a.domain.shared.EntityNotFoundException;
+
+import java.util.*;
 /**
  * Entity within the Event aggregate — represents the physical layout
  * of a venue, composed of {@link Zone}s.
@@ -79,8 +75,5 @@ public class VenueMap {
     public int getTotalAvailable() {
         return zones.stream().mapToInt(Zone::getAvailableSeatCount).sum();
     }
-<<<<<<< HEAD
 }
-=======
 }
->>>>>>> origin/feature/application-layer

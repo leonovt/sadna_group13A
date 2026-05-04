@@ -1,8 +1,5 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
-import com.sadna.group13a.domain.shared.UserRole;
-import com.sadna.group13a.domain.shared.UserState;
-
 import java.util.UUID;
 
 /**
@@ -80,6 +77,11 @@ public abstract class User {
      * Returns the role of this user. Each subclass provides its own value.
      */
     public abstract UserRole getRole();
+
+    /**
+     * Returns the stored password hash. Guest users have no password and return null.
+     */
+    public abstract String getHashedPassword();
 
     // ── Domain-level authorization ────────────────────────────────
 

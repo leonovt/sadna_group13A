@@ -1,7 +1,6 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
 import com.sadna.group13a.domain.shared.AuthenticationException;
-import com.sadna.group13a.domain.shared.UserRole;
 
 /**
  * Administrator — has all Member capabilities plus system management.
@@ -32,7 +31,8 @@ public class Admin extends User {
 
     // ── Authentication & Session ──────────────────────────────────
 
-    public String getPasswordHash() {
+    @Override
+    public String getHashedPassword() {
         return passwordHash;
     }
 

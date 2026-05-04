@@ -1,5 +1,8 @@
 package com.sadna.group13a.application.DTO;
 
-public record RaffleRegistrationDTO() {
-
-}
+/**
+ * Input DTO: Catches the request from a user wanting to join a raffle.
+ */
+public record RaffleRegistrationDTO(
+    String raffleId
+) {}

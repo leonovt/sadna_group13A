@@ -30,10 +30,9 @@ public class UserService
     private final IAuth authGateway;
     private final IPasswordEncoder passwordEncoder;
     private final IOrderHistoryRepository historyRepository;
-
     private final ObjectMapper objectMapper;
 
-    public UserService(IUserRepository userRepository, IAuth authGateway, IPasswordEncoder passwordEncoder, IOrderHistoryRepository historyRepository, ObjectMapper objectMapper) 
+    public UserService(IUserRepository userRepository, IAuth authGateway, IPasswordEncoder passwordEncoder, IOrderHistoryRepository historyRepository, ObjectMapper objectMapper)
     {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
@@ -139,3 +138,40 @@ public class UserService
         logger.info("User {} logged out.", authGateway.extractUserId(token));
         return Result.success();
     }
+
+    public Result<UserDTO> updateProfile(String token, String newUsername) {
+        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
+        if (newUsername == null || newUsername.isBlank()) return Result.failure("Username cannot be blank.");
+
+        String userId = authGateway.extractUserId(token);
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) return Result.failure("User not found.");
+
+        if (userRepository.findByUsername(newUsername).isPresent()) return Result.failure("Username already taken.");
+
+        User user = userOpt.get();
+        user.setUsername(newUsername);
+        userRepository.save(user);
+
+        logger.info("User {} changed username to '{}'.", userId, newUsername);
+        return Result.success(objectMapper.convertValue(user, UserDTO.class));
+    }
+
+    public Result<List<OrderHistoryDTO>> viewOrderHistory(String token)
+    {
+        if(!authGateway.validateToken(token)) 
+        {
+            logger.warn("Unauthorized order history access attempt with invalid token.");
+            return Result.failure("Unauthorized.");
+        }
+        String userId = authGateway.extractUserId(token);
+        
+        List<OrderHistory> histories = historyRepository.findByUserId(userId);
+
+        List<OrderHistoryDTO> dtos = histories.stream()
+            .map(history -> objectMapper.convertValue(history, OrderHistoryDTO.class))
+            .collect(Collectors.toList());
+
+        return Result.success(dtos);
+    }
+}

@@ -19,8 +19,10 @@ public interface IOrderHistoryRepository
     List<OrderHistory> findByUserId(String userId);
     
     /**
-     * Retrieves all receipts that contain at least one item 
+     * Retrieves all receipts that contain at least one item
      * belonging to the specified company. Used for Sales Reports.
      */
     List<OrderHistory> findByCompanyId(String companyId);
+
+    List<OrderHistory> findAll();
 }

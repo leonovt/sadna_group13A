@@ -56,6 +56,7 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Jackson for DTO mapping -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

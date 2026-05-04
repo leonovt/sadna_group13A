@@ -36,4 +36,8 @@ public class OrderHistory {
     public LocalDateTime getPurchaseDate() { return purchaseDate; }
     public double getTotalPaid() { return totalPaid; }
     public List<OrderHistoryItem> getItems() { return items; }
+
+    public boolean containsItemFromCompany(String companyId) {
+        return items.stream().anyMatch(i -> i.getCompanyId().equals(companyId));
+    }
 }

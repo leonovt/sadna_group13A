@@ -1,7 +1,5 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
-import com.sadna.group13a.domain.shared.UserRole;
-
 /**
  * Guest user — unauthenticated visitor.
  * Can browse and search events but cannot purchase or manage anything.
@@ -20,6 +18,11 @@ public class Guest extends User {
     @Override
     public UserRole getRole() {
         return UserRole.GUEST;
+    }
+
+    @Override
+    public String getHashedPassword() {
+        return null;
     }
 
     // Guests cannot purchase or manage — defaults from User (false) apply

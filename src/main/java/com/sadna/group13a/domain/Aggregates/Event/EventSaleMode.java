@@ -5,5 +5,6 @@ package com.sadna.group13a.domain.Aggregates.Event;
  */
 public enum EventSaleMode {
     REGULAR,
+    QUEUE,
     RAFFLE
 }
