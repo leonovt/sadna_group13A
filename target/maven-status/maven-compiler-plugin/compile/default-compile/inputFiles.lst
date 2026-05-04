@@ -1,11 +1,108 @@
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\UserRole.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\PermissionDeniedException.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\UserState.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\DomainException.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\SeatUnavailableException.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\SeatStatus.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\ZoneType.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\OrderStatus.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\AuthenticationException.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\domain\shared\EntityNotFoundException.java
-C:\Users\idodi\Documents\SoftWare_Eng\sadna\sadna_group13A\src\main\java\com\sadna\group13a\SadnaApplication.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Interfaces/IEventRepository.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/StaffMemberDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Services/UserService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/OrderHistory/OrderHistory.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Events/RaffleDrawnEvent.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Services/EventService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Interfaces/IOrderHistoryRepository.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/TicketQueue/TicketQueue.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Services/OrderService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/SystemAnalyticsDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/SeatStatus.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/UserDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/User/Guest.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/User/UserType.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Raffle/RaffleStatus.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Company/CompanyStaffMember.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Events/OrderCompletedEvent.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/User/Member.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Interfaces/IAuth.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Company/ProductionCompany.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Event/ZoneType.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/User/UserState.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Events/CompanyClosedByAdminEvent.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/EntityNotFoundException.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Result.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Interfaces/IPasswordEncoder.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Services/RaffleService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Event/EventSaleMode.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Interfaces/INotificationService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/DomainException.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/EventListeners/CompanyEventListener.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Services/CompanyService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Interfaces/IOrderQueueRepository.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Company/AppointmentRequest.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Event/StandingZone.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Event/SeatStatus.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/OrderDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/EventListeners/NotificationEventListener.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Company/CompanyPermission.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/AuthenticationException.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/RepositoryImpl/UserRepositoryImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/StubTicketSupplier.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/DomainServices/CheckoutDomainService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/RaffleDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/RepositoryImpl/AdminRepositoryImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/UserState.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/StubPaymentGateway.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/EventDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/PurchasePolicy.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Event/Seat.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/PasswordEncoderImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/User/Admin.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/RepositoryImpl/EventRepositoryImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/User/User.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/RepositoryImpl/OrderHistoryRepositoryImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/User/UserRole.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Event/SeatedZone.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/AuthImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Raffle/Raffle.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Interfaces/ITicketSupplier.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Events/QueueTurnArrivedEvent.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Interfaces/IActiveOrderRepository.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/RaffleResultDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/TicketQueue/QueueTicket.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/RepositoryImpl/QueueRepositoryImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/WinningTicketDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/ActiveOrder/OrderItem.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/SalesReportDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Event/VenueMap.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Interfaces/IQueueRepository.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Event/Event.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/OrderHistory/OrderItem.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/SadnaApplication.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/AdminActionRequestDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/DiscountPolicy.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Company/CompanyStatus.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Interfaces/IPaymentGateway.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Interfaces/ICompanyRepository.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Services/AdminService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/CompanyDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/OrderStatus.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/OrderHistoryItemDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Interfaces/IRaffleRepository.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/OrderHistory/OrderHistoryItem.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/OrderItemDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/ZoneType.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/UserRole.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/RepositoryImpl/CompanyRepositoryImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/RepositoryImpl/OrderQueueRepositoryImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Company/CompanyRole.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Services/QueueService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/PermissionDeniedException.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/RepositoryImpl/ActiveOrderRepositoryImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/RepositoryImpl/RaffleRepositoryImpl.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/shared/SeatUnavailableException.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/PlatformBootstrap.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Interfaces/IAdminRepository.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/QueueStatusDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Event/Zone.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/RaffleRegistrationDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/ActiveOrder/ActiveOrder.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Events/UserBannedEvent.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Interfaces/IUserRepository.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/Aggregates/Raffle/AuthorizationCode.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/Services/SystemService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/infrastructure/InMemoryNotificationService.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/application/DTO/OrderHistoryDTO.java
+/home/amit/university/year 3/Sadna/sadna_group13A/src/main/java/com/sadna/group13a/domain/DomainServices/TicketingAccessDomainService.java
