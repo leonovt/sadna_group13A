@@ -1,6 +1,5 @@
 package com.sadna.group13a.acceptance;
 
-import com.sadna.group13a.application.DTO.OrderDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Result;

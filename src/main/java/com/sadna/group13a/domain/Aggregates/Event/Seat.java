@@ -1,11 +1,5 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.UUID;
-
-import com.sadna.group13a.domain.shared.SeatUnavailableException;
-
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
 
 import java.time.Duration;
@@ -174,5 +168,4 @@ public class Seat {
         this.heldByUserId = null;
         this.holdExpiresAt = null;
     }
-}
 }

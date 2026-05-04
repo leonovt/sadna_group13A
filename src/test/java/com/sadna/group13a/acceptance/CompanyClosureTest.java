@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
-import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -142,7 +140,7 @@ class CompanyClosureTest {
     void GivenWrongPassword_ThenClosureDenied() {
         String token = "founder_token";
         String founderId = "founder1";
-        String companyId = "company1";
+
         
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(founderId);

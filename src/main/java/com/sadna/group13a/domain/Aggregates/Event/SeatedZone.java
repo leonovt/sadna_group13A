@@ -4,13 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Collections;
-import java.util.Optional;
-
-
-
 /**
  * A zone composed of individual assigned seats.
  */
@@ -61,5 +54,4 @@ public class SeatedZone extends Zone {
                 .filter(s -> s.getEffectiveStatus() == SeatStatus.SOLD)
                 .count();
     }
-}
 }

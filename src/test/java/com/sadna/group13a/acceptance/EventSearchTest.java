@@ -119,7 +119,7 @@ class EventSearchTest {
 
         assertTrue(result.isSuccess());
         assertEquals(1, result.getOrThrow().size());
-        assertEquals(targetDate, result.getOrThrow().get(0).date());
+        assertEquals(targetDate, result.getOrThrow().get(0).eventDate());
     }
 
     @Test

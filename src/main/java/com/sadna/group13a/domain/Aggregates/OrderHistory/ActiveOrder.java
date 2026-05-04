@@ -1,7 +1,8 @@
 package com.sadna.group13a.domain.Aggregates.OrderHistory;
 
+import com.sadna.group13a.domain.Aggregates.User.UserRole;
 import com.sadna.group13a.domain.shared.DomainException;
-import com.sadna.group13a.domain.shared.UserRole;
+
 import com.sadna.group13a.domain.shared.OrderStatus;
 
 import java.time.LocalDateTime;

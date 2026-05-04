@@ -2,7 +2,6 @@ package com.sadna.group13a.acceptance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.DTO.CompanyDTO;
-import com.sadna.group13a.application.DTO.StaffMemberDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
@@ -13,6 +12,7 @@ import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

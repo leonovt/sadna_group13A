@@ -1,9 +1,5 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
-import java.util.*;
-
-import com.sadna.group13a.domain.shared.EntityNotFoundException;
-
 import com.sadna.group13a.domain.shared.EntityNotFoundException;
 
 import java.util.*;
@@ -75,5 +71,4 @@ public class VenueMap {
     public int getTotalAvailable() {
         return zones.stream().mapToInt(Zone::getAvailableSeatCount).sum();
     }
-}
 }

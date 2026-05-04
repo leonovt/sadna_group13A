@@ -4,7 +4,6 @@ import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.AdminService;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
-import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.User.Admin;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
