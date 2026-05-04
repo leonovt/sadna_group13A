@@ -30,10 +30,9 @@ public class UserService
     private final IAuth authGateway;
     private final IPasswordEncoder passwordEncoder;
     private final IOrderHistoryRepository historyRepository;
-
     private final ObjectMapper objectMapper;
 
-    public UserService(IUserRepository userRepository, IAuth authGateway, IPasswordEncoder passwordEncoder, IOrderHistoryRepository historyRepository, ObjectMapper objectMapper) 
+    public UserService(IUserRepository userRepository, IAuth authGateway, IPasswordEncoder passwordEncoder, IOrderHistoryRepository historyRepository, ObjectMapper objectMapper)
     {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
