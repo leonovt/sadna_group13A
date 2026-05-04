@@ -1,0 +1,215 @@
+package com.sadna.group13a.application.Services;
+
+import com.sadna.group13a.application.DTO.EventDTO;
+import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.application.Result;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
+import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
+import com.sadna.group13a.domain.Aggregates.Event.Event;
+import com.sadna.group13a.domain.Aggregates.Event.Seat;
+import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
+import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
+import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
+import com.sadna.group13a.domain.Interfaces.IEventRepository;
+import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class EventServiceTest {
+
+    @Mock private IEventRepository eventRepository;
+    @Mock private ICompanyRepository companyRepository;
+    @Mock private IAuth authGateway;
+    @Mock private IUserRepository userRepository;
+
+    @InjectMocks
+    private EventService eventService;
+
+    private static final String TOKEN      = "valid-token";
+    private static final String FOUNDER_ID = "founder-1";
+    private static final String COMPANY_ID = "co-1";
+    private static final LocalDateTime FUTURE = LocalDateTime.now().plusDays(30);
+
+    private ProductionCompany company;
+
+    @BeforeEach
+    void setUp() {
+        // Founder has all permissions including MANAGE_EVENTS
+        company = new ProductionCompany(COMPANY_ID, "Acme", "Desc", FOUNDER_ID);
+
+        lenient().when(authGateway.validateToken(TOKEN)).thenReturn(true);
+        lenient().when(authGateway.extractUserId(TOKEN)).thenReturn(FOUNDER_ID);
+        lenient().when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+    }
+
+    // ── createEvent ───────────────────────────────────────────────
+
+    @Test
+    void givenInvalidToken_whenCreateEvent_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+
+        Result<String> result = eventService.createEvent("bad", COMPANY_ID, "Concert", "Desc", FUTURE, "Music");
+
+        assertFalse(result.isSuccess());
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    void givenCompanyNotFound_whenCreateEvent_thenReturnsFailure() {
+        when(companyRepository.findById("missing")).thenReturn(Optional.empty());
+
+        Result<String> result = eventService.createEvent(TOKEN, "missing", "Concert", "Desc", FUTURE, "Music");
+
+        assertFalse(result.isSuccess());
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    void givenUserWithoutManageEventsPermission_whenCreateEvent_thenReturnsFailure() {
+        when(authGateway.extractUserId(TOKEN)).thenReturn("outsider");
+
+        // outsider is not in the company — hasPermission returns false
+        Result<String> result = eventService.createEvent(TOKEN, COMPANY_ID, "Concert", "Desc", FUTURE, "Music");
+
+        assertFalse(result.isSuccess());
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    void givenFounderWithPermission_whenCreateEvent_thenEventSavedAndIdReturned() {
+        Result<String> result = eventService.createEvent(TOKEN, COMPANY_ID, "Rock Night", "Desc", FUTURE, "Music");
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData().get()); // event ID returned
+        verify(eventRepository).save(any(Event.class));
+    }
+
+    // ── publishEvent ──────────────────────────────────────────────
+
+    @Test
+    void givenInvalidToken_whenPublishEvent_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+
+        assertFalse(eventService.publishEvent("bad", "ev-1").isSuccess());
+    }
+
+    @Test
+    void givenEventNotFound_whenPublishEvent_thenReturnsFailure() {
+        when(eventRepository.findById("ghost")).thenReturn(Optional.empty());
+
+        assertFalse(eventService.publishEvent(TOKEN, "ghost").isSuccess());
+    }
+
+    @Test
+    void givenEventWithNoVenueMap_whenPublishEvent_thenReturnsFailure() {
+        Event event = new Event("ev-1", "Concert", "Desc", COMPANY_ID, FUTURE, "Music");
+        when(eventRepository.findById("ev-1")).thenReturn(Optional.of(event));
+
+        // publish() throws DomainException because no VenueMap set
+        Result<Void> result = eventService.publishEvent(TOKEN, "ev-1");
+
+        assertFalse(result.isSuccess());
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    void givenEventWithVenueMap_whenPublishEvent_thenEventPublishedAndSaved() {
+        Event event = buildEventWithVenueMap("ev-2");
+        when(eventRepository.findById("ev-2")).thenReturn(Optional.of(event));
+
+        Result<Void> result = eventService.publishEvent(TOKEN, "ev-2");
+
+        assertTrue(result.isSuccess());
+        assertTrue(event.isPublished());
+        verify(eventRepository).save(event);
+    }
+
+    // ── getEvent ──────────────────────────────────────────────────
+
+    @Test
+    void givenInvalidToken_whenGetEvent_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+
+        assertFalse(eventService.getEvent("bad", "ev-1").isSuccess());
+    }
+
+    @Test
+    void givenEventNotFound_whenGetEvent_thenReturnsFailure() {
+        when(eventRepository.findById("ghost")).thenReturn(Optional.empty());
+
+        assertFalse(eventService.getEvent(TOKEN, "ghost").isSuccess());
+    }
+
+    @Test
+    void givenExistingEvent_whenGetEvent_thenReturnsDtoSuccessfully() {
+        Event event = new Event("ev-3", "Jazz Night", "Desc", COMPANY_ID, FUTURE, "Music");
+        when(eventRepository.findById("ev-3")).thenReturn(Optional.of(event));
+
+        Result<EventDTO> result = eventService.getEvent(TOKEN, "ev-3");
+
+        assertTrue(result.isSuccess());
+        assertEquals("Jazz Night", result.getData().get().title());
+    }
+
+    // ── unpublishEvent ────────────────────────────────────────────
+
+    @Test
+    void givenPublishedEvent_whenUnpublish_thenEventUnpublishedAndSaved() {
+        Event event = buildEventWithVenueMap("ev-4");
+        event.publish();
+        when(eventRepository.findById("ev-4")).thenReturn(Optional.of(event));
+
+        Result<Void> result = eventService.unpublishEvent(TOKEN, "ev-4");
+
+        assertTrue(result.isSuccess());
+        assertFalse(event.isPublished());
+        verify(eventRepository).save(event);
+    }
+
+    // ── searchEvents ──────────────────────────────────────────────
+
+    @Test
+    void givenInvalidToken_whenSearchEvents_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+
+        assertFalse(eventService.searchEvents("bad", "jazz", null).isSuccess());
+    }
+
+    @Test
+    void givenPublishedEvents_whenSearchByTitle_thenReturnsMatchingEvents() {
+        Event jazz = buildEventWithVenueMap("ev-5");
+        jazz.publish();
+        Event rock = new Event("ev-6", "Rock Night", "Desc", COMPANY_ID, FUTURE, "Music");
+
+        when(eventRepository.findAll()).thenReturn(List.of(jazz, rock));
+
+        Result<List<EventDTO>> result = eventService.searchEvents(TOKEN, "jazz", null);
+
+        assertTrue(result.isSuccess());
+        // only the published jazz event matches (ev-6 is unpublished and won't appear)
+        assertEquals(1, result.getData().get().size());
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+
+    private Event buildEventWithVenueMap(String id) {
+        Event event = new Event(id, "Jazz Night", "Desc", COMPANY_ID, FUTURE, "Music");
+        VenueMap vm = new VenueMap("vm-" + id, "Arena");
+        vm.addZone(new SeatedZone("z-1", "VIP", 100.0, List.of(new Seat("s-1", "A-1"))));
+        event.setVenueMap(vm);
+        return event;
+    }
+}
