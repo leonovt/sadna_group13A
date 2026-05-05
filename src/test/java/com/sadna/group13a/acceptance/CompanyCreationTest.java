@@ -47,7 +47,8 @@ class CompanyCreationTest {
         authGateway = mock(IAuth.class);
         objectMapper = mock(ObjectMapper.class);
 
-        companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway, objectMapper);
+        companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
+                objectMapper);
     }
 
     @Nested
@@ -59,20 +60,20 @@ class CompanyCreationTest {
         void GivenAuthenticatedMember_WhenCreatingCompany_ThenCompanyCreatedWithFounder() {
             String token = "valid_token";
             String userId = "user100";
-            
+
             when(authGateway.validateToken(token)).thenReturn(true);
             when(authGateway.extractUserId(token)).thenReturn(userId);
-            
+
             Member member = new Member(userId, "founder_dude", "hash");
             when(userRepository.findById(userId)).thenReturn(Optional.of(member));
 
             Result<Boolean> result = companyService.createCompany(token, "My Unique Company", "Company Description");
 
             assertTrue(result.isSuccess(), "Company creation should be successful");
-            
+
             ArgumentCaptor<ProductionCompany> companyCaptor = ArgumentCaptor.forClass(ProductionCompany.class);
             verify(companyRepository).save(companyCaptor.capture());
-            
+
             ProductionCompany savedCompany = companyCaptor.getValue();
             assertEquals("My Unique Company", savedCompany.getName());
             assertTrue(savedCompany.getStaff().containsKey(userId));
@@ -85,22 +86,24 @@ class CompanyCreationTest {
             // Without defaults, ticket sales would fail at checkout
             String token = "valid_token";
             String userId = "user100";
-            
+
             when(authGateway.validateToken(token)).thenReturn(true);
             when(authGateway.extractUserId(token)).thenReturn(userId);
-            
+
             Member member = new Member(userId, "founder_dude", "hash");
             when(userRepository.findById(userId)).thenReturn(Optional.of(member));
 
             companyService.createCompany(token, "Awesome Policies Inc", "Desc");
-            
+
             ArgumentCaptor<ProductionCompany> companyCaptor = ArgumentCaptor.forClass(ProductionCompany.class);
             verify(companyRepository).save(companyCaptor.capture());
-            
+
             ProductionCompany savedCompany = companyCaptor.getValue();
-            
-            // Note: Since this implementation depends on another branch, we simulate examining the saved company's policies.
-            // If the methods getPurchasePolicies() or getDiscountPolicies() existed, we would assert they are not null.
+
+            // Note: Since this implementation depends on another branch, we simulate
+            // examining the saved company's policies.
+            // If the methods getPurchasePolicies() or getDiscountPolicies() existed, we
+            // would assert they are not null.
             assertNotNull(savedCompany, "Company must be created with implicit default policies initialized.");
         }
 
@@ -109,22 +112,23 @@ class CompanyCreationTest {
         void GivenCompanyCreated_ThenFounderHasImmediateManagementAccess() {
             String token = "valid_token";
             String userId = "user100";
-            
+
             when(authGateway.validateToken(token)).thenReturn(true);
             when(authGateway.extractUserId(token)).thenReturn(userId);
-            
+
             Member member = new Member(userId, "founder_dude", "hash");
             when(userRepository.findById(userId)).thenReturn(Optional.of(member));
 
             companyService.createCompany(token, "Immediate Access Co", "Desc");
-            
+
             ArgumentCaptor<ProductionCompany> companyCaptor = ArgumentCaptor.forClass(ProductionCompany.class);
             verify(companyRepository).save(companyCaptor.capture());
             ProductionCompany company = companyCaptor.getValue();
 
-            // Simulate the immediate availability to fetch company details through an authorized request
+            // Simulate the immediate availability to fetch company details through an
+            // authorized request
             when(companyRepository.findById(company.getId())).thenReturn(Optional.of(company));
-            
+
             Result<CompanyDTO> resultDto = companyService.getCompany(token, company.getId());
             assertTrue(resultDto.isSuccess());
             assertEquals(userId, resultDto.getOrThrow().founderId());
@@ -138,19 +142,22 @@ class CompanyCreationTest {
         @Test
         @DisplayName("Given company name already exists — When creating — Then creation rejected with error")
         void GivenDuplicateName_WhenCreating_ThenRejected() {
-            // Assume the ICompanyRepository logic to check for duplication resides in another branch or layer
+            // Assume the ICompanyRepository logic to check for duplication resides in
+            // another branch or layer
             String token = "valid_token";
             String userId = "user100";
-            
+
             when(authGateway.validateToken(token)).thenReturn(true);
             when(authGateway.extractUserId(token)).thenReturn(userId);
-            
+
             Member member = new Member(userId, "founder_dude", "hash");
             when(userRepository.findById(userId)).thenReturn(Optional.of(member));
 
-            // Simulating internal duplication check failure during creation saving logic from another branch
-            doThrow(new RuntimeException("Company name must be unique")).when(companyRepository).save(any(ProductionCompany.class));
-            
+            // Simulating internal duplication check failure during creation saving logic
+            // from another branch
+            doThrow(new RuntimeException("Company name must be unique")).when(companyRepository)
+                    .save(any(ProductionCompany.class));
+
             Result<Boolean> result = Result.failure("Company name already exists");
             try {
                 // If company repository threw an exception it would be handled/propagated.
@@ -158,9 +165,10 @@ class CompanyCreationTest {
             } catch (RuntimeException e) {
                 result = Result.failure(e.getMessage());
             }
-            
+
             assertFalse(result.isSuccess(), "Should fail if company name already exists");
-            assertTrue(result.getErrorMessage().contains("already exists") || result.getErrorMessage().contains("unique"));
+            assertTrue(
+                    result.getErrorMessage().contains("already exists") || result.getErrorMessage().contains("unique"));
         }
 
         @Test

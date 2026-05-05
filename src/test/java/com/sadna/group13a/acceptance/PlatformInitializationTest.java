@@ -22,7 +22,8 @@ import static org.mockito.Mockito.*;
  * Acceptance tests for UC 1.1: Platform Initialization.
  *
  * Verifies that the system initializes correctly: validates config files,
- * creates default admin if none exists, and verifies external provider connectivity.
+ * creates default admin if none exists, and verifies external provider
+ * connectivity.
  */
 @DisplayName("UC 1.1 — Platform Initialization")
 class PlatformInitializationTest {
@@ -42,7 +43,8 @@ class PlatformInitializationTest {
         ticketingGateway = mock(ITicketSupplier.class);
         passwordEncoder = mock(IPasswordEncoder.class);
 
-        systemService = new SystemService(userRepository, authGateway, paymentGateway, ticketingGateway, passwordEncoder);
+        systemService = new SystemService(userRepository, authGateway, paymentGateway, ticketingGateway,
+                passwordEncoder);
     }
 
     @Nested
@@ -135,7 +137,8 @@ class PlatformInitializationTest {
         @Test
         @DisplayName("Given invalid config file — When initializing — Then initialization fails")
         void GivenInvalidConfig_WhenInitializing_ThenInitializationFails() {
-            // Note: Since config paths aren't explicitly passed to SystemService in this version,
+            // Note: Since config paths aren't explicitly passed to SystemService in this
+            // version,
             // we trust it binds property fields or handles invalid initialization logic.
             // Placeholder/dummy test.
             assertTrue(true);

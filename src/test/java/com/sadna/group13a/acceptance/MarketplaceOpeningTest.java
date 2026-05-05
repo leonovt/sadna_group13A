@@ -12,7 +12,8 @@ import static org.mockito.Mockito.*;
 /**
  * Acceptance tests for UC 1.2: Opening the Marketplace.
  *
- * Verifies that the system opens public access only after all health checks pass,
+ * Verifies that the system opens public access only after all health checks
+ * pass,
  * and blocks opening if payment providers are unavailable.
  */
 @DisplayName("UC 1.2 — Opening the Marketplace")
@@ -34,12 +35,12 @@ class MarketplaceOpeningTest {
         @DisplayName("Given system is INITIALIZED and all health checks pass — When opening marketplace — Then status becomes OPEN")
         void GivenInitializedSystem_WhenOpening_ThenStatusIsOpen() {
             String adminId = "admin123";
-            
+
             when(marketplaceService.getSystemStatus()).thenReturn("INITIALIZED");
             when(marketplaceService.openMarketplace(adminId)).thenReturn(Result.success());
-            
+
             Result<Void> result = marketplaceService.openMarketplace(adminId);
-            
+
             assertTrue(result.isSuccess(), "Marketplace should open successfully");
             when(marketplaceService.getSystemStatus()).thenReturn("OPEN");
             assertEquals("OPEN", marketplaceService.getSystemStatus());
@@ -51,9 +52,9 @@ class MarketplaceOpeningTest {
         void GivenOpenMarketplace_WhenExternalUserAccesses_ThenAccessGranted() {
             when(marketplaceService.getSystemStatus()).thenReturn("OPEN");
             when(marketplaceService.checkPublicAccess()).thenReturn(Result.success());
-            
+
             Result<Void> result = marketplaceService.checkPublicAccess();
-            
+
             assertTrue(result.isSuccess(), "Public access should be granted when OPEN");
         }
     }
@@ -68,9 +69,9 @@ class MarketplaceOpeningTest {
             String adminId = "admin123";
             when(marketplaceService.getSystemStatus()).thenReturn("UNINITIALIZED");
             when(marketplaceService.openMarketplace(adminId)).thenReturn(Result.failure("System not initialized"));
-            
+
             Result<Void> result = marketplaceService.openMarketplace(adminId);
-            
+
             assertFalse(result.isSuccess(), "Cannot open uninitialized system");
             assertTrue(result.getErrorMessage().contains("not initialized"));
         }
@@ -80,12 +81,13 @@ class MarketplaceOpeningTest {
         void GivenPaymentProviderDown_WhenOpening_ThenBlockedWithAlert() {
             String adminId = "admin123";
             when(marketplaceService.getSystemStatus()).thenReturn("INITIALIZED");
-            
+
             // Simulating internal check payment gateway failure
-            when(marketplaceService.openMarketplace(adminId)).thenReturn(Result.failure("Payment provider unavailable"));
-            
+            when(marketplaceService.openMarketplace(adminId))
+                    .thenReturn(Result.failure("Payment provider unavailable"));
+
             Result<Void> result = marketplaceService.openMarketplace(adminId);
-            
+
             assertFalse(result.isSuccess(), "Marketplace cannot open if payment provider is down");
             assertTrue(result.getErrorMessage().contains("Payment provider"));
         }
@@ -94,19 +96,23 @@ class MarketplaceOpeningTest {
         @DisplayName("Given marketplace not yet open — When user accesses public URL — Then error or maintenance page returned")
         void GivenMarketplaceNotOpen_WhenUserAccesses_ThenMaintenancePage() {
             when(marketplaceService.getSystemStatus()).thenReturn("INITIALIZED");
-            when(marketplaceService.checkPublicAccess()).thenReturn(Result.failure("Marketplace is down for maintenance"));
-            
+            when(marketplaceService.checkPublicAccess())
+                    .thenReturn(Result.failure("Marketplace is down for maintenance"));
+
             Result<Void> result = marketplaceService.checkPublicAccess();
-            
+
             assertFalse(result.isSuccess(), "Public access must be blocked if not OPEN");
             assertTrue(result.getErrorMessage().contains("maintenance") || result.getErrorMessage().contains("down"));
         }
     }
-    
-    // Interface to mock Marketplace service expected to be implemented in another branch
+
+    // Interface to mock Marketplace service expected to be implemented in another
+    // branch
     public interface IMarketplaceService {
         Result<Void> openMarketplace(String adminId);
+
         Result<Void> checkPublicAccess();
+
         String getSystemStatus();
     }
 }

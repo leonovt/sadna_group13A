@@ -41,20 +41,22 @@ class DeferredNotificationsTest {
         passwordEncoder = mock(IPasswordEncoder.class);
         historyRepository = mock(IOrderHistoryRepository.class);
         notificationService = mock(INotificationService.class);
-        
-        userService = new UserService(userRepository, authGateway, passwordEncoder, historyRepository, new ObjectMapper());
+
+        userService = new UserService(userRepository, authGateway, passwordEncoder, historyRepository,
+                new ObjectMapper());
     }
 
     @Test
     @DisplayName("Given user was offline and has pending notifications — When user logs in — Then all pending notifications displayed immediately")
     void GivenOfflineUserWithPending_WhenLogin_ThenAllPendingDisplayed() {
-        // Arrange: user offline, system sends notifications (lottery win, refund, queue update)
+        // Arrange: user offline, system sends notifications (lottery win, refund, queue
+        // update)
         String userId = "user1";
         Member member = new Member(userId, "johndoe", "hashed_pass");
         when(userRepository.findByUsername("johndoe")).thenReturn(Optional.of(member));
         when(passwordEncoder.matches("123456", "hashed_pass")).thenReturn(true);
         when(authGateway.generateToken(userId)).thenReturn("valid_token");
-        
+
         List<String> pendingNotifications = List.of("Lottery won!", "Refund processed", "Queue update: it's your turn");
         when(notificationService.getPendingNotifications(userId)).thenReturn(pendingNotifications);
 
@@ -78,7 +80,7 @@ class DeferredNotificationsTest {
         when(userRepository.findByUsername("janedoe")).thenReturn(Optional.of(member));
         when(passwordEncoder.matches("password", "hashed_pass")).thenReturn(true);
         when(authGateway.generateToken(userId)).thenReturn("valid_token");
-        
+
         // Mock returning only new (pending) notifications
         when(notificationService.getPendingNotifications(userId)).thenReturn(List.of("Only new notification"));
 
@@ -99,12 +101,11 @@ class DeferredNotificationsTest {
         when(userRepository.findByUsername("bob")).thenReturn(Optional.of(member));
         when(passwordEncoder.matches("123", "hashed_pass")).thenReturn(true);
         when(authGateway.generateToken(userId)).thenReturn("valid_token");
-        
+
         List<String> chronologicallyOrderedNotifications = List.of(
-            "10:00 AM - Purchase completed",
-            "11:00 AM - Event update",
-            "12:00 PM - Queue update"
-        );
+                "10:00 AM - Purchase completed",
+                "11:00 AM - Event update",
+                "12:00 PM - Queue update");
         when(notificationService.getPendingNotifications(userId)).thenReturn(chronologicallyOrderedNotifications);
 
         Result<String> loginResult = userService.login("bob", "123");

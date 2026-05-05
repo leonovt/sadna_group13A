@@ -237,7 +237,7 @@ public class RaffleService {
 
         try {
             // ... and immediately translates it into a DTO so the pure Domain Object never reaches the Controller.
-            WinningTicketDTO dto = objectMapper.convertValue(code, WinningTicketDTO.class);
+            WinningTicketDTO dto = new WinningTicketDTO(code.getEventId(), code.getCode(), code.getExpirationTime());
             return Result.success(dto);
             
         } catch (Exception e) {

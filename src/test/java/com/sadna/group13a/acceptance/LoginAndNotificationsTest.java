@@ -1,4 +1,4 @@
-﻿package com.sadna.group13a.acceptance;
+package com.sadna.group13a.acceptance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.DTO.UserDTO;
@@ -14,7 +14,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
 
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +32,7 @@ class LoginAndNotificationsTest {
     private IAuth authGateway;
     private IPasswordEncoder passwordEncoder;
     private IOrderHistoryRepository historyRepository;
-    
+
     // Assumed to exist in another branch
     private INotificationService notificationService;
 
@@ -44,10 +43,10 @@ class LoginAndNotificationsTest {
         passwordEncoder = mock(IPasswordEncoder.class);
         historyRepository = mock(IOrderHistoryRepository.class);
         notificationService = mock(INotificationService.class);
-        
+
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        
+
         userService = new UserService(userRepository, authGateway, passwordEncoder, historyRepository, objectMapper);
     }
 
@@ -76,7 +75,7 @@ class LoginAndNotificationsTest {
             when(userRepository.findByUsername("janedoe")).thenReturn(Optional.of(member));
             when(passwordEncoder.matches("password", "hashed_pass")).thenReturn(true);
             when(authGateway.generateToken("2")).thenReturn("valid_token");
-            
+
             // Assume notification service returns notifications for the user
             List<String> mockNotifications = List.of("Refund processed", "Lottery won");
             when(notificationService.getPendingNotifications("2")).thenReturn(mockNotifications);
@@ -133,9 +132,8 @@ class LoginAndNotificationsTest {
             assertEquals("Invalid username or password.", result.getErrorMessage());
         }
 
-
     }
-    
+
     // Dummy interface assumed to exist in another branch
     public interface INotificationService {
         List<String> getPendingNotifications(String userId);

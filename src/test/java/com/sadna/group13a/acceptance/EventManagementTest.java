@@ -52,17 +52,19 @@ class EventManagementTest {
     void GivenEventWithPurchases_WhenDeleting_ThenBlocked() {
         String token = "valid_token";
         String eventId = "event1";
-        
+
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn("user1");
-        
+
         // Simulating the deletion operation that exists in another branch
-        when(extendedEventOperations.deleteEvent(token, eventId)).thenReturn(Result.failure("Cannot delete event with existing purchases"));
-        
+        when(extendedEventOperations.deleteEvent(token, eventId))
+                .thenReturn(Result.failure("Cannot delete event with existing purchases"));
+
         Result<Void> result = extendedEventOperations.deleteEvent(token, eventId);
-        
+
         assertFalse(result.isSuccess(), "Deletion should be blocked if purchases exist");
-        assertTrue(result.getErrorMessage().contains("existing purchases") || result.getErrorMessage().contains("purchases"));
+        assertTrue(result.getErrorMessage().contains("existing purchases")
+                || result.getErrorMessage().contains("purchases"));
     }
 
     @Test
@@ -70,15 +72,15 @@ class EventManagementTest {
     void GivenEventWithPurchasesNeedsCancellation_WhenCancelled_ThenFullRefundToAll() {
         String token = "valid_token";
         String eventId = "event1";
-        
+
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn("user1");
-        
+
         // Simulating cancellation & refund logic from another branch
         when(extendedEventOperations.cancelEvent(token, eventId)).thenReturn(Result.success());
-        
+
         Result<Void> result = extendedEventOperations.cancelEvent(token, eventId);
-        
+
         assertTrue(result.isSuccess(), "Event cancellation with refunds should succeed");
         verify(extendedEventOperations).cancelEvent(token, eventId);
     }
@@ -89,7 +91,7 @@ class EventManagementTest {
         String token = "valid_token";
         String eventId = "event1";
         String companyId = "company1";
-        
+
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn("user1");
 
@@ -100,10 +102,10 @@ class EventManagementTest {
         ProductionCompany company = mock(ProductionCompany.class);
         when(company.hasPermission("user1", CompanyPermission.MANAGE_EVENTS)).thenReturn(true);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
-        
+
         VenueMap newMap = mock(VenueMap.class);
         Result<Void> result = eventService.setVenueMap(token, eventId, newMap);
-        
+
         assertTrue(result.isSuccess(), "Inventory and Venue update should be successful");
         verify(event).setVenueMap(newMap);
         verify(eventRepository).save(event);
@@ -115,7 +117,7 @@ class EventManagementTest {
         String token = "valid_token";
         String eventId = "event1";
         String companyId = "company1";
-        
+
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn("user1");
 
@@ -126,13 +128,13 @@ class EventManagementTest {
         ProductionCompany company = mock(ProductionCompany.class);
         when(company.hasPermission("user1", CompanyPermission.MANAGE_EVENTS)).thenReturn(true);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
-        
+
         VenueMap contradictingMap = mock(VenueMap.class);
         doThrow(new IllegalArgumentException("Inventory conflicts with existing purchase policy"))
                 .when(event).setVenueMap(contradictingMap);
-        
+
         Result<Void> result = eventService.setVenueMap(token, eventId, contradictingMap);
-        
+
         assertFalse(result.isSuccess(), "Inventory change contradicting policy should block the update");
         assertTrue(result.getErrorMessage().contains("policy") || result.getErrorMessage().contains("conflicts"));
         verify(eventRepository, never()).save(any());
@@ -144,7 +146,7 @@ class EventManagementTest {
         String token = "invalid_token";
         String eventId = "event1";
         String companyId = "company1";
-        
+
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn("unauthorized_user");
 
@@ -155,17 +157,20 @@ class EventManagementTest {
         ProductionCompany company = mock(ProductionCompany.class);
         when(company.hasPermission("unauthorized_user", CompanyPermission.MANAGE_EVENTS)).thenReturn(false);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
-        
-        Result<Void> result = eventService.updateEventDetails(token, eventId, "New Title", "New Desc", LocalDateTime.now(), "Concerts");
-        
+
+        Result<Void> result = eventService.updateEventDetails(token, eventId, "New Title", "New Desc",
+                LocalDateTime.now(), "Concerts");
+
         assertFalse(result.isSuccess(), "User should be denied to edit the event details");
         assertTrue(result.getErrorMessage().contains("User lacks permission"));
         verify(eventRepository, never()).save(any());
     }
-    
-    // Interface to mock missing operations (delete/cancel) that are expected to exist in another branch
+
+    // Interface to mock missing operations (delete/cancel) that are expected to
+    // exist in another branch
     public interface IEventExtendedOperations {
         Result<Void> deleteEvent(String token, String eventId);
+
         Result<Void> cancelEvent(String token, String eventId);
     }
 }

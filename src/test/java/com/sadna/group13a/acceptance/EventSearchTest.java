@@ -56,7 +56,7 @@ class EventSearchTest {
         event1.publish();
         Event event2 = new Event("id2", "Concert B", "Desc", "companyId2", LocalDateTime.now(), "Music");
         event2.publish();
-        
+
         when(eventRepository.findAll()).thenReturn(Arrays.asList(event1, event2));
 
         Result<List<EventDTO>> result = eventService.searchEvents(token, "Concert", null);
@@ -75,9 +75,11 @@ class EventSearchTest {
 
         Event eventActive = new Event("id1", "Active Concert", "Desc", "activeCompany", LocalDateTime.now(), "Music");
         eventActive.publish();
-        
-        // Simulating logic assumed to exist in another branch (e.g. projecting only published + active companies)
-        EventDTO activeDto = new EventDTO("id1", "Active Concert", "Desc", "activeCompany", LocalDateTime.now(), "Music", true, 100);
+
+        // Simulating logic assumed to exist in another branch (e.g. projecting only
+        // published + active companies)
+        EventDTO activeDto = new EventDTO("id1", "Active Concert", "Desc", "activeCompany", LocalDateTime.now(),
+                "Music", true, 100);
         when(extendedSearch.searchActiveOnly(token, "Concert", null)).thenReturn(Result.success(List.of(activeDto)));
 
         Result<List<EventDTO>> result = extendedSearch.searchActiveOnly(token, "Concert", null);
@@ -92,11 +94,13 @@ class EventSearchTest {
     void GivenCompanyPageSearch_ThenResultsLimitedToThatCompany() {
         String token = "valid_token";
         String targetCompanyId = "companyId1";
-        
+
         when(authGateway.validateToken(token)).thenReturn(true);
-        
-        EventDTO companyEvent = new EventDTO("id1", "Company Concert", "Desc", targetCompanyId, LocalDateTime.now(), "Music", true, 100);
-        when(extendedSearch.searchByCompany(token, targetCompanyId, "Concert")).thenReturn(Result.success(List.of(companyEvent)));
+
+        EventDTO companyEvent = new EventDTO("id1", "Company Concert", "Desc", targetCompanyId, LocalDateTime.now(),
+                "Music", true, 100);
+        when(extendedSearch.searchByCompany(token, targetCompanyId, "Concert"))
+                .thenReturn(Result.success(List.of(companyEvent)));
 
         Result<List<EventDTO>> result = extendedSearch.searchByCompany(token, targetCompanyId, "Concert");
 
@@ -110,12 +114,14 @@ class EventSearchTest {
     void GivenDateFilter_ThenOnlyMatchingDatesReturned() {
         String token = "valid_token";
         when(authGateway.validateToken(token)).thenReturn(true);
-        
+
         LocalDateTime targetDate = LocalDateTime.now().plusDays(5);
         EventDTO dateEvent = new EventDTO("id2", "Date Concert", "Desc", "c1", targetDate, "Music", true, 100);
-        when(extendedSearch.searchByDateDetails(eq(token), any(), eq(targetDate), any())).thenReturn(Result.success(List.of(dateEvent)));
+        when(extendedSearch.searchByDateDetails(eq(token), any(), eq(targetDate), any()))
+                .thenReturn(Result.success(List.of(dateEvent)));
 
-        Result<List<EventDTO>> result = extendedSearch.searchByDateDetails(token, "Concert", targetDate, targetDate.plusDays(1));
+        Result<List<EventDTO>> result = extendedSearch.searchByDateDetails(token, "Concert", targetDate,
+                targetDate.plusDays(1));
 
         assertTrue(result.isSuccess());
         assertEquals(1, result.getOrThrow().size());
@@ -127,9 +133,11 @@ class EventSearchTest {
     void GivenPriceRange_ThenOnlyMatchingPricesReturned() {
         String token = "valid_token";
         when(authGateway.validateToken(token)).thenReturn(true);
-        
-        EventDTO priceEvent = new EventDTO("id3", "Cheap Concert", "Desc", "c1", LocalDateTime.now(), "Music", true, 100);
-        when(extendedSearch.searchByPriceRange(token, "Concert", 0.0, 50.0)).thenReturn(Result.success(List.of(priceEvent)));
+
+        EventDTO priceEvent = new EventDTO("id3", "Cheap Concert", "Desc", "c1", LocalDateTime.now(), "Music", true,
+                100);
+        when(extendedSearch.searchByPriceRange(token, "Concert", 0.0, 50.0))
+                .thenReturn(Result.success(List.of(priceEvent)));
 
         Result<List<EventDTO>> result = extendedSearch.searchByPriceRange(token, "Concert", 0.0, 50.0);
 
@@ -142,8 +150,9 @@ class EventSearchTest {
     void GivenArtistName_ThenOnlyMatchingArtistEventsReturned() {
         String token = "valid_token";
         when(authGateway.validateToken(token)).thenReturn(true);
-        
-        EventDTO artistEvent = new EventDTO("id4", "Artist Concert", "Star", "c1", LocalDateTime.now(), "Music", true, 100);
+
+        EventDTO artistEvent = new EventDTO("id4", "Artist Concert", "Star", "c1", LocalDateTime.now(), "Music", true,
+                100);
         when(extendedSearch.searchByArtist(token, "Star")).thenReturn(Result.success(List.of(artistEvent)));
 
         Result<List<EventDTO>> result = extendedSearch.searchByArtist(token, "Star");
@@ -152,13 +161,18 @@ class EventSearchTest {
         assertEquals(1, result.getOrThrow().size());
         assertEquals("Star", result.getOrThrow().get(0).description());
     }
-    
-    // Interface to mock extended search parameters requested by the test, assumed to be implemented in another branch
+
+    // Interface to mock extended search parameters requested by the test, assumed
+    // to be implemented in another branch
     public interface IExtendedEventSearch {
         Result<List<EventDTO>> searchActiveOnly(String token, String query, String category);
+
         Result<List<EventDTO>> searchByCompany(String token, String companyId, String query);
+
         Result<List<EventDTO>> searchByDateDetails(String token, String query, LocalDateTime start, LocalDateTime end);
+
         Result<List<EventDTO>> searchByPriceRange(String token, String query, double minPrice, double maxPrice);
+
         Result<List<EventDTO>> searchByArtist(String token, String artist);
     }
 }

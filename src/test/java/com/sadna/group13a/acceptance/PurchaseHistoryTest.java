@@ -56,7 +56,8 @@ class PurchaseHistoryTest {
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
 
-        OrderHistoryItem item = new OrderHistoryItem("ev1", "Original Title", LocalDateTime.now(), "cmp1", "Company1", "Zone A", "1A", 150.0);
+        OrderHistoryItem item = new OrderHistoryItem("ev1", "Original Title", LocalDateTime.now(), "cmp1", "Company1",
+                "Zone A", "1A", 150.0);
         OrderHistory history = new OrderHistory("receipt1", userId, LocalDateTime.now(), 150.0, List.of(item));
         when(historyRepository.findByUserId(userId)).thenReturn(List.of(history));
 
@@ -100,8 +101,10 @@ class PurchaseHistoryTest {
     @Test
     @DisplayName("Given tickets refunded via UC 1.3 — Then history clearly shows refund status")
     void GivenRefundedTickets_ThenHistoryClearlyShowsRefundStatus() {
-        // Assuming refund details affect the order history items or statuses later on, but for now 
-        // the test validates the basic mechanism since refunds are planned functionality.
+        // Assuming refund details affect the order history items or statuses later on,
+        // but for now
+        // the test validates the basic mechanism since refunds are planned
+        // functionality.
         assertTrue(true);
     }
 }

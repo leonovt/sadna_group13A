@@ -70,8 +70,7 @@ class PaymentAndRefundTest {
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, userRepository, authGateway,
-                checkoutDomainService, ticketingAccessDomainService, eventPublisher
-        );
+                checkoutDomainService, ticketingAccessDomainService, eventPublisher);
     }
 
     @Nested
@@ -88,32 +87,33 @@ class PaymentAndRefundTest {
             String eventId = "event1";
             String companyId = "company1";
             String paymentDetails = "cc_num_123";
-            
+
             when(authGateway.validateToken(token)).thenReturn(true);
             when(authGateway.extractUserId(token)).thenReturn(userId);
-            
+
             ActiveOrder order = new ActiveOrder(activeOrderId, userId);
             order.addItem(new OrderItem(eventId, "zone1", "seat1", 100.0));
             when(orderRepository.findById(activeOrderId)).thenReturn(Optional.of(order));
-            
+
             Event event = mock(Event.class);
             when(event.getId()).thenReturn(eventId);
             when(event.getCompanyId()).thenReturn(companyId);
             when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-            
+
             ProductionCompany company = mock(ProductionCompany.class);
             when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
-            
-            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company", "Zone1", "Seat1", 100.0);
+
+            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
+                    "Zone1", "Seat1", 100.0);
             OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
             when(checkoutDomainService.checkout(order, event, company, null, null)).thenReturn(history);
-            
+
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_success"));
-            
+
             // Act: process payment
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
-            
+
             // Assert: order status == PAID (implied by checkout success)
             assertTrue(result.isSuccess());
             verify(paymentGateway).processPayment(100.0, paymentDetails);
@@ -137,36 +137,37 @@ class PaymentAndRefundTest {
             String eventId = "event1";
             String companyId = "company1";
             String paymentDetails = "cc_num_declined";
-            
+
             when(authGateway.validateToken(token)).thenReturn(true);
             when(authGateway.extractUserId(token)).thenReturn(userId);
-            
+
             ActiveOrder order = new ActiveOrder(activeOrderId, userId);
             order.addItem(new OrderItem(eventId, "zone1", "seat1", 100.0));
             when(orderRepository.findById(activeOrderId)).thenReturn(Optional.of(order));
-            
+
             Event event = mock(Event.class);
             when(event.getId()).thenReturn(eventId);
             when(event.getCompanyId()).thenReturn(companyId);
             when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-            
+
             ProductionCompany company = mock(ProductionCompany.class);
             when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
-            
-            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company", "Zone1", "Seat1", 100.0);
+
+            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
+                    "Zone1", "Seat1", 100.0);
             OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
             when(checkoutDomainService.checkout(order, event, company, null, null)).thenReturn(history);
-            
+
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.failure("Card declined"));
-            
+
             // Act: attempt payment
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
-            
+
             // Assert: order status == PAYMENT_FAILED
             assertFalse(result.isSuccess());
             assertEquals("Payment declined: Card declined", result.getErrorMessage());
-            
+
             // Assert: history is not saved, cart not deleted
             verify(historyRepository, never()).save(any());
             verify(orderRepository, never()).deleteById(any());
@@ -180,9 +181,11 @@ class PaymentAndRefundTest {
         @Test
         @DisplayName("Given event cancelled by organizer — When refund triggered — Then full refund issued automatically")
         void GivenEventCancelled_WhenRefundTriggered_ThenFullRefundIssued() {
-            // Because Refund logic on event cancellation is planned but not currently in code,
-            // we will simulate a concurrent modification crash instead, 
-            // since that triggers a refund in executeCheckout(), or just verify the direct gateway interaction.
+            // Because Refund logic on event cancellation is planned but not currently in
+            // code,
+            // we will simulate a concurrent modification crash instead,
+            // since that triggers a refund in executeCheckout(), or just verify the direct
+            // gateway interaction.
             // Currently testing the rollback refund behavior upon save failure.
             String token = "valid_token";
             String userId = "user123";
@@ -190,35 +193,36 @@ class PaymentAndRefundTest {
             String eventId = "event1";
             String companyId = "company1";
             String paymentDetails = "cc_num_123";
-            
+
             when(authGateway.validateToken(token)).thenReturn(true);
             when(authGateway.extractUserId(token)).thenReturn(userId);
-            
+
             ActiveOrder order = new ActiveOrder(activeOrderId, userId);
             order.addItem(new OrderItem(eventId, "zone1", "seat1", 100.0));
             when(orderRepository.findById(activeOrderId)).thenReturn(Optional.of(order));
-            
+
             Event event = mock(Event.class);
             when(event.getId()).thenReturn(eventId);
             when(event.getCompanyId()).thenReturn(companyId);
             when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-            
+
             ProductionCompany company = mock(ProductionCompany.class);
             when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
-            
-            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company", "Zone1", "Seat1", 100.0);
+
+            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
+                    "Zone1", "Seat1", 100.0);
             OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
             when(checkoutDomainService.checkout(order, event, company, null, null)).thenReturn(history);
-            
+
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_123"));
-            
+
             // Simulate persistence failure
             doThrow(new RuntimeException("DB error")).when(eventRepository).save(any(Event.class));
-            
+
             // Act: attempt payment + checkout
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
-            
+
             // Assert: automatic refund initiated
             assertFalse(result.isSuccess());
             assertTrue(result.getErrorMessage().contains("Your payment has been refunded"));
@@ -228,13 +232,15 @@ class PaymentAndRefundTest {
         @Test
         @DisplayName("Given refund processed — Then refund amount matches original charge exactly")
         void GivenRefundProcessed_ThenRefundAmountMatchesOriginalCharge() {
-            // Arrange: We can observe that the amount passed to `processPayment` conceptually matches the order total.
-            // When processPayment returns a transaction, refundPayment is called with that transaction.
+            // Arrange: We can observe that the amount passed to `processPayment`
+            // conceptually matches the order total.
+            // When processPayment returns a transaction, refundPayment is called with that
+            // transaction.
             String transactionId = "tx123";
             when(paymentGateway.refundPayment(transactionId)).thenReturn(Result.success(null));
-            
+
             Result<Void> result = paymentGateway.refundPayment(transactionId);
-            
+
             assertTrue(result.isSuccess());
             verify(paymentGateway).refundPayment(transactionId);
         }
@@ -245,9 +251,9 @@ class PaymentAndRefundTest {
             // Just verifying that refunding through the gateway executes successfully.
             String transactionId = "tx_ticket_failed";
             when(paymentGateway.refundPayment(transactionId)).thenReturn(Result.success(null));
-            
+
             Result<Void> refundResult = paymentGateway.refundPayment(transactionId);
-            
+
             assertTrue(refundResult.isSuccess());
             verify(paymentGateway).refundPayment(transactionId);
         }

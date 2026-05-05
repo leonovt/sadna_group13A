@@ -70,8 +70,7 @@ class PurchaseCompletionTest {
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, userRepository, authGateway,
-                checkoutDomainService, ticketingAccessDomainService, eventPublisher
-        );
+                checkoutDomainService, ticketingAccessDomainService, eventPublisher);
     }
 
     @Nested
@@ -105,7 +104,8 @@ class PurchaseCompletionTest {
             when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
 
             // Domain Service mocks
-            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company", "Zone1", "Seat1", 100.0);
+            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
+                    "Zone1", "Seat1", 100.0);
             OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
             when(checkoutDomainService.checkout(order, event, company, null, null)).thenReturn(history);
 
@@ -149,7 +149,7 @@ class PurchaseCompletionTest {
 
             // Let checkoutDomainService throw an exception representing policy breach
             doThrow(new RuntimeException("Policy Exceeded")).when(checkoutDomainService)
-                .checkout(any(), any(), any(), any(), any());
+                    .checkout(any(), any(), any(), any(), any());
 
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
 
@@ -184,13 +184,15 @@ class PurchaseCompletionTest {
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
             when(companyRepository.findById("company1")).thenReturn(Optional.of(mock(ProductionCompany.class)));
 
-            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), "company1", "Company", "Zone1", "Seat1", 100.0);
+            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), "company1", "Company",
+                    "Zone1", "Seat1", 100.0);
             OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
             when(checkoutDomainService.checkout(eq(order), eq(event), any(), any(), any())).thenReturn(history);
 
             when(paymentGateway.processPayment(100.0, "cc_good")).thenReturn(Result.success("txn_1"));
 
-            // Simulate failure saving the event to trigger the refund (which mimics atomicity failure)
+            // Simulate failure saving the event to trigger the refund (which mimics
+            // atomicity failure)
             doThrow(new RuntimeException("DB Down")).when(eventRepository).save(any(Event.class));
 
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
@@ -227,7 +229,7 @@ class PurchaseCompletionTest {
             when(companyRepository.findById("company1")).thenReturn(Optional.of(mock(ProductionCompany.class)));
 
             doThrow(new PermissionDeniedException("Access Denied: Not a winner"))
-                .when(ticketingAccessDomainService).validateAccess(any(), any(), any(), any());
+                    .when(ticketingAccessDomainService).validateAccess(any(), any(), any(), any());
 
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
 
@@ -255,7 +257,7 @@ class PurchaseCompletionTest {
             ActiveOrder order = new ActiveOrder(activeOrderId, userId);
             order.addItem(new OrderItem(eventId, "zone1", "seat1", 100.0));
             // Simulate expiration by returning empty or handling inside service
-            when(orderRepository.findById(activeOrderId)).thenReturn(Optional.empty()); 
+            when(orderRepository.findById(activeOrderId)).thenReturn(Optional.empty());
 
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
 
