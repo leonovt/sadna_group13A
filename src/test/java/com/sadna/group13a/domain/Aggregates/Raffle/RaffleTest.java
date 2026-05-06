@@ -8,10 +8,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Unit tests for the Raffle aggregate (Raffle root + AuthorizationCode value object).
- * No Spring, no Mockito — pure domain instantiation.
- */
+
 class RaffleTest {
 
     private static final String EVENT_ID  = "event-abc";

@@ -2,9 +2,9 @@ package com.sadna.group13a.infrastructure.RepositoryImpl;
 
 import com.sadna.group13a.domain.Aggregates.Raffle.Raffle;
 import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
+import com.sadna.group13a.domain.shared.OptimisticLockException;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,7 +16,14 @@ public class RaffleRepositoryImpl implements IRaffleRepository {
     private final ConcurrentHashMap<String, Raffle> store = new ConcurrentHashMap<>();
 
     @Override
-    public void save(Raffle raffle) {
+    public synchronized void save(Raffle raffle) {
+        Raffle stored = store.get(raffle.getId());
+        if (stored != null && stored != raffle && stored.getVersion() > raffle.getVersion()) {
+            throw new OptimisticLockException(
+                    "Optimistic lock conflict for Raffle " + raffle.getId() +
+                    ": stored version " + stored.getVersion() +
+                    " > incoming version " + raffle.getVersion());
+        }
         store.put(raffle.getId(), raffle);
     }
 

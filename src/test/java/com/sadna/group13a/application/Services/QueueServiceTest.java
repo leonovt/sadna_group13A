@@ -3,11 +3,16 @@ package com.sadna.group13a.application.Services;
 import com.sadna.group13a.application.DTO.QueueStatusDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.domain.Aggregates.Admin.Admin;
+import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.QueueTicket;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
-import com.sadna.group13a.domain.Aggregates.User.Admin;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
+import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
+import com.sadna.group13a.domain.Interfaces.IAdminRepository;
+import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
+import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IQueueRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,7 +34,10 @@ import static org.mockito.Mockito.*;
 class QueueServiceTest {
 
     @Mock private IQueueRepository queueRepository;
+    @Mock private IEventRepository eventRepository;
+    @Mock private ICompanyRepository companyRepository;
     @Mock private IUserRepository userRepository;
+    @Mock private IAdminRepository adminRepository;
     @Mock private IAuth authGateway;
     @Mock private ApplicationEventPublisher eventPublisher;
 
@@ -43,18 +51,26 @@ class QueueServiceTest {
     private static final String EVENT_ID    = "event-1";
 
     private Member activeUser;
-    private Admin adminUser;
+    private Member adminMember;
+    private Event activeEvent;
 
     @BeforeEach
     void setUp() {
-        activeUser = new Member(USER_ID, "alice", "hash");
-        adminUser  = new Admin(ADMIN_ID, "admin", "hash");
+        activeUser  = new Member(USER_ID, "alice", "hash");
+        adminMember = new Member(ADMIN_ID, "admin", "hash");
+        activeEvent = new Event(EVENT_ID, "Test Event", "Desc", "co-1",
+                java.time.LocalDateTime.now().plusDays(30), "Music");
 
         lenient().when(authGateway.validateToken(USER_TOKEN)).thenReturn(true);
         lenient().when(authGateway.extractUserId(USER_TOKEN)).thenReturn(USER_ID);
         lenient().when(authGateway.validateToken(ADMIN_TOKEN)).thenReturn(true);
         lenient().when(authGateway.extractUserId(ADMIN_TOKEN)).thenReturn(ADMIN_ID);
-        lenient().when(userRepository.findById(ADMIN_ID)).thenReturn(Optional.of(adminUser));
+        lenient().when(userRepository.findById(ADMIN_ID)).thenReturn(Optional.of(adminMember));
+        lenient().when(adminRepository.findByUserId(ADMIN_ID))
+                .thenReturn(Optional.of(new Admin("admin-rec-1", ADMIN_ID)));
+        lenient().when(eventRepository.findById(EVENT_ID)).thenReturn(Optional.of(activeEvent));
+        lenient().when(companyRepository.findById("co-1"))
+                .thenReturn(Optional.of(new ProductionCompany("co-1", "Corp", "Desc", USER_ID)));
     }
 
     // ── createQueue ───────────────────────────────────────────────
@@ -68,6 +84,14 @@ class QueueServiceTest {
     }
 
     @Test
+    void givenEventNotFound_whenCreateQueue_thenReturnsFailure() {
+        when(eventRepository.findById("unknown")).thenReturn(Optional.empty());
+
+        assertFalse(queueService.createQueue(USER_TOKEN, "unknown", 10).isSuccess());
+        verify(queueRepository, never()).save(any());
+    }
+
+    @Test
     void givenQueueAlreadyExists_whenCreateQueue_thenReturnsFailure() {
         when(queueRepository.findByEventId(EVENT_ID))
                 .thenReturn(Optional.of(new TicketQueue(EVENT_ID, 5)));
@@ -76,13 +100,15 @@ class QueueServiceTest {
     }
 
     @Test
-    void givenNoExistingQueue_whenCreateQueue_thenQueueSaved() {
+    void givenNoExistingQueue_whenCreateQueue_thenQueueSavedAndSaleModeSet() {
         when(queueRepository.findByEventId(EVENT_ID)).thenReturn(Optional.empty());
 
         Result<Void> result = queueService.createQueue(USER_TOKEN, EVENT_ID, 10);
 
         assertTrue(result.isSuccess());
         verify(queueRepository).save(any(TicketQueue.class));
+        verify(eventRepository).save(activeEvent);
+        assertEquals(com.sadna.group13a.domain.Aggregates.Event.EventSaleMode.QUEUE, activeEvent.getSaleMode());
     }
 
     // ── joinQueue (user) ──────────────────────────────────────────
@@ -146,7 +172,7 @@ class QueueServiceTest {
 
     @Test
     void givenNonAdmin_whenProcessBatch_thenReturnsFailure() {
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(activeUser));
+        when(adminRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
 
         assertFalse(queueService.processBatch(USER_TOKEN, EVENT_ID, 5).isSuccess());
     }

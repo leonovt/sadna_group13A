@@ -12,9 +12,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Pure JUnit 5 — no Mockito, no Spring.
- */
+
 class OrderHistoryRepositoryImplTest {
 
     private OrderHistoryRepositoryImpl repo;

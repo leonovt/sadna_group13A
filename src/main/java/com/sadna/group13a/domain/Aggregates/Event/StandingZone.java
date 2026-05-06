@@ -78,6 +78,15 @@ public class StandingZone extends Zone {
         throw new SeatUnavailableException(getId(), "user does not have an active hold in this zone");
     }
 
+    /**
+     * Reverses a completed sale — decrements soldCount.
+     * Used for transactional rollback when payment or persistence fails.
+     * No-op if soldCount is already 0.
+     */
+    public synchronized void unsellStandingSpot() {
+        if (soldCount > 0) soldCount--;
+    }
+
     public synchronized void releaseStandingSpot(String userId) {
         for (int i = 0; i < standingHolds.size(); i++) {
             if (standingHolds.get(i).userId.equals(userId)) {

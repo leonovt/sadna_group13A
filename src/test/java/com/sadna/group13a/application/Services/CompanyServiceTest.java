@@ -89,32 +89,34 @@ class CompanyServiceTest {
     void givenInvalidToken_whenAppointManager_thenReturnsFailure() {
         when(authGateway.validateToken("bad")).thenReturn(false);
 
-        assertFalse(companyService.appointManager("bad", COMPANY_ID, "bob").isSuccess());
+        assertFalse(companyService.appointManager("bad", COMPANY_ID, "bob", null).isSuccess());
     }
 
     @Test
     void givenCompanyNotFound_whenAppointManager_thenReturnsFailure() {
         when(companyRepository.findById("missing")).thenReturn(Optional.empty());
 
-        assertFalse(companyService.appointManager(TOKEN, "missing", "bob").isSuccess());
+        assertFalse(companyService.appointManager(TOKEN, "missing", "bob", null).isSuccess());
     }
 
     @Test
     void givenTargetNotFound_whenAppointManager_thenReturnsFailure() {
         when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
 
-        assertFalse(companyService.appointManager(TOKEN, COMPANY_ID, "ghost").isSuccess());
+        assertFalse(companyService.appointManager(TOKEN, COMPANY_ID, "ghost", null).isSuccess());
     }
 
     @Test
-    void givenFounderAppointingNewManager_whenAppointManager_thenCompanySaved() {
+    void givenFounderAppointingNewManager_whenAppointManager_thenPendingNominationCreated() {
         Member target = new Member("target-1", "bob", "hash");
         when(userRepository.findByUsername("bob")).thenReturn(Optional.of(target));
 
-        Result<Void> result = companyService.appointManager(TOKEN, COMPANY_ID, "bob");
+        Result<Void> result = companyService.appointManager(TOKEN, COMPANY_ID, "bob", null);
 
         assertTrue(result.isSuccess());
-        assertTrue(company.isManager("target-1"));
+        // Nomination is pending — user is not yet a manager until they accept
+        assertFalse(company.isManager("target-1"));
+        assertTrue(company.getPendingAppointments().containsKey("target-1"));
         verify(companyRepository).save(company);
     }
 

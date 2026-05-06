@@ -5,9 +5,13 @@ import com.sadna.group13a.application.DTO.RaffleRegistrationDTO;
 import com.sadna.group13a.application.DTO.RaffleResultDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
+import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Raffle.Raffle;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
+import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
+import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +33,8 @@ import static org.mockito.Mockito.*;
 class RaffleServiceTest {
 
     @Mock private IRaffleRepository raffleRepository;
+    @Mock private IEventRepository eventRepository;
+    @Mock private ICompanyRepository companyRepository;
     @Mock private IUserRepository userRepository;
     @Mock private IAuth authGateway;
     @Mock private ObjectMapper objectMapper;
@@ -37,20 +43,30 @@ class RaffleServiceTest {
     @InjectMocks
     private RaffleService raffleService;
 
-    private static final String TOKEN   = "valid-token";
-    private static final String USER_ID = "user-1";
+    private static final String TOKEN     = "valid-token";
+    private static final String USER_ID   = "user-1";
     private static final String RAFFLE_ID = "raffle-1";
+    private static final String EVENT_ID  = "event-1";
+    private static final String COMPANY_ID = "co-1";
 
     private Member activeUser;
     private Raffle raffle;
+    private ProductionCompany company;
+    private Event event;
 
     @BeforeEach
     void setUp() {
         activeUser = new Member(USER_ID, "alice", "hash");
-        raffle = new Raffle(RAFFLE_ID, "event-1", "co-1");
+        raffle = new Raffle(RAFFLE_ID, EVENT_ID, COMPANY_ID);
+        company = new ProductionCompany(COMPANY_ID, "Acme", "Desc", USER_ID); // USER_ID is founder
+        event = new Event(EVENT_ID, "Test Event", "Desc", COMPANY_ID,
+                java.time.LocalDateTime.now().plusDays(30), "Music");
 
         lenient().when(authGateway.validateToken(TOKEN)).thenReturn(true);
         lenient().when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
+        lenient().when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+        lenient().when(eventRepository.findById(EVENT_ID)).thenReturn(Optional.of(event));
+        lenient().when(raffleRepository.findById(RAFFLE_ID)).thenReturn(Optional.of(raffle));
     }
 
     // ── createRaffle ──────────────────────────────────────────────
@@ -68,19 +84,31 @@ class RaffleServiceTest {
         activeUser.deactivate();
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(activeUser));
 
-        assertFalse(raffleService.createRaffle(TOKEN, "event-1", "co-1").isSuccess());
+        assertFalse(raffleService.createRaffle(TOKEN, EVENT_ID, COMPANY_ID).isSuccess());
         verify(raffleRepository, never()).save(any());
     }
 
     @Test
-    void givenActiveUser_whenCreateRaffle_thenRaffleSavedAndIdReturned() {
+    void givenUserWithoutPermission_whenCreateRaffle_thenReturnsFailure() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(activeUser));
+        ProductionCompany otherCompany = new ProductionCompany("co-other", "Other", "Desc", "someone-else");
+        when(companyRepository.findById("co-other")).thenReturn(Optional.of(otherCompany));
+
+        assertFalse(raffleService.createRaffle(TOKEN, EVENT_ID, "co-other").isSuccess());
+        verify(raffleRepository, never()).save(any());
+    }
+
+    @Test
+    void givenActiveUserWithPermission_whenCreateRaffle_thenRaffleSavedAndSaleModeSet() {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(activeUser));
 
-        Result<String> result = raffleService.createRaffle(TOKEN, "event-1", "co-1");
+        Result<String> result = raffleService.createRaffle(TOKEN, EVENT_ID, COMPANY_ID);
 
         assertTrue(result.isSuccess());
         assertNotNull(result.getData().get());
         verify(raffleRepository).save(any(Raffle.class));
+        verify(eventRepository).save(event);
+        assertEquals(com.sadna.group13a.domain.Aggregates.Event.EventSaleMode.RAFFLE, event.getSaleMode());
     }
 
     // ── joinRaffle ────────────────────────────────────────────────
@@ -153,7 +181,6 @@ class RaffleServiceTest {
         raffle.registerParticipant("user-A");
         raffle.registerParticipant("user-B");
         raffle.registerParticipant("user-C");
-        when(raffleRepository.findById(RAFFLE_ID)).thenReturn(Optional.of(raffle));
 
         Result<RaffleResultDTO> result = raffleService.drawWinners(TOKEN, RAFFLE_ID, 2, 60);
 
@@ -167,7 +194,6 @@ class RaffleServiceTest {
     void givenAlreadyDrawnRaffle_whenDrawWinnersAgain_thenReturnsFailure() {
         raffle.registerParticipant("user-A");
         raffle.executeDraw(1, 60);
-        when(raffleRepository.findById(RAFFLE_ID)).thenReturn(Optional.of(raffle));
 
         Result<RaffleResultDTO> result = raffleService.drawWinners(TOKEN, RAFFLE_ID, 1, 60);
 
@@ -185,9 +211,7 @@ class RaffleServiceTest {
 
     @Test
     void givenRaffleNotFound_whenGetRaffleDetails_thenReturnsFailure() {
-        when(raffleRepository.findById(RAFFLE_ID)).thenReturn(Optional.empty());
-
-        assertFalse(raffleService.getRaffleDetails(TOKEN, RAFFLE_ID).isSuccess());
+        assertFalse(raffleService.getRaffleDetails(TOKEN, "unknown-raffle").isSuccess());
     }
 
     // ── checkMyResult ─────────────────────────────────────────────

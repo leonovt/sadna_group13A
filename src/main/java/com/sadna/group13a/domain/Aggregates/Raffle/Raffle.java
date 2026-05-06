@@ -16,6 +16,7 @@ public class Raffle
     private final String eventId;
     private final String companyId;
     private RaffleStatus status;
+    private volatile long version = 0L;
 
     // Using a Set prevents the same user from registering twice!
     private final Set<String> participantUserIds;
@@ -47,6 +48,7 @@ public class Raffle
         if (!participantUserIds.add(userId)) {
             throw new IllegalArgumentException("User is already registered for this raffle.");
         }
+        version++;
     }
 
     /**
@@ -76,6 +78,7 @@ public class Raffle
 
         // 4. Update the state to prevent future registrations or re-draws
         this.status = RaffleStatus.DRAWN;
+        version++;
     }
 
     /**
@@ -91,6 +94,7 @@ public class Raffle
      */
     public void close() {
         this.status = RaffleStatus.CLOSED;
+        version++;
     }
 
     // --- Getters ---
@@ -98,6 +102,7 @@ public class Raffle
     public String getEventId() { return eventId; }
     public String getCompanyId() { return companyId; }
     public RaffleStatus getStatus() { return status; }
+    public long getVersion() { return version; }
     
     // Return an unmodifiable view to protect the aggregate's internal state!
     public Set<String> getParticipantUserIds() { 

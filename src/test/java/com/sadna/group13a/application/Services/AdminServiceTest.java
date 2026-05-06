@@ -3,16 +3,17 @@ package com.sadna.group13a.application.Services;
 import com.sadna.group13a.application.DTO.SystemAnalyticsDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.domain.Aggregates.Admin.Admin;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
-import com.sadna.group13a.domain.Aggregates.User.Admin;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
 import com.sadna.group13a.domain.Events.UserBannedEvent;
+import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
@@ -38,12 +39,14 @@ import static org.mockito.Mockito.*;
 class AdminServiceTest {
 
     @Mock private IUserRepository userRepository;
+    @Mock private IAdminRepository adminRepository;
     @Mock private IEventRepository eventRepository;
     @Mock private ICompanyRepository companyRepository;
     @Mock private IQueueRepository queueRepository;
     @Mock private IOrderHistoryRepository historyRepository;
     @Mock private IAuth authGateway;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private SystemLogService systemLogService;
 
     @InjectMocks
     private AdminService adminService;
@@ -51,17 +54,19 @@ class AdminServiceTest {
     private static final String ADMIN_TOKEN = "admin-token";
     private static final String ADMIN_ID    = "admin-1";
 
-    private Admin admin;
+    private Member adminMember;
     private Member member;
 
     @BeforeEach
     void setUp() {
-        admin  = new Admin(ADMIN_ID, "admin", "hash");
-        member = new Member("member-1", "alice", "hash");
+        adminMember = new Member(ADMIN_ID, "admin", "hash");
+        member      = new Member("member-1", "alice", "hash");
 
         lenient().when(authGateway.validateToken(ADMIN_TOKEN)).thenReturn(true);
         lenient().when(authGateway.extractUserId(ADMIN_TOKEN)).thenReturn(ADMIN_ID);
-        lenient().when(userRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
+        lenient().when(userRepository.findById(ADMIN_ID)).thenReturn(Optional.of(adminMember));
+        lenient().when(adminRepository.findByUserId(ADMIN_ID))
+                .thenReturn(Optional.of(new Admin("admin-rec-1", ADMIN_ID)));
     }
 
     // ── deactivateUser ────────────────────────────────────────────
@@ -81,7 +86,7 @@ class AdminServiceTest {
         Member nonAdmin = new Member("non-admin", "bob", "hash");
         when(authGateway.validateToken("bob-token")).thenReturn(true);
         when(authGateway.extractUserId("bob-token")).thenReturn("non-admin");
-        when(userRepository.findById("non-admin")).thenReturn(Optional.of(nonAdmin));
+        when(adminRepository.findByUserId("non-admin")).thenReturn(Optional.empty());
 
         Result<Void> result = adminService.deactivateUser("bob-token", "alice");
 
@@ -99,8 +104,10 @@ class AdminServiceTest {
 
     @Test
     void givenTargetIsAdmin_whenDeactivateUser_thenReturnsFailure() {
-        Admin anotherAdmin = new Admin("a-2", "admin2", "hash");
-        when(userRepository.findByUsername("admin2")).thenReturn(Optional.of(anotherAdmin));
+        Member anotherAdminMember = new Member("a-2", "admin2", "hash");
+        when(userRepository.findByUsername("admin2")).thenReturn(Optional.of(anotherAdminMember));
+        when(adminRepository.findByUserId("a-2"))
+                .thenReturn(Optional.of(new Admin("admin-rec-2", "a-2")));
 
         Result<Void> result = adminService.deactivateUser(ADMIN_TOKEN, "admin2");
 
@@ -111,6 +118,7 @@ class AdminServiceTest {
     @Test
     void givenAdminAndActiveMember_whenDeactivateUser_thenMemberSavedAndBanEventPublished() {
         when(userRepository.findByUsername("alice")).thenReturn(Optional.of(member));
+        when(adminRepository.findByUserId(member.getId())).thenReturn(Optional.empty());
 
         Result<Void> result = adminService.deactivateUser(ADMIN_TOKEN, "alice");
 
@@ -214,7 +222,7 @@ class AdminServiceTest {
 
     @Test
     void givenAdmin_whenGetSystemAnalytics_thenReturnsDto() {
-        when(userRepository.findAll()).thenReturn(List.of(admin, member));
+        when(userRepository.findAll()).thenReturn(List.of(adminMember, member));
         when(queueRepository.findAll()).thenReturn(List.of(new TicketQueue("ev-1", 5)));
         when(companyRepository.findAll()).thenReturn(
                 List.of(new ProductionCompany("co-1", "Corp", "Desc", "f-1")));

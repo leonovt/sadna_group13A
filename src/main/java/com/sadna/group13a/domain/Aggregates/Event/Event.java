@@ -1,9 +1,13 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
-import com.sadna.group13a.domain.shared.EntityNotFoundException;
+import com.sadna.group13a.domain.shared.PurchasePolicy;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -12,7 +16,11 @@ import java.util.UUID;
  *
  * An Event represents a scheduled occurrence managed by a ProductionCompany.
  * It owns a VenueMap that defines the venue layout and seat/standing capacity.
- * PurchasePolicy and DiscountPolicy are referenced by ID (separate aggregate boundary).
+ * Both Event and Company may carry PurchasePolicy and DiscountPolicy lists that are
+ * evaluated during checkout.
+ *
+ * The {@code version} field is incremented on every mutation and is used for
+ * optimistic-locking conflict detection (analogous to JPA {@code @Version}).
  */
 public class Event {
 
@@ -22,9 +30,15 @@ public class Event {
     private String companyId;       // owning ProductionCompany
     private LocalDateTime eventDate;
     private String category;
+    private String location;        // physical venue / city, nullable
     private VenueMap venueMap;
     private boolean published;      // whether the event is visible to buyers
-    private EventSaleMode saleMode; // REGULAR or RAFFLE
+    private EventSaleMode saleMode; // REGULAR, QUEUE, or RAFFLE
+
+    private volatile long version = 0L;
+
+    private final List<PurchasePolicy> purchasePolicies;
+    private final List<DiscountPolicy> discountPolicies;
 
     public Event(String id, String title, String description,
                  String companyId, LocalDateTime eventDate, String category) {
@@ -46,9 +60,12 @@ public class Event {
         this.companyId = companyId;
         this.eventDate = eventDate;
         this.category = category;
+        this.location = null;
         this.venueMap = null;
         this.published = false;
         this.saleMode = EventSaleMode.REGULAR;
+        this.purchasePolicies = Collections.synchronizedList(new ArrayList<>());
+        this.discountPolicies = Collections.synchronizedList(new ArrayList<>());
     }
 
     public Event(String title, String description,
@@ -61,6 +78,8 @@ public class Event {
 
     public String getId() { return id; }
 
+    public long getVersion() { return version; }
+
     public String getTitle() { return title; }
 
     public void setTitle(String title) {
@@ -68,12 +87,14 @@ public class Event {
             throw new IllegalArgumentException("Event title cannot be null or blank");
         }
         this.title = title;
+        version++;
     }
 
     public String getDescription() { return description; }
 
     public void setDescription(String description) {
         this.description = description;
+        version++;
     }
 
     public String getCompanyId() { return companyId; }
@@ -85,12 +106,21 @@ public class Event {
             throw new IllegalArgumentException("Event date cannot be null");
         }
         this.eventDate = eventDate;
+        version++;
     }
 
     public String getCategory() { return category; }
 
     public void setCategory(String category) {
         this.category = category;
+        version++;
+    }
+
+    public String getLocation() { return location; }
+
+    public void setLocation(String location) {
+        this.location = location;
+        version++;
     }
 
     // ── Sale Mode (Raffle/Lottery) ────────────────────────────────
@@ -98,13 +128,11 @@ public class Event {
     public EventSaleMode getSaleMode() { return saleMode; }
 
     public void setSaleMode(EventSaleMode saleMode) {
-        if (published) {
-            throw new DomainException("Cannot change sale mode of a published event");
-        }
         if (saleMode == null) {
             throw new IllegalArgumentException("Sale mode cannot be null");
         }
         this.saleMode = saleMode;
+        version++;
     }
 
     // ── Publishing ────────────────────────────────────────────────
@@ -122,10 +150,12 @@ public class Event {
             throw new DomainException("Cannot publish event without a venue map");
         }
         this.published = true;
+        version++;
     }
 
     public void unpublish() {
         this.published = false;
+        version++;
     }
 
     // ── VenueMap ──────────────────────────────────────────────────
@@ -143,26 +173,97 @@ public class Event {
                     "Cannot change venue map of a published event");
         }
         this.venueMap = venueMap;
+        version++;
     }
 
-    // ── Convenience Delegations ───────────────────────────────────
+    // ── Policies ──────────────────────────────────────────────────
 
-    /**
-     * Finds a zone by ID, delegating to the venue map.
-     *
-     * @throws DomainException if no venue map is configured
-     * @throws EntityNotFoundException if the zone is not found
-     */
+    public List<PurchasePolicy> getPurchasePolicies() {
+        return Collections.unmodifiableList(purchasePolicies);
+    }
+
+    public void addPurchasePolicy(PurchasePolicy policy) {
+        if (policy == null) throw new IllegalArgumentException("Policy cannot be null");
+        purchasePolicies.add(policy);
+        version++;
+    }
+
+    public List<DiscountPolicy> getDiscountPolicies() {
+        return Collections.unmodifiableList(discountPolicies);
+    }
+
+    public void addDiscountPolicy(DiscountPolicy policy) {
+        if (policy == null) throw new IllegalArgumentException("Policy cannot be null");
+        discountPolicies.add(policy);
+        version++;
+    }
+
+    // ── Seat State Transitions (all mutations through root) ───────
+
+    public void reserveSeat(String zoneId, String seatId, String userId) {
+        Zone zone = getZoneById(zoneId);
+        if (zone instanceof SeatedZone sz) {
+            sz.findSeatById(seatId)
+                    .orElseThrow(() -> new IllegalArgumentException("Seat not found: " + seatId))
+                    .hold(userId);
+        } else if (zone instanceof StandingZone stz) {
+            stz.holdStandingSpot(userId);
+        }
+        version++;
+    }
+
+    /** Transitions a held item to SOLD. Returns seat label for seated zones, null for standing. */
+    public String sellItem(String zoneId, String seatId, String userId) {
+        Zone zone = getZoneById(zoneId);
+        if (zone instanceof SeatedZone sz) {
+            Seat seat = sz.findSeatById(seatId)
+                    .orElseThrow(() -> new DomainException(
+                            "Seat " + seatId + " not found in zone " + zoneId));
+            seat.sell(userId);
+            version++;
+            return seat.getLabel();
+        } else if (zone instanceof StandingZone stz) {
+            stz.sellStandingSpot(userId);
+            version++;
+        }
+        return null;
+    }
+
+    public void unsellItem(String zoneId, String seatId) {
+        Zone zone = getZoneById(zoneId);
+        if (zone instanceof SeatedZone sz) {
+            sz.findSeatById(seatId).ifPresent(Seat::unsell);
+        } else if (zone instanceof StandingZone stz) {
+            stz.unsellStandingSpot();
+        }
+        version++;
+    }
+
+    public void releaseItem(String zoneId, String seatId, String userId) {
+        Zone zone = getZoneById(zoneId);
+        if (zone instanceof SeatedZone sz) {
+            sz.findSeatById(seatId).ifPresent(Seat::release);
+        } else if (zone instanceof StandingZone stz) {
+            stz.releaseStandingSpot(userId);
+        }
+        version++;
+    }
+
+    // ── Convenience Delegations (read-only) ───────────────────────
+
     public Zone getZoneById(String zoneId) {
         requireVenueMap();
         return venueMap.getZoneById(zoneId);
     }
 
-    /**
-     * Returns the total available capacity across all zones.
-     *
-     * @throws DomainException if no venue map is configured
-     */
+    public double getZoneBasePrice(String zoneId) {
+        return getZoneById(zoneId).getBasePrice();
+    }
+
+    public String getZoneName(String zoneId) {
+        return getZoneById(zoneId).getName();
+    }
+
     public int getTotalAvailable() {
         requireVenueMap();
         return venueMap.getTotalAvailable();

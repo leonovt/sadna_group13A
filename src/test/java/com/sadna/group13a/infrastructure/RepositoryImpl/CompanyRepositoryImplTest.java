@@ -10,9 +10,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Pure JUnit 5 — no Mockito, no Spring.
- */
+
 class CompanyRepositoryImplTest {
 
     private CompanyRepositoryImpl repo;

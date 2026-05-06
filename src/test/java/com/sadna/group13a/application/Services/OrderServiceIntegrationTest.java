@@ -5,6 +5,7 @@ import com.sadna.group13a.application.EventListeners.NotificationEventListener;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.INotificationService;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
+import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
@@ -88,6 +89,7 @@ class OrderServiceIntegrationTest {
     // ── External-port test doubles ────────────────────────────────────────────────
 
     private SpyPaymentGateway      paymentGateway;
+    private StubTicketSupplier     ticketSupplier;
     private SpyNotificationService notificationService;
     private StubAuth               auth;
 
@@ -110,6 +112,7 @@ class OrderServiceIntegrationTest {
         ticketingAccessDomainService = new TicketingAccessDomainService();
 
         paymentGateway      = new SpyPaymentGateway();
+        ticketSupplier      = new StubTicketSupplier();
         notificationService = new SpyNotificationService();
         auth                = new StubAuth(USER_ID, VALID_TOKEN);
 
@@ -127,11 +130,20 @@ class OrderServiceIntegrationTest {
         };
 
         orderService = new OrderService(
-                orderRepo, historyRepo, eventRepo, companyRepo,
-                queueRepo, raffleRepo, paymentGateway, userRepo,
-                auth, checkoutDomainService, ticketingAccessDomainService,
-                eventPublisher
-        );
+                        orderRepo,                    // 1. IActiveOrderRepository
+                        historyRepo,                  // 2. IOrderHistoryRepository
+                        eventRepo,                    // 3. IEventRepository
+                        companyRepo,                  // 4. ICompanyRepository
+                        queueRepo,                    // 5. IQueueRepository
+                        raffleRepo,                   // 6. IRaffleRepository
+                        paymentGateway,               // 7. IPaymentGateway
+                        ticketSupplier,               // 8. ITicketSupplier
+                        userRepo,                     // 9. IUserRepository
+                        auth,                         // 10. IAuth
+                        checkoutDomainService,        // 11. CheckoutDomainService
+                        ticketingAccessDomainService, // 12. TicketingAccessDomainService
+                        eventPublisher                // 13. ApplicationEventPublisher
+                );
 
         seedEventAndCompany();
         seedUser();
@@ -525,6 +537,16 @@ class OrderServiceIntegrationTest {
      *
      * <p>Thread-safe so it can also be used in future concurrency tests.
      */
+    static class StubTicketSupplier implements ITicketSupplier {
+        @Override public boolean isConnected() { return true; }
+        @Override public Result<List<String>> issueTickets(String orderId, int quantity) {
+            List<String> codes = new java.util.ArrayList<>();
+            for (int i = 0; i < quantity; i++) codes.add("TICKET-" + UUID.randomUUID());
+            return Result.success(codes);
+        }
+        @Override public Result<Void> cancelTickets(List<String> ticketCodes) { return Result.success(); }
+    }
+
     static class SpyNotificationService implements INotificationService {
 
         private final AtomicInteger orderCompletedCallCount = new AtomicInteger(0);

@@ -2,6 +2,7 @@ package com.sadna.group13a.infrastructure.RepositoryImpl;
 
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
+import com.sadna.group13a.domain.shared.OptimisticLockException;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -17,6 +18,13 @@ public class CompanyRepositoryImpl implements ICompanyRepository {
 
     @Override
     public void save(ProductionCompany company) {
+        ProductionCompany stored = store.get(company.getId());
+        if (stored != null && stored.getVersion() > company.getVersion()) {
+            throw new OptimisticLockException(
+                    "Optimistic lock conflict for ProductionCompany " + company.getId() +
+                    ": stored version " + stored.getVersion() +
+                    " > incoming version " + company.getVersion());
+        }
         store.put(company.getId(), company);
     }
 

@@ -7,10 +7,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Unit tests for the TicketQueue aggregate.
- * No Spring, no Mockito — pure domain instantiation.
- */
+
 class TicketQueueTest {
 
     private static final String EVENT_ID = "event-1";

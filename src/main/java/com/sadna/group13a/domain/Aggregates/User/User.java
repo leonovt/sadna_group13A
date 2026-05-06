@@ -2,19 +2,15 @@ package com.sadna.group13a.domain.Aggregates.User;
 
 import java.util.UUID;
 
-/**
- * Aggregate Root for the User aggregate.
- * From UML: User (Root) — State: Active/Inactive, Pointer: activeOrderId.
- *
- * Guest, Member, and Admin are concrete subclasses, each carrying
- * their own domain logic (permissions, session management, etc.).
- */
+
 public abstract class User {
 
     private final String id;
     private String username;
     private UserState state;
     private String activeOrderId; // pointer to current cart (from UML)
+
+    private int version = 0;
 
     protected User(String id, String username) {
         this.id = id;
@@ -37,8 +33,10 @@ public abstract class User {
         return username;
     }
 
-    public void setUsername(String username) {
+    public void setUsername(String username)
+    {
         this.username = username;
+        incrementVersion();
     }
 
     public UserState getState() {
@@ -51,10 +49,12 @@ public abstract class User {
 
     public void activate() {
         this.state = UserState.ACTIVE;
+        incrementVersion();
     }
 
     public void deactivate() {
         this.state = UserState.INACTIVE;
+        incrementVersion();
     }
 
     // ── Active Order Pointer ──────────────────────────────────────
@@ -65,6 +65,7 @@ public abstract class User {
 
     public void setActiveOrderId(String activeOrderId) {
         this.activeOrderId = activeOrderId;
+        incrementVersion();
     }
 
     public boolean hasActiveOrder() {
@@ -99,5 +100,14 @@ public abstract class User {
      */
     public boolean canManageSystem() {
         return false;
+    }
+
+    public int getVersion()
+    {
+        return version;
+    }
+
+    protected void incrementVersion() {
+        this.version++;
     }
 }
