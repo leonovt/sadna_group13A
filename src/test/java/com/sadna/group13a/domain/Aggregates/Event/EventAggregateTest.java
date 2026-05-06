@@ -15,10 +15,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Unit tests for the Event aggregate: Event, VenueMap, SeatedZone, StandingZone, Seat.
- * No Spring, no Mockito — pure domain instantiation.
- */
+
 class EventAggregateTest {
 
     private static final LocalDateTime FUTURE_DATE = LocalDateTime.now().plusDays(30);

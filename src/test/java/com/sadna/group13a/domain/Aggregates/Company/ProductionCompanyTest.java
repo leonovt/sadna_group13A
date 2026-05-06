@@ -10,10 +10,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Unit tests for the ProductionCompany aggregate.
- * No Spring, no Mockito — pure domain instantiation.
- */
 class ProductionCompanyTest {
 
     private static final String FOUNDER_ID  = "founder-1";
