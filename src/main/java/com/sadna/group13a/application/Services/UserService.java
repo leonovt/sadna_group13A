@@ -32,13 +32,24 @@ public class UserService
     private final IOrderHistoryRepository historyRepository;
     private final ObjectMapper objectMapper;
 
-    public UserService(IUserRepository userRepository, IAuth authGateway, IPasswordEncoder passwordEncoder, IOrderHistoryRepository historyRepository, ObjectMapper objectMapper)
-    {
+    public UserService(IUserRepository userRepository, IAuth authGateway, IPasswordEncoder passwordEncoder,
+                       IOrderHistoryRepository historyRepository, ObjectMapper objectMapper) {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
         this.passwordEncoder = passwordEncoder;
         this.historyRepository = historyRepository;
         this.objectMapper = objectMapper;
+    }
+
+    /**
+     * Its generate a token but does not save to the repo, therefore  every action that will try to fetch the user 
+       object will fail.
+     */
+    public Result<String> enterAsGuest() {
+        String guestId = "guest-" + UUID.randomUUID();
+        String token = authGateway.generateToken(guestId);
+        logger.info("Guest session started: {}.", guestId);
+        return Result.success(token);
     }
 
     /**
@@ -157,14 +168,17 @@ public class UserService
         return Result.success(objectMapper.convertValue(user, UserDTO.class));
     }
 
+    // ── Order History ─────────────────────────────────────────────
+
     public Result<List<OrderHistoryDTO>> viewOrderHistory(String token)
     {
-        if(!authGateway.validateToken(token)) 
+        if(!authGateway.validateToken(token))
         {
             logger.warn("Unauthorized order history access attempt with invalid token.");
             return Result.failure("Unauthorized.");
         }
         String userId = authGateway.extractUserId(token);
+        if (userRepository.findById(userId).isEmpty()) return Result.failure("Only registered members can view order history.");
         
         List<OrderHistory> histories = historyRepository.findByUserId(userId);
 

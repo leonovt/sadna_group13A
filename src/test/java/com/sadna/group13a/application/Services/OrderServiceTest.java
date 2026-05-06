@@ -4,11 +4,13 @@ import com.sadna.group13a.application.DTO.OrderDTO;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
+import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
+import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
@@ -35,7 +37,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -51,6 +52,7 @@ class OrderServiceTest {
     @Mock private IQueueRepository queueRepository;
     @Mock private IRaffleRepository raffleRepository;
     @Mock private IPaymentGateway paymentGateway;
+    @Mock private ITicketSupplier ticketSupplier;
     @Mock private IUserRepository userRepository;
     @Mock private IAuth authGateway;
     @Mock private CheckoutDomainService checkoutDomainService;
@@ -88,6 +90,8 @@ class OrderServiceTest {
 
         lenient().when(authGateway.validateToken(TOKEN)).thenReturn(true);
         lenient().when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
+        lenient().when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new Member(USER_ID, "alice", "hash")));
+        lenient().when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
     }
 
     // ── addItemToCart ─────────────────────────────────────────────
@@ -219,8 +223,8 @@ class OrderServiceTest {
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(activeOrder));
         when(eventRepository.findById(EVENT_ID)).thenReturn(Optional.of(event));
         when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
-        when(checkoutDomainService.checkout(any(), any(), any(), any(), any()))
-                .thenReturn(buildOrderHistory());
+        when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+                .thenReturn(buildHistoryItems());
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.failure("Declined"));
 
@@ -236,10 +240,12 @@ class OrderServiceTest {
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(activeOrder));
         when(eventRepository.findById(EVENT_ID)).thenReturn(Optional.of(event));
         when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
-        when(checkoutDomainService.checkout(any(), any(), any(), any(), any()))
-                .thenReturn(buildOrderHistory());
+        when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+                .thenReturn(buildHistoryItems());
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.success("TXN-123"));
+        when(ticketSupplier.issueTickets(anyString(), anyInt()))
+                .thenReturn(Result.success(List.of("TICKET-001")));
 
         Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, "card");
 
@@ -249,13 +255,31 @@ class OrderServiceTest {
         verify(eventPublisher).publishEvent(any(OrderCompletedEvent.class));
     }
 
+    @Test
+    void givenTicketIssuanceFails_whenExecuteCheckout_thenPaymentRefundedAndReturnsFailure() {
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(activeOrder));
+        when(eventRepository.findById(EVENT_ID)).thenReturn(Optional.of(event));
+        when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+        when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+                .thenReturn(buildHistoryItems());
+        when(paymentGateway.processPayment(anyDouble(), anyString()))
+                .thenReturn(Result.success("TXN-123"));
+        when(ticketSupplier.issueTickets(anyString(), anyInt()))
+                .thenReturn(Result.failure("Ticket service unavailable"));
+
+        Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, "card");
+
+        assertFalse(result.isSuccess());
+        verify(paymentGateway).refundPayment("TXN-123");
+        verify(historyRepository, never()).save(any());
+    }
+
     // ── Helpers ───────────────────────────────────────────────────
 
-    private OrderHistory buildOrderHistory() {
-        OrderHistoryItem item = new OrderHistoryItem(
+    private List<OrderHistoryItem> buildHistoryItems() {
+        return List.of(new OrderHistoryItem(
                 EVENT_ID, "Concert", LocalDateTime.now().plusDays(7),
-                COMPANY_ID, "Acme", "VIP", "A-1", 100.0);
-        return new OrderHistory(UUID.randomUUID().toString(), USER_ID,
-                LocalDateTime.now(), 100.0, List.of(item));
+                COMPANY_ID, "Acme", "VIP", "A-1", 100.0));
     }
+
 }

@@ -25,12 +25,15 @@ public class ProductionCompany {
     
     // userId -> CompanyStaffMember
     private final Map<String, CompanyStaffMember> staff;
-    
+
     // nomineeId -> AppointmentRequest
     private final Map<String, AppointmentRequest> pendingAppointments;
-    
+
     private final List<PurchasePolicy> purchasePolicies;
     private final List<DiscountPolicy> discountPolicies;
+
+    /** Incremented on every mutation — used for optimistic-locking conflict detection. */
+    private volatile long version = 0L;
 
     public ProductionCompany(String id, String name, String description, String ownerId) {
         if (id == null || id.isBlank()) {
@@ -61,6 +64,10 @@ public class ProductionCompany {
         return id;
     }
 
+    public long getVersion() {
+        return version;
+    }
+
     public String getName() {
         return name;
     }
@@ -71,6 +78,7 @@ public class ProductionCompany {
 
     public void setDescription(String description) {
         this.description = description != null ? description : "";
+        version++;
     }
 
     public void setName(String name) {
@@ -78,6 +86,7 @@ public class ProductionCompany {
             throw new IllegalArgumentException("Company name cannot be null or blank");
         }
         this.name = name;
+        version++;
     }
 
     public CompanyStatus getStatus() {
@@ -93,6 +102,7 @@ public class ProductionCompany {
             throw new DomainException("Only the founder can suspend or close the company");
         }
         this.status = CompanyStatus.INACTIVE;
+        version++;
     }
 
     /**
@@ -102,6 +112,7 @@ public class ProductionCompany {
     public void forceRemoveStaff(String userId) {
         if (staff.containsKey(userId)) {
             removeSubtree(userId);
+            version++;
         }
     }
 
@@ -111,6 +122,7 @@ public class ProductionCompany {
      */
     public void forceClose() {
         this.status = CompanyStatus.INACTIVE;
+        version++;
     }
 
     /**
@@ -122,6 +134,7 @@ public class ProductionCompany {
             throw new DomainException("Only the founder can reopen the company");
         }
         this.status = CompanyStatus.ACTIVE;
+        version++;
     }
 
     /**
@@ -233,6 +246,19 @@ public class ProductionCompany {
         }
         
         pendingAppointments.put(nomineeId, new AppointmentRequest(nomineeId, actingUserId, role, permissions));
+        version++;
+    }
+
+    /**
+     * The nominated user explicitly rejects the appointment.
+     * @param nomineeId the user rejecting the nomination
+     */
+    public void rejectNomination(String nomineeId) {
+        AppointmentRequest req = pendingAppointments.remove(nomineeId);
+        if (req == null) {
+            throw new DomainException("No pending appointment found for this user");
+        }
+        version++;
     }
 
     /**
@@ -245,6 +271,7 @@ public class ProductionCompany {
             throw new DomainException("No pending appointment found");
         }
         staff.put(nomineeId, new CompanyStaffMember(nomineeId, req.getProposedRole(), req.getAppointerId(), req.getProposedPermissions()));
+        version++;
     }
 
     /**
@@ -271,6 +298,7 @@ public class ProductionCompany {
         }
 
         removeSubtree(targetUserId);
+        version++;
     }
 
     /**
@@ -284,8 +312,9 @@ public class ProductionCompany {
         if (actor.getRole() == CompanyRole.FOUNDER) throw new DomainException("Founder cannot resign");
         
         removeSubtree(actingUserId);
+        version++;
     }
-    
+
     /**
      * Updates permissions for a MANAGER. Only the direct appointer can do this.
      * @param actingUserId the user making the change
@@ -302,6 +331,7 @@ public class ProductionCompany {
         }
         
         target.setPermissions(newPermissions);
+        version++;
     }
 
     /**
@@ -328,6 +358,7 @@ public class ProductionCompany {
     public void addPurchasePolicy(PurchasePolicy policy) {
         if (policy == null) throw new IllegalArgumentException("Policy cannot be null");
         purchasePolicies.add(policy);
+        version++;
     }
 
     public List<DiscountPolicy> getDiscountPolicies() {
@@ -337,5 +368,6 @@ public class ProductionCompany {
     public void addDiscountPolicy(DiscountPolicy policy) {
         if (policy == null) throw new IllegalArgumentException("Policy cannot be null");
         discountPolicies.add(policy);
+        version++;
     }
 }

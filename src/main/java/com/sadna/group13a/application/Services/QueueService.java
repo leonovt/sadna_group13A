@@ -3,11 +3,17 @@ package com.sadna.group13a.application.Services;
 import com.sadna.group13a.application.DTO.QueueStatusDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
+import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
+import com.sadna.group13a.domain.Aggregates.Event.Event;
+import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.QueueTicket;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
-import com.sadna.group13a.domain.Aggregates.User.Admin;
 import com.sadna.group13a.domain.Aggregates.User.User;
+import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
+import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
+import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IQueueRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.slf4j.Logger;
@@ -26,16 +32,25 @@ public class QueueService {
     private static final int DEFAULT_ACCESS_MINUTES = 10;
 
     private final IQueueRepository queueRepository;
+    private final IEventRepository eventRepository;
+    private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
+    private final IAdminRepository adminRepository;
     private final IAuth authGateway;
     private final ApplicationEventPublisher eventPublisher;
 
     public QueueService(IQueueRepository queueRepository,
+                        IEventRepository eventRepository,
+                        ICompanyRepository companyRepository,
                         IUserRepository userRepository,
+                        IAdminRepository adminRepository,
                         IAuth authGateway,
                         ApplicationEventPublisher eventPublisher) {
         this.queueRepository = queueRepository;
+        this.eventRepository = eventRepository;
+        this.companyRepository = companyRepository;
         this.userRepository = userRepository;
+        this.adminRepository = adminRepository;
         this.authGateway = authGateway;
         this.eventPublisher = eventPublisher;
     }
@@ -47,13 +62,29 @@ public class QueueService {
      */
     public Result<Void> createQueue(String token, String eventId, int maxConcurrentUsers) {
         if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
+        String initiatorId = authGateway.extractUserId(token);
+
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) return Result.failure("Event not found.");
+
+        Event event = eventOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
+        if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+            return Result.failure("User lacks permission to manage events.");
+        }
 
         if (queueRepository.findByEventId(eventId).isPresent()) {
             return Result.failure("A queue already exists for this event.");
         }
+        try {
+            event.setSaleMode(EventSaleMode.QUEUE);
+        } catch (Exception e) {
+            return Result.failure(e.getMessage());
+        }
 
         TicketQueue queue = new TicketQueue(eventId, maxConcurrentUsers);
         queueRepository.save(queue);
+        eventRepository.save(event);
         logger.info("Queue created for event {} with max {} concurrent users.", eventId, maxConcurrentUsers);
         return Result.success();
     }
@@ -134,8 +165,8 @@ public class QueueService {
         String userId = authGateway.extractUserId(token);
 
         Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isEmpty() || !userOpt.get().isActive()) {
-            return Result.failure("User not found or account is inactive.");
+        if (userOpt.isPresent() && !userOpt.get().isActive()) {
+            return Result.failure("Account is inactive.");
         }
 
         Optional<TicketQueue> queueOpt = queueRepository.findByEventId(eventId);
@@ -257,8 +288,7 @@ public class QueueService {
 
     private boolean isAdmin(String token) {
         String userId = authGateway.extractUserId(token);
-        return userRepository.findById(userId)
-                .map(u -> u instanceof Admin && u.isActive())
-                .orElse(false);
+        return adminRepository.findByUserId(userId).isPresent()
+                && userRepository.findById(userId).map(User::isActive).orElse(false);
     }
 }

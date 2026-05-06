@@ -12,6 +12,7 @@ public record EventDTO(
     String companyId,
     LocalDateTime eventDate,
     String category,
+    String location,
     boolean isPublished,
     int totalAvailableTickets
 ) {}

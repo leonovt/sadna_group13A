@@ -1,6 +1,6 @@
 package com.sadna.group13a.infrastructure.RepositoryImpl;
 
-import com.sadna.group13a.domain.Aggregates.User.Admin;
+import com.sadna.group13a.domain.Aggregates.Admin.Admin;
 import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import org.springframework.stereotype.Repository;
 
@@ -22,6 +22,13 @@ public class AdminRepositoryImpl implements IAdminRepository {
     @Override
     public Optional<Admin> findById(String id) {
         return Optional.ofNullable(store.get(id));
+    }
+
+    @Override
+    public Optional<Admin> findByUserId(String userId) {
+        return store.values().stream()
+                .filter(a -> a.getUserId().equals(userId))
+                .findFirst();
     }
 
     @Override

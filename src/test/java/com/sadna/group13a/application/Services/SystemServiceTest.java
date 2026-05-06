@@ -5,7 +5,9 @@ import com.sadna.group13a.application.Interfaces.IPasswordEncoder;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Result;
-import com.sadna.group13a.domain.Aggregates.User.Admin;
+import com.sadna.group13a.domain.Aggregates.Admin.Admin;
+import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +26,7 @@ import static org.mockito.Mockito.*;
 class SystemServiceTest {
 
     @Mock private IUserRepository userRepository;
+    @Mock private IAdminRepository adminRepository;
     @Mock private IAuth authGateway;
     @Mock private IPaymentGateway paymentGateway;
     @Mock private ITicketSupplier ticketingGateway;
@@ -44,7 +47,8 @@ class SystemServiceTest {
         Result<Void> result = systemService.initializePlatform("admin", "secret");
 
         assertTrue(result.isSuccess());
-        verify(userRepository).save(any(Admin.class));
+        verify(userRepository).save(any(Member.class));
+        verify(adminRepository).save(any(Admin.class));
     }
 
     @Test
@@ -75,7 +79,7 @@ class SystemServiceTest {
         when(paymentGateway.isConnected()).thenReturn(true);
         when(ticketingGateway.isConnected()).thenReturn(true);
         when(userRepository.findByUsername("admin"))
-                .thenReturn(Optional.of(new Admin("a-1", "admin", "hash")));
+                .thenReturn(Optional.of(new Member("a-1", "admin", "hash")));
 
         Result<Void> result = systemService.initializePlatform("admin", "secret");
 

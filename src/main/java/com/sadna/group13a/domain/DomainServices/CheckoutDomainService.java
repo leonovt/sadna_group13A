@@ -4,96 +4,95 @@ import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
-import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
-import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
-import com.sadna.group13a.domain.Aggregates.Event.Zone;
-import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Domain Service — pure Java, no Spring annotations.
- * Finalizes a checkout: validates policies, transitions seat states from HELD to SOLD,
- * calculates the discounted total, and produces an immutable OrderHistory.
+ * Finalizes checkout for a single event's items: validates policies, transitions seat
+ * states from HELD to SOLD, calculates discounted price, and returns immutable receipt
+ * line items.
+ *
+ * If any seat transition fails mid-way, already-sold seats within this call are
+ * automatically rolled back so callers always get all-or-nothing atomicity per event.
  */
 public class CheckoutDomainService {
 
     /**
-     * Executes the checkout business logic against the provided in-memory aggregates.
+     * Processes a set of cart items belonging to one event.
      *
-     * @param order            the user's active cart (status must be OPEN)
-     * @param event            the event whose seat map will be mutated (HELD → SOLD)
-     * @param company          the owning company — used for denormalized receipt data
-     * @param discountPolicy   optional; null means no discount applied
-     * @param purchasePolicy   optional; null means no purchase restrictions
-     * @return a fully-populated, immutable OrderHistory aggregate
-     * @throws DomainException if the order expired or a purchase policy blocks the sale
-     * @throws com.sadna.group13a.domain.shared.SeatUnavailableException if a seat hold expired or was stolen
+     * @param items             the cart items to check out (all must belong to {@code event})
+     * @param order             the parent cart — used for expiry check and buyer identity
+     * @param event             the event whose seat map will be mutated (HELD → SOLD)
+     * @param company           the owning company — used for denormalized receipt data
+     * @param purchasePolicies  combined event + company purchase policies; all must be satisfied
+     * @param discountPolicies  combined event + company discount policies; discounts are summed
+     * @return receipt line items for the successfully checked-out seats
+     * @throws DomainException            if the order expired or a purchase policy blocks the sale
+     * @throws com.sadna.group13a.domain.shared.SeatUnavailableException
+     *         if a seat hold has expired or was taken by another user
      */
-    public OrderHistory checkout(
+    public List<OrderHistoryItem> checkoutItemsForEvent(
+            List<OrderItem> items,
             ActiveOrder order,
             Event event,
             ProductionCompany company,
-            DiscountPolicy discountPolicy,
-            PurchasePolicy purchasePolicy) {
+            List<PurchasePolicy> purchasePolicies,
+            List<DiscountPolicy> discountPolicies) {
 
         if (order.isExpired()) {
             throw new DomainException("Order has expired and can no longer be checked out");
         }
 
-        if (purchasePolicy != null && !purchasePolicy.isSatisfied()) {
-            throw new DomainException("Purchase is not permitted by the current purchase policy");
+        for (PurchasePolicy pp : purchasePolicies) {
+            if (!pp.isSatisfied()) {
+                throw new DomainException("Purchase is not permitted by the current purchase policy");
+            }
         }
 
         List<OrderHistoryItem> historyItems = new ArrayList<>();
-        double totalPaid = 0.0;
+        List<Runnable> rollbackActions = new ArrayList<>();
 
-        for (OrderItem item : order.getItems()) {
-            Zone zone = event.getZoneById(item.getZoneId());
+        try {
+            for (OrderItem item : items) {
+                String zoneId = item.getZoneId();
+                String seatId = item.getSeatId();
 
-            // Transition seat state HELD → SOLD and build the denormalized receipt line
-            String seatLabel = null;
-            if (zone instanceof SeatedZone sz) {
-                var seat = sz.findSeatById(item.getSeatId())
-                        .orElseThrow(() -> new DomainException(
-                                "Seat " + item.getSeatId() + " not found in zone " + item.getZoneId()));
-                seat.sell(order.getUserId());
-                seatLabel = seat.getLabel();
-            } else if (zone instanceof StandingZone stz) {
-                stz.sellStandingSpot(order.getUserId());
-                // seatLabel stays null — standing admission has no assigned seat
+                String seatLabel = event.sellItem(zoneId, seatId, order.getUserId());
+                rollbackActions.add(() -> event.unsellItem(zoneId, seatId));
+
+                double basePrice = event.getZoneBasePrice(zoneId);
+                double totalDiscount = discountPolicies.stream()
+                        .mapToDouble(dp -> dp.calculateDiscount(basePrice))
+                        .sum();
+                double finalPrice = Math.max(0.0, basePrice - totalDiscount);
+
+                historyItems.add(new OrderHistoryItem(
+                        item.getEventId(),
+                        event.getTitle(),
+                        event.getEventDate(),
+                        company.getId(),
+                        company.getName(),
+                        event.getZoneName(zoneId),
+                        seatLabel,
+                        finalPrice));
             }
-
-            double basePrice = zone.getBasePrice();
-            double discount = (discountPolicy != null) ? discountPolicy.calculateDiscount(basePrice) : 0.0;
-            double finalPrice = Math.max(0.0, basePrice - discount);
-            totalPaid += finalPrice;
-
-            historyItems.add(new OrderHistoryItem(
-                    item.getEventId(),
-                    event.getTitle(),
-                    event.getEventDate(),
-                    company.getId(),
-                    company.getName(),
-                    zone.getName(),
-                    seatLabel,
-                    finalPrice
-            ));
+        } catch (Exception e) {
+            for (Runnable rollback : rollbackActions) {
+                try {
+                    rollback.run();
+                } catch (Exception ignored) {
+                    // best-effort rollback; log in caller if needed
+                }
+            }
+            throw e;
         }
 
-        return new OrderHistory(
-                UUID.randomUUID().toString(),
-                order.getUserId(),
-                LocalDateTime.now(),
-                totalPaid,
-                historyItems
-        );
+        return historyItems;
     }
 }

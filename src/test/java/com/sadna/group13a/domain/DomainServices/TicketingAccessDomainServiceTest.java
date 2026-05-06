@@ -13,10 +13,7 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Unit tests for TicketingAccessDomainService.
- * No Spring, no Mockito — pure domain instantiation.
- */
+
 class TicketingAccessDomainServiceTest {
 
     private static final String USER_ID  = "user-1";

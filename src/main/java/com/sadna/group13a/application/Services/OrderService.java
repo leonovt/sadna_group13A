@@ -7,17 +7,18 @@ import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
 import com.sadna.group13a.application.DTO.OrderItemDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
+import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
-import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
-import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
-import com.sadna.group13a.domain.Aggregates.Event.Zone;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
+import com.sadna.group13a.domain.Aggregates.User.User;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
@@ -28,7 +29,9 @@ import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IQueueRepository;
 import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
+import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
 
 import org.slf4j.Logger;
@@ -36,10 +39,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -58,13 +64,13 @@ public class OrderService {
     private final IQueueRepository queueRepository;
     private final IRaffleRepository raffleRepository;
     private final IPaymentGateway paymentGateway;
+    private final ITicketSupplier ticketSupplier;
     private final IAuth authGateway;
     private final CheckoutDomainService checkoutDomainService;
     private final TicketingAccessDomainService ticketingAccessDomainService;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
-    private final ConcurrentHashMap<String, Object> eventLocks = new ConcurrentHashMap<>();
 
     public OrderService(
             IActiveOrderRepository orderRepository,
@@ -74,6 +80,7 @@ public class OrderService {
             IQueueRepository queueRepository,
             IRaffleRepository raffleRepository,
             IPaymentGateway paymentGateway,
+            ITicketSupplier ticketSupplier,
             IUserRepository userRepository,
             IAuth authGateway,
             CheckoutDomainService checkoutDomainService,
@@ -86,6 +93,7 @@ public class OrderService {
         this.queueRepository = queueRepository;
         this.raffleRepository = raffleRepository;
         this.paymentGateway = paymentGateway;
+        this.ticketSupplier = ticketSupplier;
         this.userRepository = userRepository;
         this.authGateway = authGateway;
         this.checkoutDomainService = checkoutDomainService;
@@ -104,28 +112,31 @@ public class OrderService {
         }
         String userId = authGateway.extractUserId(token);
 
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent() && !userOpt.get().isActive()) {
+            return Result.failure("Account is inactive.");
+        }
+
         Optional<Event> eventOpt = eventRepository.findById(eventId);
         if (eventOpt.isEmpty()) return Result.failure("Event not found");
 
         Event event = eventOpt.get();
         if (!event.isPublished()) return Result.failure("Event is not published");
 
+        Optional<ProductionCompany> companyOpt = companyRepository.findById(event.getCompanyId());
+        if (companyOpt.isEmpty() || companyOpt.get().getStatus() != CompanyStatus.ACTIVE) {
+            return Result.failure("Company is not active");
+        }
+
         try {
-            Zone zone = event.getZoneById(zoneId);
-            if (zone instanceof SeatedZone sz) {
-                sz.findSeatById(seatId)
-                        .orElseThrow(() -> new IllegalArgumentException("Seat not found: " + seatId))
-                        .hold(userId);
-            } else if (zone instanceof StandingZone stz) {
-                stz.holdStandingSpot(userId);
-            }
+            event.reserveSeat(zoneId, seatId, userId);
             eventRepository.save(event);
         } catch (Exception e) {
             logger.warn("Failed to reserve seat {} in zone {} for user {}: {}", seatId, zoneId, userId, e.getMessage());
             return Result.failure("Failed to reserve seat: " + e.getMessage());
         }
 
-        double price = event.getZoneById(zoneId).getBasePrice();
+        double price = event.getZoneBasePrice(zoneId);
         ActiveOrder order = orderRepository.findActiveByUserId(userId)
                 .orElseGet(() -> new ActiveOrder(UUID.randomUUID().toString(), userId));
 
@@ -137,8 +148,18 @@ public class OrderService {
     }
 
     /**
-     * Full checkout flow: validates access rights, executes domain checkout,
-     * charges payment, and persists the finalized receipt.
+     * Full checkout flow for a cart that may span multiple events:
+     * <ol>
+     *   <li>Validates access rights per event (queue / raffle / regular)</li>
+     *   <li>Executes domain checkout per event inside a per-event lock</li>
+     *   <li>If any event fails, rolls back all already-sold seats and returns failure</li>
+     *   <li>Charges payment once for the combined total</li>
+     *   <li>If payment fails, rolls back all sold seats and returns failure</li>
+     *   <li>Persists seat changes; on persistence error, refunds and rolls back</li>
+     * </ol>
+     *
+     * Policies (purchase + discount) are sourced from BOTH the event and its company
+     * and applied during the per-event domain checkout.
      *
      * @param token           authenticated user token
      * @param activeOrderId   the cart to check out
@@ -157,7 +178,12 @@ public class OrderService {
         }
         String userId = authGateway.extractUserId(token);
 
-        // ── Fetch aggregates ──────────────────────────────────────────────────────
+        Optional<User> checkoutUserOpt = userRepository.findById(userId);
+        if (checkoutUserOpt.isPresent() && !checkoutUserOpt.get().isActive()) {
+            return Result.failure("Account is inactive.");
+        }
+
+        // ── Fetch and validate the cart ───────────────────────────────────────────
         Optional<ActiveOrder> orderOpt = orderRepository.findById(activeOrderId);
         if (orderOpt.isEmpty()) return Result.failure("Cart not found");
         ActiveOrder order = orderOpt.get();
@@ -166,84 +192,131 @@ public class OrderService {
             logger.warn("User {} attempted to check out cart belonging to {}", userId, order.getUserId());
             return Result.failure("Unauthorized: this cart does not belong to you");
         }
-
         if (order.getItems().isEmpty()) return Result.failure("Cart is empty");
+        if (order.isExpired()) return Result.failure("Cart has expired");
 
-        // V1: single event per cart — take the event from the first item
-        String eventId = order.getItems().get(0).getEventId();
-        Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found");
-        Event event = eventOpt.get();
+        // ── Group items by event ──────────────────────────────────────────────────
+        Map<String, List<OrderItem>> itemsByEvent = order.getItems().stream()
+                .collect(Collectors.groupingBy(OrderItem::getEventId));
 
-        Optional<ProductionCompany> companyOpt = companyRepository.findById(event.getCompanyId());
-        if (companyOpt.isEmpty()) return Result.failure("Company not found");
-        ProductionCompany company = companyOpt.get();
+        // Track processed events for rollback
+        Map<String, Event> processedEvents = new LinkedHashMap<>();
+        Map<String, TicketQueue> processedQueues = new LinkedHashMap<>();
+        List<OrderHistoryItem> allHistoryItems = new ArrayList<>();
+        double totalPaid = 0.0;
 
-        // ── Resolve access-check inputs based on sale mode ────────────────────────
-        TicketQueue queue = null;
-        AuthorizationCode authCode = null;
+        // ── Per-event access check + domain checkout ──────────────────────────────
+        for (Map.Entry<String, List<OrderItem>> entry : itemsByEvent.entrySet()) {
+            String eventId = entry.getKey();
+            List<OrderItem> eventItems = entry.getValue();
 
-        if (event.getSaleMode() == EventSaleMode.QUEUE) {
-            queue = queueRepository.findByEventId(eventId).orElse(null);
-        } else if (event.getSaleMode() == EventSaleMode.RAFFLE) {
-            authCode = raffleRepository.findByEventId(eventId).stream()
-                    .findFirst()
-                    .flatMap(r -> r.getAuthorizationCodeFor(userId))
-                    .filter(c -> c.isValidFor(userId, eventId))
-                    .orElse(null);
-        }
+            Optional<Event> eventOpt = eventRepository.findById(eventId);
+            if (eventOpt.isEmpty()) {
+                rollbackSoldSeats(processedEvents, order.getItems());
+                return Result.failure("Event not found: " + eventId);
+            }
+            Event event = eventOpt.get();
 
-        // ── Access gate ───────────────────────────────────────────────────────────
-        try {
-            ticketingAccessDomainService.validateAccess(event, userId, queue, authCode);
-        } catch (PermissionDeniedException e) {
-            logger.warn("Access denied for user {} on event {}: {}", userId, eventId, e.getMessage());
-            return Result.failure(e.getMessage());
-        }
+            Optional<ProductionCompany> companyOpt = companyRepository.findById(event.getCompanyId());
+            if (companyOpt.isEmpty()) {
+                rollbackSoldSeats(processedEvents, order.getItems());
+                return Result.failure("Company not found for event: " + eventId);
+            }
+            ProductionCompany company = companyOpt.get();
 
-        // ── Domain checkout (mutates seat state on the in-memory Event aggregate) ─
-        // Per-event lock prevents two threads from concurrently booking the same seat.
-        Object eventLock = eventLocks.computeIfAbsent(eventId, k -> new Object());
-        OrderHistory history;
-        synchronized (eventLock) {
+            // Resolve access-check inputs based on sale mode
+            TicketQueue queue = null;
+            AuthorizationCode authCode = null;
+            if (event.getSaleMode() == EventSaleMode.QUEUE) {
+                queue = queueRepository.findByEventId(eventId).orElse(null);
+            } else if (event.getSaleMode() == EventSaleMode.RAFFLE) {
+                final String eid = eventId;
+                authCode = raffleRepository.findByEventId(eid).stream()
+                        .findFirst()
+                        .flatMap(r -> r.getAuthorizationCodeFor(userId))
+                        .filter(c -> c.isValidFor(userId, eid))
+                        .orElse(null);
+            }
+
             try {
-                history = checkoutDomainService.checkout(order, event, company, null, null);
+                ticketingAccessDomainService.validateAccess(event, userId, queue, authCode);
+            } catch (PermissionDeniedException e) {
+                logger.warn("Access denied for user {} on event {}: {}", userId, eventId, e.getMessage());
+                rollbackSoldSeats(processedEvents, order.getItems());
+                return Result.failure(e.getMessage());
+            }
+
+            // Combine purchase and discount policies from both event and company
+            List<PurchasePolicy> purchasePolicies = new ArrayList<>();
+            purchasePolicies.addAll(event.getPurchasePolicies());
+            purchasePolicies.addAll(company.getPurchasePolicies());
+
+            List<DiscountPolicy> discountPolicies = new ArrayList<>();
+            discountPolicies.addAll(event.getDiscountPolicies());
+            discountPolicies.addAll(company.getDiscountPolicies());
+
+            // Seat-level synchronization (on Seat and StandingZone methods) ensures
+            // that two users competing for the same seat get correct all-or-nothing
+            // behaviour without blocking unrelated seats on the same event.
+            try {
+                List<OrderHistoryItem> items = checkoutDomainService.checkoutItemsForEvent(
+                        eventItems, order, event, company, purchasePolicies, discountPolicies);
+                allHistoryItems.addAll(items);
+                totalPaid += items.stream().mapToDouble(OrderHistoryItem::getPricePaid).sum();
+                processedEvents.put(eventId, event);
+                if (queue != null) processedQueues.put(eventId, queue);
             } catch (SeatUnavailableException e) {
                 logger.warn("Seat unavailable during checkout for user {}: {}", userId, e.getMessage());
+                rollbackSoldSeats(processedEvents, order.getItems());
                 return Result.failure("Seat no longer available: " + e.getMessage());
             } catch (Exception e) {
                 logger.error("Checkout domain logic failed for user {}: {}", userId, e.getMessage());
+                rollbackSoldSeats(processedEvents, order.getItems());
                 return Result.failure("Checkout failed: " + e.getMessage());
             }
         }
 
         // ── Payment ───────────────────────────────────────────────────────────────
-        Result<String> paymentResult = paymentGateway.processPayment(history.getTotalPaid(), paymentDetails);
+        Result<String> paymentResult = paymentGateway.processPayment(totalPaid, paymentDetails);
         if (!paymentResult.isSuccess()) {
-            logger.warn("Payment declined for user {} (amount {}): {}", userId, history.getTotalPaid(), paymentResult.getErrorMessage());
+            logger.warn("Payment declined for user {} (amount {}): {}", userId, totalPaid, paymentResult.getErrorMessage());
+            rollbackSoldSeats(processedEvents, order.getItems());
             return Result.failure("Payment declined: " + paymentResult.getErrorMessage());
         }
         String transactionId = paymentResult.getOrThrow();
 
-        // ── Persist ───────────────────────────────────────────────────────────────
-        // eventRepository.save() would throw OptimisticLockException here when JPA is in use.
-        // For V1 (ConcurrentHashMap) this never fires, but the catch is structural scaffolding.
+        // ── Persist seat changes ──────────────────────────────────────────────────
+        // OptimisticLockException here means a concurrent modification raced past the
+        // per-event lock (shouldn't happen normally, but handled for safety).
         try {
-            eventRepository.save(event);
+            for (Event event : processedEvents.values()) {
+                eventRepository.save(event);
+            }
         } catch (Exception e) {
-            // Seat map could not be persisted — refund and abort to keep system consistent
-            logger.error("Failed to persist seat map after payment for order {}: {}", activeOrderId, e.getMessage());
+            logger.error("Failed to persist seat map after payment: {}", e.getMessage());
             paymentGateway.refundPayment(transactionId);
-            return Result.failure("Concurrent seat modification detected — please retry. Your payment has been refunded.");
+            rollbackSoldSeats(processedEvents, order.getItems());
+            return Result.failure("Concurrent modification detected — payment refunded. Please retry.");
+        }
+
+        // ── Post-checkout ─────────────────────────────────────────────────────────
+        OrderHistory history = new OrderHistory(
+                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, allHistoryItems);
+
+        Result<List<String>> ticketResult = ticketSupplier.issueTickets(history.getReceiptId(), allHistoryItems.size());
+        if (!ticketResult.isSuccess()) {
+            logger.error("Ticket issuance failed for receipt {}: {}", history.getReceiptId(), ticketResult.getErrorMessage());
+            paymentGateway.refundPayment(transactionId);
+            rollbackSoldSeats(processedEvents, order.getItems());
+            return Result.failure("Ticket issuance failed — payment refunded.");
         }
 
         historyRepository.save(history);
         orderRepository.deleteById(activeOrderId);
 
-        // Remove the user from the queue's active slot once checkout completes
-        if (queue != null) {
-            queue.removeActiveUser(userId);
-            queueRepository.save(queue);
+        for (Map.Entry<String, TicketQueue> qe : processedQueues.entrySet()) {
+            qe.getValue().removeActiveUser(userId);
+            queueRepository.save(qe.getValue());
         }
 
         eventPublisher.publishEvent(new OrderCompletedEvent(history.getReceiptId(), userId, history.getTotalPaid()));
@@ -310,9 +383,7 @@ public class OrderService {
         if (orderOpt.isEmpty()) return Result.failure("No active cart found");
 
         ActiveOrder order = orderOpt.get();
-        boolean removed = order.getItems().removeIf(i ->
-                i.getEventId().equals(eventId) && i.getZoneId().equals(zoneId) && i.getSeatId().equals(seatId));
-
+        boolean removed = order.removeItemByKey(eventId, zoneId, seatId);
         if (!removed) return Result.failure("Item not found in cart");
 
         releaseHold(userId, eventId, zoneId, seatId);
@@ -345,15 +416,26 @@ public class OrderService {
 
     // ── Private helpers ───────────────────────────────────────────────────────────
 
+    /**
+     * Rolls back all sold seats for the given processed events.
+     * Best-effort: logs but swallows individual rollback errors so all seats are attempted.
+     */
+    private void rollbackSoldSeats(Map<String, Event> processedEvents, List<OrderItem> items) {
+        for (OrderItem item : items) {
+            Event event = processedEvents.get(item.getEventId());
+            if (event == null) continue;
+            try {
+                event.unsellItem(item.getZoneId(), item.getSeatId());
+            } catch (Exception e) {
+                logger.warn("Rollback failed for seat {} zone {}: {}", item.getSeatId(), item.getZoneId(), e.getMessage());
+            }
+        }
+    }
+
     private void releaseHold(String userId, String eventId, String zoneId, String seatId) {
         eventRepository.findById(eventId).ifPresent(event -> {
             try {
-                Zone zone = event.getZoneById(zoneId);
-                if (zone instanceof SeatedZone sz) {
-                    sz.findSeatById(seatId).ifPresent(s -> s.release());
-                } else if (zone instanceof StandingZone stz) {
-                    stz.releaseStandingSpot(userId);
-                }
+                event.releaseItem(zoneId, seatId, userId);
                 eventRepository.save(event);
             } catch (Exception e) {
                 logger.warn("Failed to release hold for user {} seat {} zone {}: {}", userId, seatId, zoneId, e.getMessage());

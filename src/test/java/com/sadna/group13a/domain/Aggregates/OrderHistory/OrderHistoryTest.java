@@ -8,10 +8,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Unit tests for the OrderHistory aggregate (immutable purchase receipt).
- * No Spring, no Mockito — pure domain instantiation.
- */
+
 class OrderHistoryTest {
 
     private static final String COMPANY_ID = "company-1";
