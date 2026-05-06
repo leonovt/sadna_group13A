@@ -1,14 +1,15 @@
 package com.sadna.group13a.acceptance;
 
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.OrderService;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
+import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
-import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
-import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Interfaces.*;
@@ -39,6 +40,7 @@ class ActiveOrderManagementTest {
     private ICompanyRepository companyRepository;
     private IQueueRepository queueRepository;
     private IRaffleRepository raffleRepository;
+    private ITicketSupplier ticketSupplier;
     private IPaymentGateway paymentGateway;
     private IUserRepository userRepository;
     private IAuth authGateway;
@@ -54,6 +56,7 @@ class ActiveOrderManagementTest {
         companyRepository = mock(ICompanyRepository.class);
         queueRepository = mock(IQueueRepository.class);
         raffleRepository = mock(IRaffleRepository.class);
+        ticketSupplier = mock(ITicketSupplier.class);
         paymentGateway = mock(IPaymentGateway.class);
         userRepository = mock(IUserRepository.class);
         authGateway = mock(IAuth.class);
@@ -63,7 +66,7 @@ class ActiveOrderManagementTest {
 
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
-                queueRepository, raffleRepository, paymentGateway, userRepository, authGateway,
+                queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
                 checkoutDomainService, ticketingAccessDomainService, eventPublisher
         );
     }
@@ -83,13 +86,12 @@ class ActiveOrderManagementTest {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
         when(event.isPublished()).thenReturn(true);
         
-        // Mock a seat that throws IllegalArgumentException because it is already taken or unavailable
-        SeatedZone mockZone = mock(SeatedZone.class);
-        when(event.getZoneById("zone1")).thenReturn(mockZone);
-        Seat unavailableSeat = mock(Seat.class);
-        doThrow(new IllegalArgumentException("Seat not found")).when(unavailableSeat).hold(userId);
-        when(mockZone.findSeatById("seat2")).thenReturn(Optional.of(unavailableSeat));
-        
+        ProductionCompany company = mock(ProductionCompany.class);
+        when(company.getStatus()).thenReturn(CompanyStatus.ACTIVE);
+        when(event.getCompanyId()).thenReturn("company1");
+        when(companyRepository.findById("company1")).thenReturn(Optional.of(company));
+        doThrow(new IllegalArgumentException("Seat not found")).when(event).reserveSeat("zone1", "seat2", userId);
+
         Result<String> result = orderService.addItemToCart(token, eventId, "zone1", "seat2");
         assertFalse(result.isSuccess(), "Should reject addition of unavailable seat");
         
@@ -113,15 +115,11 @@ class ActiveOrderManagementTest {
         
         Event event = mock(Event.class);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-        SeatedZone zone = mock(SeatedZone.class);
-        Seat seat = mock(Seat.class);
-        when(event.getZoneById("zone1")).thenReturn(zone);
-        when(zone.findSeatById("seat1")).thenReturn(Optional.of(seat));
         
         Result<Void> result = orderService.removeItemFromCart(token, eventId, "zone1", "seat1");
         
         assertTrue(result.isSuccess());
-        verify(seat).release();
+        verify(event).releaseItem("zone1", "seat1", userId);
         verify(eventRepository).save(event);
         verify(orderRepository).save(order);
     }
@@ -144,12 +142,12 @@ class ActiveOrderManagementTest {
         Event event = mock(Event.class);
         when(eventRepository.findById("ev1")).thenReturn(Optional.of(event));
         when(event.isPublished()).thenReturn(true);
-        SeatedZone zone = mock(SeatedZone.class);
-        Seat seat = mock(Seat.class);
-        when(event.getZoneById("zone1")).thenReturn(zone);
-        when(zone.findSeatById("seat1")).thenReturn(Optional.of(seat));
-        when(zone.getBasePrice()).thenReturn(100.0);
-        
+        when(event.getCompanyId()).thenReturn("comp1");
+        when(event.getZoneBasePrice("zone1")).thenReturn(100.0);
+        ProductionCompany company = mock(ProductionCompany.class);
+        when(company.getStatus()).thenReturn(CompanyStatus.ACTIVE);
+        when(companyRepository.findById("comp1")).thenReturn(Optional.of(company));
+
         Result<String> result = orderService.addItemToCart(token, "ev1", "zone1", "seat1");
         
         assertTrue(result.isSuccess());
@@ -193,12 +191,11 @@ class ActiveOrderManagementTest {
         Event event = mock(Event.class);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
         when(event.isPublished()).thenReturn(true);
-        
-        SeatedZone mockZone = mock(SeatedZone.class);
-        when(event.getZoneById("zone1")).thenReturn(mockZone);
-        Seat seat = mock(Seat.class);
-        when(mockZone.findSeatById("seat1")).thenReturn(Optional.of(seat));
-        doThrow(new RuntimeException("Policy limit exceeded")).when(seat).hold(userId);
+        when(event.getCompanyId()).thenReturn("company1");
+        ProductionCompany company = mock(ProductionCompany.class);
+        when(company.getStatus()).thenReturn(CompanyStatus.ACTIVE);
+        when(companyRepository.findById("company1")).thenReturn(Optional.of(company));
+        doThrow(new RuntimeException("Policy limit exceeded")).when(event).reserveSeat("zone1", "seat1", userId);
         
         Result<String> result = orderService.addItemToCart(token, eventId, "zone1", "seat1");
         assertFalse(result.isSuccess(), "Should fail on policy limit exceeded");

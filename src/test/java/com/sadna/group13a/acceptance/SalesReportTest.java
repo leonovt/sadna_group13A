@@ -44,6 +44,7 @@ class SalesReportTest {
         authGateway = new AuthImpl();
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
+        objectMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway, objectMapper);
         paymentGateway = new StubPaymentGateway();
     }
@@ -71,7 +72,7 @@ class SalesReportTest {
     void GivenReportGenerated_ThenOnlyPaidTransactions() {
         String founderToken = setupCompanyAndUser("c1", "u1", "founder");
 
-        OrderHistoryItem paidItem = new OrderHistoryItem("e1", "Event", LocalDateTime.now().plusDays(1), "Company", "c1", "VIP", "A1", 100.0);
+        OrderHistoryItem paidItem = new OrderHistoryItem("e1", "Event", LocalDateTime.now().plusDays(1), "c1", "Company", "VIP", "A1", 100.0);
         OrderHistory paidOrder = new OrderHistory("receipt1", "u1", LocalDateTime.now(), 100.0, java.util.List.of(paidItem));
         historyRepository.save(paidOrder);
 
@@ -90,12 +91,12 @@ class SalesReportTest {
 
         // Process payments through stub to verify integration works alongside DB history
         paymentGateway.processPayment(50.0, "CC");
-        OrderHistoryItem i1 = new OrderHistoryItem("e1", "Event", LocalDateTime.now().plusDays(1), "Company", "c1", "VIP", "A1", 50.0);
+        OrderHistoryItem i1 = new OrderHistoryItem("e1", "Event", LocalDateTime.now().plusDays(1), "c1", "Company", "VIP", "A1", 50.0);
         OrderHistory o1 = new OrderHistory("r1", "u1", LocalDateTime.now(), 50.0, java.util.List.of(i1));
         historyRepository.save(o1);
 
         paymentGateway.processPayment(75.0, "CC");
-        OrderHistoryItem i2 = new OrderHistoryItem("e1", "Event", LocalDateTime.now().plusDays(1), "Company", "c1", "VIP", "A2", 75.0);
+        OrderHistoryItem i2 = new OrderHistoryItem("e1", "Event", LocalDateTime.now().plusDays(1), "c1", "Company", "VIP", "A2", 75.0);
         OrderHistory o2 = new OrderHistory("r2", "u1", LocalDateTime.now(), 75.0, java.util.List.of(i2));
         historyRepository.save(o2);
 

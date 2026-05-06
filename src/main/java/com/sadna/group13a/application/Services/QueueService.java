@@ -261,7 +261,8 @@ public class QueueService {
 
         TicketQueue queue = queueOpt.get();
         queue.removeActiveUser(userId);
-        // Admit the next user now that a slot freed up
+        queue.removeWaitingUser(userId);
+        // Admit the next user now that a freed active slot exists
         List<QueueTicket> admitted = queue.processBatch(1, DEFAULT_ACCESS_MINUTES);
         queueRepository.save(queue);
 

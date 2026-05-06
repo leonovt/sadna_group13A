@@ -3,6 +3,7 @@ package com.sadna.group13a.acceptance;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
+import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.OrderService;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
@@ -45,6 +46,7 @@ class PurchaseCompletionTest {
     private ICompanyRepository companyRepository;
     private IQueueRepository queueRepository;
     private IRaffleRepository raffleRepository;
+    private ITicketSupplier ticketSupplier;
     private IPaymentGateway paymentGateway;
     private IUserRepository userRepository;
     private IAuth authGateway;
@@ -60,6 +62,8 @@ class PurchaseCompletionTest {
         companyRepository = mock(ICompanyRepository.class);
         queueRepository = mock(IQueueRepository.class);
         raffleRepository = mock(IRaffleRepository.class);
+        ticketSupplier = mock(ITicketSupplier.class);
+        when(ticketSupplier.issueTickets(any(), anyInt())).thenReturn(Result.success(List.of("ticket-1")));
         paymentGateway = mock(IPaymentGateway.class);
         userRepository = mock(IUserRepository.class);
         authGateway = mock(IAuth.class);
@@ -69,7 +73,7 @@ class PurchaseCompletionTest {
 
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
-                queueRepository, raffleRepository, paymentGateway, userRepository, authGateway,
+                queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
                 checkoutDomainService, ticketingAccessDomainService, eventPublisher);
     }
 
@@ -106,8 +110,7 @@ class PurchaseCompletionTest {
             // Domain Service mocks
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
                     "Zone1", "Seat1", 100.0);
-            OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
-            when(checkoutDomainService.checkout(order, event, company, null, null)).thenReturn(history);
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_1"));
 
@@ -149,7 +152,7 @@ class PurchaseCompletionTest {
 
             // Let checkoutDomainService throw an exception representing policy breach
             doThrow(new RuntimeException("Policy Exceeded")).when(checkoutDomainService)
-                    .checkout(any(), any(), any(), any(), any());
+                    .checkoutItemsForEvent(any(), any(), any(), any(), any(), any());
 
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
 
@@ -186,8 +189,7 @@ class PurchaseCompletionTest {
 
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), "company1", "Company",
                     "Zone1", "Seat1", 100.0);
-            OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
-            when(checkoutDomainService.checkout(eq(order), eq(event), any(), any(), any())).thenReturn(history);
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, "cc_good")).thenReturn(Result.success("txn_1"));
 

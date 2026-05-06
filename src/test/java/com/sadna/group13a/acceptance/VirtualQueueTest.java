@@ -6,6 +6,9 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.QueueService;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.Interfaces.IAdminRepository;
+import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
+import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IQueueRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.infrastructure.AuthImpl;
@@ -35,7 +38,15 @@ class VirtualQueueTest {
         authGateway = new AuthImpl();
         eventPublisher = mock(ApplicationEventPublisher.class);
 
-        queueService = new QueueService(queueRepository, authGateway, null, eventPublisher);
+        queueService = new QueueService(
+                        queueRepository,
+                        mock(IEventRepository.class),      // Add
+                        mock(ICompanyRepository.class),    // Add
+                        userRepository,
+                        mock(IAdminRepository.class),      // Add
+                        authGateway,
+                        eventPublisher
+);
     }
 
     private String setupUser(String userId) {
@@ -47,8 +58,7 @@ class VirtualQueueTest {
     @DisplayName("Given high load — When queue is full — Then users placed in waiting line")
     void GivenHighLoad_WhenQueueFull_ThenUsersWait() {
         String eventId = "e1";
-        TicketQueue queue = new TicketQueue(eventId);
-        queue.setCapacity(1); // Only 1 can enter checkout at a time
+        TicketQueue queue = new TicketQueue(eventId, 1); // Add maxConcurrentUsers
         queueRepository.save(queue);
 
         String t1 = setupUser("u1");
@@ -68,8 +78,7 @@ class VirtualQueueTest {
     @DisplayName("Given wait line — When user completes checkout — Then next user admitted (FIFO)")
     void GivenWaitLine_WhenCheckoutCompletes_ThenNextAdmittedFIFO() {
         String eventId = "e1";
-        TicketQueue queue = new TicketQueue(eventId);
-        queue.setCapacity(1);
+        TicketQueue queue = new TicketQueue(eventId, 1); // Add maxConcurrentUsers
         queueRepository.save(queue);
 
         String t1 = setupUser("u1");
@@ -81,7 +90,7 @@ class VirtualQueueTest {
         queueService.joinQueue(t3, eventId);
 
         // u1 finishes
-        queueService.leaveQueue(t1, eventId);
+        queueService.releaseAccess(t1, eventId);
 
         Result<QueueStatusDTO> st2 = queueService.getStatus(t2, eventId);
         assertTrue(st2.getOrThrow().isActive());
@@ -95,8 +104,7 @@ class VirtualQueueTest {
     @DisplayName("Given user disconnects or leaves — Then they are removed from queue without affecting others")
     void GivenUserLeaves_ThenRemovedWithoutAffectingOthers() {
         String eventId = "e1";
-        TicketQueue queue = new TicketQueue(eventId);
-        queue.setCapacity(1);
+        TicketQueue queue = new TicketQueue(eventId, 1); // Add maxConcurrentUsers
         queueRepository.save(queue);
 
         String t1 = setupUser("u1");
@@ -108,7 +116,7 @@ class VirtualQueueTest {
         queueService.joinQueue(t3, eventId);
 
         // u2 gives up
-        queueService.leaveQueue(t2, eventId);
+        queueService.releaseAccess(t2, eventId);
 
         Result<QueueStatusDTO> st3 = queueService.getStatus(t3, eventId);
         // u3 moves up in line (position 1 instead of 2)
@@ -119,7 +127,7 @@ class VirtualQueueTest {
     @DisplayName("Given queue active — Then admin can clear queue")
     void GivenQueueActive_ThenAdminCanClearQueue() {
         String eventId = "e1";
-        TicketQueue queue = new TicketQueue(eventId);
+        TicketQueue queue = new TicketQueue(eventId,1);
         queueRepository.save(queue);
 
         String t1 = setupUser("u1");

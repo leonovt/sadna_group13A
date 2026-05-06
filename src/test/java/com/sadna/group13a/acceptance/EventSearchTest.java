@@ -4,10 +4,16 @@ import com.sadna.group13a.application.DTO.EventDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.EventService;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
+import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
+import com.sadna.group13a.domain.Aggregates.Event.Seat;
+import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
+import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,14 +58,28 @@ class EventSearchTest {
         String token = "valid_token";
         when(authGateway.validateToken(token)).thenReturn(true);
 
-        Event event1 = new Event("id1", "Concert A", "Desc", "companyId1", LocalDateTime.now(), "Music");
+        Seat seat1 = new Seat("s1", "A1");
+        SeatedZone zone1 = new SeatedZone("z1", "Zone 1", 100.0, List.of(seat1));
+        Event event1 = new Event("id1", "Concert A", "Desc", "companyId1", LocalDateTime.now().plusDays(1), "Music");
+        event1.setVenueMap(new VenueMap("vm1", "Venue", List.of(zone1)));
         event1.publish();
-        Event event2 = new Event("id2", "Concert B", "Desc", "companyId2", LocalDateTime.now(), "Music");
+
+        Seat seat2 = new Seat("s2", "B1");
+        SeatedZone zone2 = new SeatedZone("z2", "Zone 2", 100.0, List.of(seat2));
+        Event event2 = new Event("id2", "Concert B", "Desc", "companyId2", LocalDateTime.now().plusDays(1), "Music");
+        event2.setVenueMap(new VenueMap("vm2", "Venue", List.of(zone2)));
         event2.publish();
+
+        ProductionCompany company1 = mock(ProductionCompany.class);
+        when(company1.getStatus()).thenReturn(CompanyStatus.ACTIVE);
+        ProductionCompany company2 = mock(ProductionCompany.class);
+        when(company2.getStatus()).thenReturn(CompanyStatus.ACTIVE);
+        when(companyRepository.findById("companyId1")).thenReturn(Optional.of(company1));
+        when(companyRepository.findById("companyId2")).thenReturn(Optional.of(company2));
 
         when(eventRepository.findAll()).thenReturn(Arrays.asList(event1, event2));
 
-        Result<List<EventDTO>> result = eventService.searchEvents(token, "Concert", null);
+        Result<List<EventDTO>> result = eventService.searchEvents("Concert", null, null, null, null, null, null);
 
         assertTrue(result.isSuccess());
         assertEquals(2, result.getOrThrow().size());
@@ -73,13 +93,16 @@ class EventSearchTest {
         String token = "valid_token";
         when(authGateway.validateToken(token)).thenReturn(true);
 
-        Event eventActive = new Event("id1", "Active Concert", "Desc", "activeCompany", LocalDateTime.now(), "Music");
+        Seat s = new Seat("s1", "A1");
+        SeatedZone sz = new SeatedZone("z1", "Zone 1", 100.0, List.of(s));
+        Event eventActive = new Event("id1", "Active Concert", "Desc", "activeCompany", LocalDateTime.now().plusDays(1), "Music");
+        eventActive.setVenueMap(new VenueMap("vm1", "Venue", List.of(sz)));
         eventActive.publish();
 
         // Simulating logic assumed to exist in another branch (e.g. projecting only
         // published + active companies)
         EventDTO activeDto = new EventDTO("id1", "Active Concert", "Desc", "activeCompany", LocalDateTime.now(),
-                "Music", true, 100);
+                "Music", null, true, 100);
         when(extendedSearch.searchActiveOnly(token, "Concert", null)).thenReturn(Result.success(List.of(activeDto)));
 
         Result<List<EventDTO>> result = extendedSearch.searchActiveOnly(token, "Concert", null);
@@ -98,7 +121,7 @@ class EventSearchTest {
         when(authGateway.validateToken(token)).thenReturn(true);
 
         EventDTO companyEvent = new EventDTO("id1", "Company Concert", "Desc", targetCompanyId, LocalDateTime.now(),
-                "Music", true, 100);
+                "Music", null, true, 100);
         when(extendedSearch.searchByCompany(token, targetCompanyId, "Concert"))
                 .thenReturn(Result.success(List.of(companyEvent)));
 
@@ -116,7 +139,7 @@ class EventSearchTest {
         when(authGateway.validateToken(token)).thenReturn(true);
 
         LocalDateTime targetDate = LocalDateTime.now().plusDays(5);
-        EventDTO dateEvent = new EventDTO("id2", "Date Concert", "Desc", "c1", targetDate, "Music", true, 100);
+        EventDTO dateEvent = new EventDTO("id2", "Date Concert", "Desc", "c1", targetDate, "Music", null, true, 100);
         when(extendedSearch.searchByDateDetails(eq(token), any(), eq(targetDate), any()))
                 .thenReturn(Result.success(List.of(dateEvent)));
 
@@ -134,8 +157,8 @@ class EventSearchTest {
         String token = "valid_token";
         when(authGateway.validateToken(token)).thenReturn(true);
 
-        EventDTO priceEvent = new EventDTO("id3", "Cheap Concert", "Desc", "c1", LocalDateTime.now(), "Music", true,
-                100);
+        EventDTO priceEvent = new EventDTO("id3", "Cheap Concert", "Desc", "c1", LocalDateTime.now(), "Music", null, 
+                true, 100);
         when(extendedSearch.searchByPriceRange(token, "Concert", 0.0, 50.0))
                 .thenReturn(Result.success(List.of(priceEvent)));
 
@@ -151,8 +174,8 @@ class EventSearchTest {
         String token = "valid_token";
         when(authGateway.validateToken(token)).thenReturn(true);
 
-        EventDTO artistEvent = new EventDTO("id4", "Artist Concert", "Star", "c1", LocalDateTime.now(), "Music", true,
-                100);
+        EventDTO artistEvent = new EventDTO("id4", "Artist Concert", "Star", "c1", LocalDateTime.now(), "Music", null, 
+                true, 100);
         when(extendedSearch.searchByArtist(token, "Star")).thenReturn(Result.success(List.of(artistEvent)));
 
         Result<List<EventDTO>> result = extendedSearch.searchByArtist(token, "Star");

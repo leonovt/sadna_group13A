@@ -8,6 +8,7 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.UserService;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -43,6 +45,7 @@ class PurchaseHistoryTest {
         historyRepository = mock(IOrderHistoryRepository.class);
 
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.findAndRegisterModules();
         objectMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
         userService = new UserService(userRepository, authGateway, passwordEncoder, historyRepository, objectMapper);
@@ -55,6 +58,7 @@ class PurchaseHistoryTest {
         String userId = "user1";
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(new Member(userId, "user1", "hash")));
 
         OrderHistoryItem item = new OrderHistoryItem("ev1", "Original Title", LocalDateTime.now(), "cmp1", "Company1",
                 "Zone A", "1A", 150.0);
@@ -77,6 +81,7 @@ class PurchaseHistoryTest {
         String userId = "user1";
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(new Member(userId, "user1", "hash")));
 
         userService.viewOrderHistory(token);
 

@@ -7,6 +7,7 @@ import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.SystemService;
 import com.sadna.group13a.domain.Aggregates.User.User;
+import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +31,7 @@ class PlatformInitializationTest {
 
     private SystemService systemService;
     private IUserRepository userRepository;
+    private IAdminRepository adminRepository;
     private IAuth authGateway;
     private IPaymentGateway paymentGateway;
     private ITicketSupplier ticketingGateway;
@@ -38,12 +40,13 @@ class PlatformInitializationTest {
     @BeforeEach
     void setUp() {
         userRepository = mock(IUserRepository.class);
+        adminRepository = mock(IAdminRepository.class);
         authGateway = mock(IAuth.class);
         paymentGateway = mock(IPaymentGateway.class);
         ticketingGateway = mock(ITicketSupplier.class);
         passwordEncoder = mock(IPasswordEncoder.class);
 
-        systemService = new SystemService(userRepository, authGateway, paymentGateway, ticketingGateway,
+        systemService = new SystemService(userRepository, adminRepository, authGateway, paymentGateway, ticketingGateway,
                 passwordEncoder);
     }
 

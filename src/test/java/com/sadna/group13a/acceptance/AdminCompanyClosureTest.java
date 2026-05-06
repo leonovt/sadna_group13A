@@ -4,14 +4,16 @@ import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.AdminService;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
-import com.sadna.group13a.domain.Aggregates.User.Admin;
+import com.sadna.group13a.domain.Aggregates.Admin.Admin;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
+import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IQueueRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.application.Services.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,26 +36,30 @@ class AdminCompanyClosureTest {
 
     private AdminService adminService;
     private IUserRepository userRepository;
+    private IAdminRepository adminRepository;
     private IEventRepository eventRepository;
     private ICompanyRepository companyRepository;
     private IQueueRepository queueRepository;
     private IOrderHistoryRepository historyRepository;
     private IAuth authGateway;
+    private SystemLogService systemLogService;
     private ApplicationEventPublisher eventPublisher;
 
     @BeforeEach
     void setUp() {
         userRepository = mock(IUserRepository.class);
+        adminRepository = mock(IAdminRepository.class);
         eventRepository = mock(IEventRepository.class);
         companyRepository = mock(ICompanyRepository.class);
         queueRepository = mock(IQueueRepository.class);
         historyRepository = mock(IOrderHistoryRepository.class);
         authGateway = mock(IAuth.class);
+        systemLogService = mock(SystemLogService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
 
         adminService = new AdminService(
-                userRepository, eventRepository, companyRepository, 
-                queueRepository, historyRepository, authGateway, eventPublisher);
+                userRepository, adminRepository, eventRepository, companyRepository, 
+                queueRepository, historyRepository, authGateway, eventPublisher, systemLogService);
     }
 
     @Test
@@ -66,8 +72,10 @@ class AdminCompanyClosureTest {
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(adminId);
         
-        Admin admin = new Admin(adminId, "admin_user", "hashed");
-        when(userRepository.findById(adminId)).thenReturn(Optional.of(admin));
+        Member adminMember = new Member(adminId, "admin_user", "hashed");
+        when(userRepository.findById(adminId)).thenReturn(Optional.of(adminMember));
+        Admin adminRecord = new Admin("admin_rec_1", adminId);
+        when(adminRepository.findByUserId(adminId)).thenReturn(Optional.of(adminRecord));
 
         ProductionCompany company = mock(ProductionCompany.class);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
@@ -99,8 +107,10 @@ class AdminCompanyClosureTest {
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(adminId);
         
-        Admin admin = new Admin(adminId, "admin_user", "hashed");
-        when(userRepository.findById(adminId)).thenReturn(Optional.of(admin));
+        Member adminMember = new Member(adminId, "admin_user", "hashed");
+        when(userRepository.findById(adminId)).thenReturn(Optional.of(adminMember));
+        Admin adminRecord = new Admin("admin_rec_1", adminId);
+        when(adminRepository.findByUserId(adminId)).thenReturn(Optional.of(adminRecord));
 
         ProductionCompany company = mock(ProductionCompany.class);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
@@ -124,8 +134,10 @@ class AdminCompanyClosureTest {
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(adminId);
         
-        Admin admin = mock(Admin.class);
-        when(userRepository.findById(adminId)).thenReturn(Optional.of(admin));
+        Member adminMember = new Member(adminId, "admin_user", "hashed");
+        when(userRepository.findById(adminId)).thenReturn(Optional.of(adminMember));
+        Admin adminRecord = new Admin("admin_rec_1", adminId);
+        when(adminRepository.findByUserId(adminId)).thenReturn(Optional.of(adminRecord));
 
         ProductionCompany company = mock(ProductionCompany.class);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
@@ -151,8 +163,10 @@ class AdminCompanyClosureTest {
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(adminId);
         
-        Admin admin = new Admin(adminId, "admin_user", "hashed");
-        when(userRepository.findById(adminId)).thenReturn(Optional.of(admin));
+        Member adminMember = new Member(adminId, "admin_user", "hashed");
+        when(userRepository.findById(adminId)).thenReturn(Optional.of(adminMember));
+        Admin adminRecord = new Admin("admin_rec_1", adminId);
+        when(adminRepository.findByUserId(adminId)).thenReturn(Optional.of(adminRecord));
 
         ProductionCompany company = mock(ProductionCompany.class);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));

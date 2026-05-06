@@ -3,6 +3,7 @@ package com.sadna.group13a.acceptance;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
+import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.OrderService;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
@@ -45,6 +46,7 @@ class PaymentAndRefundTest {
     private ICompanyRepository companyRepository;
     private IQueueRepository queueRepository;
     private IRaffleRepository raffleRepository;
+    private ITicketSupplier ticketSupplier;
     private IPaymentGateway paymentGateway;
     private IUserRepository userRepository;
     private IAuth authGateway;
@@ -60,6 +62,8 @@ class PaymentAndRefundTest {
         companyRepository = mock(ICompanyRepository.class);
         queueRepository = mock(IQueueRepository.class);
         raffleRepository = mock(IRaffleRepository.class);
+        ticketSupplier = mock(ITicketSupplier.class);
+        when(ticketSupplier.issueTickets(any(), anyInt())).thenReturn(Result.success(List.of("ticket-1")));
         paymentGateway = mock(IPaymentGateway.class);
         userRepository = mock(IUserRepository.class);
         authGateway = mock(IAuth.class);
@@ -69,7 +73,7 @@ class PaymentAndRefundTest {
 
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
-                queueRepository, raffleRepository, paymentGateway, userRepository, authGateway,
+                queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
                 checkoutDomainService, ticketingAccessDomainService, eventPublisher);
     }
 
@@ -106,8 +110,8 @@ class PaymentAndRefundTest {
 
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
                     "Zone1", "Seat1", 100.0);
-            OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
-            when(checkoutDomainService.checkout(order, event, company, null, null)).thenReturn(history);
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+                    .thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_success"));
 
@@ -156,8 +160,7 @@ class PaymentAndRefundTest {
 
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
                     "Zone1", "Seat1", 100.0);
-            OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
-            when(checkoutDomainService.checkout(order, event, company, null, null)).thenReturn(history);
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.failure("Card declined"));
 
@@ -212,8 +215,7 @@ class PaymentAndRefundTest {
 
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
                     "Zone1", "Seat1", 100.0);
-            OrderHistory history = new OrderHistory("receipt123", userId, LocalDateTime.now(), 100.0, List.of(item));
-            when(checkoutDomainService.checkout(order, event, company, null, null)).thenReturn(history);
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_123"));
 
@@ -225,7 +227,7 @@ class PaymentAndRefundTest {
 
             // Assert: automatic refund initiated
             assertFalse(result.isSuccess());
-            assertTrue(result.getErrorMessage().contains("Your payment has been refunded"));
+            assertTrue(result.getErrorMessage().contains("payment refunded"));
             verify(paymentGateway).refundPayment("txn_123");
         }
 

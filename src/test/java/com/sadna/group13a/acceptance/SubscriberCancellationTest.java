@@ -6,8 +6,10 @@ import com.sadna.group13a.application.Services.AdminService;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
-import com.sadna.group13a.domain.Aggregates.User.Admin;
+import com.sadna.group13a.domain.Aggregates.Admin.Admin;
+import com.sadna.group13a.application.Services.SystemLogService;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
@@ -43,12 +45,14 @@ class SubscriberCancellationTest {
         authGateway = new AuthImpl();
         eventPublisher = mock(ApplicationEventPublisher.class);
 
-        // Use Admin aggregate — Member has no setAdmin(). AdminService constructor takes 7 args.
-        userRepository.save(new Admin("admin1", "admin", "hash"));
+        userRepository.save(new Member("admin1", "admin", "hash"));
+        IAdminRepository adminRepository = new com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl();
+        adminRepository.save(new Admin("admin_rec_1", "admin1"));
 
+        SystemLogService systemLogService = mock(SystemLogService.class);
         adminService = new AdminService(
-                userRepository, null, companyRepository, null,
-                historyRepository, authGateway, eventPublisher);
+                userRepository, adminRepository, null, companyRepository,
+                null, historyRepository, authGateway, eventPublisher, systemLogService);
     }
 
     @Test
