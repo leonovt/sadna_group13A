@@ -59,6 +59,10 @@ public class CompanyService {
         Optional<User> founderOpt = userRepository.findById(founderId);
         if (founderOpt.isEmpty()) return Result.failure("Founder not found or inactive.");
 
+        boolean nameExists = companyRepository.findAll().stream().anyMatch(c -> c.getName().equalsIgnoreCase(name));
+
+        if (nameExists) return Result.failure("Company name already exists");
+
         ProductionCompany company = new ProductionCompany(UUID.randomUUID().toString(), name, description, founderId);
         companyRepository.save(company);
 
@@ -383,3 +387,4 @@ public class CompanyService {
         }
     }
 }
+

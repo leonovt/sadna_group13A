@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Define a clean, readable format for your logs -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" />
+
+    <!-- 1. Console Appender: Prints logs to your IDE or terminal -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 2. Rolling File Appender: Saves logs to a file and manages them over time -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- The active log file being written to today -->
+        <file>logs/group13a-system.log</file>
+        
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Rotates the file daily, appending the date to the file name -->
+            <fileNamePattern>logs/group13a-system-%d{yyyy-MM-dd}.log</fileNamePattern>
+            
+            <!-- Keeps 30 days of history before deleting older files -->
+            <maxHistory>30</maxHistory>
+            
+            <!-- Optional safety net: caps total log folder size at 1GB -->
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 
+      Because you already defined your specific package levels (DEBUG, WARN, etc.) 
+      in your application.yml, we just need to bind these appenders to the root level.
+      Spring Boot will merge your application.yml settings with this file automatically! 
+    -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </root>
+
+</configuration>

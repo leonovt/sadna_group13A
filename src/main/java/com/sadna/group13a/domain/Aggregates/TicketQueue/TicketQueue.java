@@ -91,6 +91,28 @@ public class TicketQueue {
     }
 
     /**
+     * Removes a user from the waiting list (e.g. they left before being admitted).
+     * Decrements positions of remaining waiters behind the removed user.
+     * Returns true if the user was found and removed.
+     */
+    public boolean removeWaitingUser(String userId) {
+        Optional<QueueTicket> toRemove = waitingUsers.stream()
+                .filter(t -> t.getUserId().equals(userId))
+                .findFirst();
+        if (toRemove.isEmpty()) return false;
+
+        int removedPosition = toRemove.get().getPositionInLine();
+        waitingUsers.remove(toRemove.get());
+        for (QueueTicket t : waitingUsers) {
+            if (t.getPositionInLine() > removedPosition) {
+                t.decrementPosition(1);
+            }
+        }
+        version++;
+        return true;
+    }
+
+    /**
      * Admin operation: clears all waiting and active users.
      */
     public void clearQueue() {
