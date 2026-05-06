@@ -1,0 +1,307 @@
+@startuml
+title Sadna Group 13A - Class Diagram
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+'== DOMAIN - shared ============================================
+
+package "domain.shared" #FFFDE7 {
+    enum OrderStatus { 
+        OPEN
+        PENDING_PAYMENT
+        COMPLETED
+        CANCELLED 
+    }
+    interface DiscountPolicy
+    interface PurchasePolicy
+
+    class DomainException
+    class AuthenticationException
+    class EntityNotFoundException
+    class OptimisticLockException
+    class PermissionDeniedException
+    class SeatUnavailableException
+
+    DomainException <|-- AuthenticationException
+    DomainException <|-- EntityNotFoundException
+    DomainException <|-- OptimisticLockException
+    DomainException <|-- PermissionDeniedException
+    DomainException <|-- SeatUnavailableException
+}
+
+'== DOMAIN - Aggregates ========================================
+
+package "domain.Aggregates.User" #FFF9C4 {
+    enum UserRole { 
+        GUEST
+        MEMBER
+        ADMIN 
+    }
+    enum UserState { 
+        ACTIVE
+        INACTIVE 
+    }
+
+    abstract class User <<AggRoot>> #FFD54F ##E65100
+    class Member
+    class Guest
+
+    User <|-- Member
+    User <|-- Guest
+    User --> UserState
+    Member --> UserRole
+    Guest --> UserRole
+}
+
+package "domain.Aggregates.Admin" #FFF9C4 {
+    class Admin <<AggRoot>> #FFD54F ##E65100
+}
+
+package "domain.Aggregates.Company" #FFF9C4 {
+    enum CompanyRole { 
+        FOUNDER
+        OWNER
+        MANAGER 
+    }
+    enum CompanyPermission { 
+        MANAGE_EVENTS
+        MANAGE_POLICIES
+        MANAGE_DISCOUNTS
+        VIEW_REPORTS 
+    }
+    enum CompanyStatus { 
+        ACTIVE
+        INACTIVE 
+    }
+
+    class ProductionCompany <<AggRoot>> #FFD54F ##E65100
+    class CompanyStaffMember
+    class AppointmentRequest
+
+    ProductionCompany "1" *-- "0..*" CompanyStaffMember : staff
+    ProductionCompany "1" *-- "0..*" AppointmentRequest : pendingAppointments
+    ProductionCompany --> CompanyStatus
+    CompanyStaffMember --> CompanyRole
+    CompanyStaffMember --> CompanyPermission
+    AppointmentRequest --> CompanyRole
+    AppointmentRequest --> CompanyPermission
+    ProductionCompany ..> PurchasePolicy
+    ProductionCompany ..> DiscountPolicy
+}
+
+package "domain.Aggregates.Event" #FFF9C4 {
+    enum EventSaleMode { 
+        REGULAR
+        QUEUE
+        RAFFLE 
+    }
+    enum SeatStatus { 
+        AVAILABLE
+        HELD
+        SOLD 
+    }
+    enum ZoneType { 
+        STANDING
+        SEATED 
+    }
+
+    class Event <<AggRoot>> #FFD54F ##E65100
+    class VenueMap
+    abstract class Zone
+    class SeatedZone
+    class StandingZone
+    class Seat
+
+    Event "1" *-- "0..1" VenueMap
+    VenueMap "1" *-- "1..*" Zone
+    Zone <|-- SeatedZone
+    Zone <|-- StandingZone
+    SeatedZone "1" *-- "1..*" Seat
+    Event --> EventSaleMode
+    Zone --> ZoneType
+    Seat --> SeatStatus
+    Event ..> PurchasePolicy
+    Event ..> DiscountPolicy
+}
+
+package "domain.Aggregates.ActiveOrder" #FFF9C4 {
+    class ActiveOrder <<AggRoot>> #FFD54F ##E65100
+    class OrderItem
+
+    ActiveOrder "1" *-- "0..*" OrderItem
+    ActiveOrder --> OrderStatus
+}
+
+package "domain.Aggregates.OrderHistory" #FFF9C4 {
+    class OrderHistory <<AggRoot>> #FFD54F ##E65100
+    class OrderHistoryItem
+
+    OrderHistory "1" *-- "1..*" OrderHistoryItem
+}
+
+package "domain.Aggregates.Raffle" #FFF9C4 {
+    enum RaffleStatus { 
+        OPEN_FOR_REGISTRATION
+        DRAWN
+        CLOSED 
+    }
+
+    class Raffle <<AggRoot>> #FFD54F ##E65100
+    class AuthorizationCode
+
+    Raffle "1" *-- "0..*" AuthorizationCode : winners
+    Raffle --> RaffleStatus
+}
+
+package "domain.Aggregates.TicketQueue" #FFF9C4 {
+    class TicketQueue <<AggRoot>> #FFD54F ##E65100
+    class QueueTicket
+
+    TicketQueue "1" *-- "0..*" QueueTicket
+}
+
+'== DOMAIN - Services, Events, Interfaces ======================
+
+package "domain.DomainServices" #FFFDE7 {
+    class CheckoutDomainService
+    class TicketingAccessDomainService
+}
+
+package "domain.Events" #FFFDE7 {
+    class CompanyClosedByAdminEvent <<record>>
+    class OrderCompletedEvent <<record>>
+    class QueueTurnArrivedEvent <<record>>
+    class RaffleDrawnEvent <<record>>
+    class UserBannedEvent <<record>>
+}
+
+package "domain.Interfaces" #FFFDE7 {
+    interface IUserRepository
+    interface IAdminRepository
+    interface ICompanyRepository
+    interface IEventRepository
+    interface IActiveOrderRepository
+    interface IOrderHistoryRepository
+    interface IRaffleRepository
+    interface IQueueRepository
+    interface IOrderQueueRepository
+}
+
+'== APPLICATION LAYER ==========================================
+
+package "application.Interfaces" #E3F2FD {
+    interface IAuth
+    interface IPaymentGateway
+    interface INotificationService
+    interface ITicketSupplier
+    interface IPasswordEncoder
+    class Result
+}
+
+package "application.Services" #E3F2FD {
+    class UserService
+    class CompanyService
+    class EventService
+    class OrderService
+    class RaffleService
+    class QueueService
+    class AdminService
+    class SystemService
+    class SystemLogService
+    class CartCleanupService
+}
+
+package "application.EventListeners" #E3F2FD {
+    class NotificationEventListener
+    class CompanyEventListener
+}
+
+'== INFRASTRUCTURE LAYER =======================================
+
+package "infrastructure" #ECEFF1 {
+    class AuthImpl
+    class PasswordEncoderImpl
+    class InMemoryNotificationService
+    class StubPaymentGateway
+    class StubTicketSupplier
+    class PlatformBootstrap
+
+    package "infrastructure.RepositoryImpl" #E0E0E0 {
+        class UserRepositoryImpl
+        class AdminRepositoryImpl
+        class CompanyRepositoryImpl
+        class EventRepositoryImpl
+        class ActiveOrderRepositoryImpl
+        class OrderHistoryRepositoryImpl
+        class RaffleRepositoryImpl
+        class QueueRepositoryImpl
+        class OrderQueueRepositoryImpl
+    }
+}
+
+'== IMPLEMENTATIONS ============================================
+
+AuthImpl ..|> IAuth
+PasswordEncoderImpl ..|> IPasswordEncoder
+InMemoryNotificationService ..|> INotificationService
+StubPaymentGateway ..|> IPaymentGateway
+StubTicketSupplier ..|> ITicketSupplier
+
+UserRepositoryImpl ..|> IUserRepository
+AdminRepositoryImpl ..|> IAdminRepository
+CompanyRepositoryImpl ..|> ICompanyRepository
+EventRepositoryImpl ..|> IEventRepository
+ActiveOrderRepositoryImpl ..|> IActiveOrderRepository
+OrderHistoryRepositoryImpl ..|> IOrderHistoryRepository
+RaffleRepositoryImpl ..|> IRaffleRepository
+QueueRepositoryImpl ..|> IQueueRepository
+
+'== KEY SERVICE DEPENDENCIES ===================================
+
+OrderService ..> IActiveOrderRepository
+OrderService ..> IOrderHistoryRepository
+OrderService ..> IEventRepository
+OrderService ..> ICompanyRepository
+OrderService ..> IPaymentGateway
+OrderService ..> ITicketSupplier
+OrderService ..> CheckoutDomainService
+OrderService ..> TicketingAccessDomainService
+
+UserService ..> IUserRepository
+UserService ..> IPasswordEncoder
+UserService ..> IAuth
+
+CompanyService ..> ICompanyRepository
+CompanyService ..> IUserRepository
+
+EventService ..> IEventRepository
+EventService ..> ICompanyRepository
+
+RaffleService ..> IRaffleRepository
+RaffleService ..> IEventRepository
+
+QueueService ..> IQueueRepository
+QueueService ..> IEventRepository
+
+AdminService ..> IAdminRepository
+AdminService ..> IUserRepository
+AdminService ..> ICompanyRepository
+
+NotificationEventListener ..> INotificationService
+CompanyEventListener ..> ICompanyRepository
+
+'== LEGEND =====================================================
+
+legend right
+  | Color | Meaning |
+  |<#FFFDE7>| Domain - shared / services / events / interfaces |
+  |<#FFF9C4>| Domain - Aggregate package |
+  |<#FFD54F>| Aggregate Root class |
+  |<#E3F2FD>| Application Layer |
+  |<#ECEFF1>| Infrastructure Layer |
+endlegend
+
+@enduml
