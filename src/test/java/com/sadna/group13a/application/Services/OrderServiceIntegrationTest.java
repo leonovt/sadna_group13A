@@ -130,13 +130,20 @@ class OrderServiceIntegrationTest {
         };
 
         orderService = new OrderService(
-                orderRepo, historyRepo, eventRepo, companyRepo,
-                queueRepo, raffleRepo, paymentGateway, ticketSupplier,
-                userRepo, auth, checkoutDomainService, ticketingAccessDomainService,
-                queueRepo, raffleRepo, paymentGateway, userRepo,
-                auth, checkoutDomainService, ticketingAccessDomainService,
-                eventPublisher
-        );
+                        orderRepo,                    // 1. IActiveOrderRepository
+                        historyRepo,                  // 2. IOrderHistoryRepository
+                        eventRepo,                    // 3. IEventRepository
+                        companyRepo,                  // 4. ICompanyRepository
+                        queueRepo,                    // 5. IQueueRepository
+                        raffleRepo,                   // 6. IRaffleRepository
+                        paymentGateway,               // 7. IPaymentGateway
+                        ticketSupplier,               // 8. ITicketSupplier
+                        userRepo,                     // 9. IUserRepository
+                        auth,                         // 10. IAuth
+                        checkoutDomainService,        // 11. CheckoutDomainService
+                        ticketingAccessDomainService, // 12. TicketingAccessDomainService
+                        eventPublisher                // 13. ApplicationEventPublisher
+                );
 
         seedEventAndCompany();
         seedUser();
