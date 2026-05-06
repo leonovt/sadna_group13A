@@ -106,12 +106,13 @@ public class ProductionCompany {
     }
 
     /**
-     * Admin override: removes a staff member and their entire subtree without permission checks.
+     * Admin override: removes a staff member and re-parents their appointees to the removed member's appointer.
      * Called when a user is banned system-wide.
      */
     public void forceRemoveStaff(String userId) {
-        if (staff.containsKey(userId)) {
-            removeSubtree(userId);
+        CompanyStaffMember member = staff.get(userId);
+        if (member != null) {
+            removeAndReparent(userId, member.getAppointedByUserId());
             version++;
         }
     }
@@ -276,13 +277,13 @@ public class ProductionCompany {
 
     /**
      * Fires a staff member. Enforces that only the direct appointer can fire.
-     * Cascades down to remove the entire sub-tree appointed by the fired staff member.
+     * Direct appointees of the fired member are re-parented to the firing user.
      * @param actingUserId the user performing the firing
      * @param targetUserId the staff member to fire
      */
     public void fireStaff(String actingUserId, String targetUserId) {
         CompanyStaffMember target = staff.get(targetUserId);
-        
+
         if (target == null) {
             throw new DomainException("Target user is not part of the company");
         }
@@ -292,26 +293,26 @@ public class ProductionCompany {
         if (target.getRole() == CompanyRole.FOUNDER) {
             throw new DomainException("The founder cannot be fired");
         }
-        
+
         if (!actingUserId.equals(target.getAppointedByUserId())) {
             throw new DomainException("You can only fire staff that you directly appointed");
         }
 
-        removeSubtree(targetUserId);
+        removeAndReparent(targetUserId, target.getAppointedByUserId());
         version++;
     }
 
     /**
      * Voluntary resignation of a staff member.
-     * Cascades down to remove their entire sub-tree.
+     * Direct appointees are re-parented to the resigning member's appointer.
      * @param actingUserId the user resigning
      */
     public void resign(String actingUserId) {
         CompanyStaffMember actor = staff.get(actingUserId);
         if (actor == null) throw new DomainException("User is not part of the company");
         if (actor.getRole() == CompanyRole.FOUNDER) throw new DomainException("Founder cannot resign");
-        
-        removeSubtree(actingUserId);
+
+        removeAndReparent(actingUserId, actor.getAppointedByUserId());
         version++;
     }
 
@@ -335,19 +336,14 @@ public class ProductionCompany {
     }
 
     /**
-     * Recursive helper to remove a staff member and all their transitive appointees.
+     * Removes a staff member and re-parents their direct appointees to newParentId.
      */
-    private void removeSubtree(String rootUserId) {
-        staff.remove(rootUserId);
-        
-        List<String> children = new ArrayList<>();
+    private void removeAndReparent(String userId, String newParentId) {
+        staff.remove(userId);
         for (CompanyStaffMember member : staff.values()) {
-            if (rootUserId.equals(member.getAppointedByUserId())) {
-                children.add(member.getUserId());
+            if (userId.equals(member.getAppointedByUserId())) {
+                member.setAppointedByUserId(newParentId);
             }
-        }
-        for (String childId : children) {
-            removeSubtree(childId);
         }
     }
 

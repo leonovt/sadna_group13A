@@ -10,7 +10,7 @@ import java.util.Set;
 public class CompanyStaffMember {
     private final String userId;
     private final CompanyRole role;
-    private final String appointedByUserId; // null if FOUNDER
+    private String appointedByUserId; // null if FOUNDER
     private final Set<CompanyPermission> permissions;
 
     public CompanyStaffMember(String userId, CompanyRole role, String appointedByUserId, Set<CompanyPermission> permissions) {
@@ -36,6 +36,10 @@ public class CompanyStaffMember {
         return Collections.unmodifiableSet(permissions); 
     }
     
+    public void setAppointedByUserId(String newAppointedByUserId) {
+        this.appointedByUserId = newAppointedByUserId;
+    }
+
     public void setPermissions(Set<CompanyPermission> newPermissions) {
         this.permissions.clear();
         if (newPermissions != null) {

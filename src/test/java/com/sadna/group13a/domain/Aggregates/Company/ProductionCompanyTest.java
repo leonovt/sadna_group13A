@@ -178,18 +178,19 @@ class ProductionCompanyTest {
         }
 
         @Test
-        void givenManagerWithSubManagers_whenFired_thenEntireSubtreeIsRemoved() {
+        void givenManagerWithSubManagers_whenFired_thenSubManagersReparentedToGrandparent() {
             String mgr1 = "mgr-1";
             String mgr2 = "mgr-2";
-            company.nominateStaff(FOUNDER_ID, mgr1, CompanyRole.MANAGER,
-                    Set.of(CompanyPermission.MANAGE_EVENTS));
+            company.nominateStaff(FOUNDER_ID, mgr1, CompanyRole.OWNER, null);
             company.acceptNomination(mgr1);
-            company.nominateStaff(FOUNDER_ID, mgr2, CompanyRole.MANAGER, null);
+            company.nominateStaff(mgr1, mgr2, CompanyRole.MANAGER, null);
             company.acceptNomination(mgr2);
 
             company.fireStaff(FOUNDER_ID, mgr1);
 
             assertFalse(company.getStaff().containsKey(mgr1));
+            assertTrue(company.getStaff().containsKey(mgr2));
+            assertEquals(FOUNDER_ID, company.getStaff().get(mgr2).getAppointedByUserId());
         }
 
         @Test
@@ -245,6 +246,22 @@ class ProductionCompanyTest {
             company.resign(managerId);
 
             assertFalse(company.getStaff().containsKey(managerId));
+        }
+
+        @Test
+        void givenOwnerWithSubManagers_whenResigns_thenSubManagersReparentedToGrandparent() {
+            String owner = "owner-resign";
+            String mgr = "mgr-under-owner";
+            company.nominateStaff(FOUNDER_ID, owner, CompanyRole.OWNER, null);
+            company.acceptNomination(owner);
+            company.nominateStaff(owner, mgr, CompanyRole.MANAGER, null);
+            company.acceptNomination(mgr);
+
+            company.resign(owner);
+
+            assertFalse(company.getStaff().containsKey(owner));
+            assertTrue(company.getStaff().containsKey(mgr));
+            assertEquals(FOUNDER_ID, company.getStaff().get(mgr).getAppointedByUserId());
         }
 
         @Test
@@ -374,20 +391,19 @@ class ProductionCompanyTest {
         }
 
         @Test
-        void givenManagerWithSubManagers_whenForceRemoved_thenEntireSubtreeIsGone() {
+        void givenManagerWithSubManagers_whenForceRemoved_thenSubManagersReparentedToGrandparent() {
             String mgr1 = "mgr-ban-1";
             String mgr2 = "mgr-ban-2";
-            company.nominateStaff(FOUNDER_ID, mgr1, CompanyRole.MANAGER, null);
+            company.nominateStaff(FOUNDER_ID, mgr1, CompanyRole.OWNER, null);
             company.acceptNomination(mgr1);
-            // mgr2 appointed by founder, mgr1 appointed sub-tree scenario
-            company.nominateStaff(FOUNDER_ID, mgr2, CompanyRole.MANAGER, null);
+            company.nominateStaff(mgr1, mgr2, CompanyRole.MANAGER, null);
             company.acceptNomination(mgr2);
 
             company.forceRemoveStaff(mgr1);
 
             assertFalse(company.getStaff().containsKey(mgr1));
-            // mgr2 was appointed by founder independently, so should still be present
             assertTrue(company.getStaff().containsKey(mgr2));
+            assertEquals(FOUNDER_ID, company.getStaff().get(mgr2).getAppointedByUserId());
         }
     }
 
