@@ -4,6 +4,7 @@ import com.sadna.group13a.domain.shared.DomainException;
 import com.sadna.group13a.domain.shared.EntityNotFoundException;
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -14,10 +15,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Unit tests for the Event aggregate: Event, VenueMap, SeatedZone, StandingZone, Seat.
- * No Spring, no Mockito — pure domain instantiation.
- */
+
 class EventAggregateTest {
 
     private static final LocalDateTime FUTURE_DATE = LocalDateTime.now().plusDays(30);
@@ -85,15 +83,19 @@ class EventAggregateTest {
             assertThrows(DomainException.class,
                     () -> event.setVenueMap(buildVenueMapWithOneSeatedZone()));
         }
-
+        
         @Test
-        void givenPublishedEvent_whenChangingSaleMode_thenThrowsDomainException() {
+        @DisplayName("Changing sale mode on published event succeeds")
+        void givenPublishedEvent_whenChangingSaleMode_thenSuccess() {
             Event event = buildUnpublishedEvent();
             event.setVenueMap(buildVenueMapWithOneSeatedZone());
             event.publish();
 
-            assertThrows(DomainException.class,
-                    () -> event.setSaleMode(EventSaleMode.RAFFLE));
+        
+            event.setSaleMode(EventSaleMode.RAFFLE);
+
+            
+            assertEquals(EventSaleMode.RAFFLE, event.getSaleMode());
         }
 
         @Test

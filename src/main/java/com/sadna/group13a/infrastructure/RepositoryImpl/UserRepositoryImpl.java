@@ -2,6 +2,7 @@ package com.sadna.group13a.infrastructure.RepositoryImpl;
 
 import com.sadna.group13a.domain.Aggregates.User.User;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.domain.shared.OptimisticLockException;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -27,12 +28,40 @@ public class UserRepositoryImpl implements IUserRepository {
     }
 
     @Override
-    public void save(User user) {
+    public synchronized void save(User user) {
+        User stored = store.get(user.getId());
+
+        // 1. Optimistic Locking Check (For updating an existing user)
+        if (stored != null && stored != user) {
+            // If the incoming version is NOT strictly greater than the stored version, 
+            // it means a concurrent update happened and we have a collision.
+            if (user.getVersion() <= stored.getVersion()) {
+                throw new OptimisticLockException(
+                        "Optimistic lock conflict for User " + user.getId() +
+                        ": stored version " + stored.getVersion() +
+                        " >= incoming version " + user.getVersion());
+            }
+        }
+
+        // 2. Unique Username Check (For creating a new user)
+        // If 'stored' is null, this is a brand new user being registered.
+        if (stored == null) {
+            boolean usernameTaken = store.values().stream()
+                    .anyMatch(u -> u.getUsername().equals(user.getUsername()));
+            if (usernameTaken) {
+                // Throwing RuntimeException here. If your UserService expects a 
+                // specific exception (like DuplicateKeyException), change it here!
+                throw new RuntimeException("Username already exists: " + user.getUsername());
+            }
+        }
+
+        // 3. Save the user
         store.put(user.getId(), user);
     }
 
     @Override
     public void delete(String id) {
+        // Safe to leave unsynchronized. ConcurrentHashMap handles single removals safely.
         store.remove(id);
     }
 

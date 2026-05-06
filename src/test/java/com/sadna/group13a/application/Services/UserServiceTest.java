@@ -223,6 +223,7 @@ class UserServiceTest {
 
         when(authGateway.validateToken(TOKEN)).thenReturn(true);
         when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new Member(USER_ID, "alice", "hash")));
         when(historyRepository.findByUserId(USER_ID)).thenReturn(List.of(history));
         when(objectMapper.convertValue(any(OrderHistory.class), eq(OrderHistoryDTO.class)))
                 .thenReturn(mock(OrderHistoryDTO.class));

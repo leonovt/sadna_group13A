@@ -2,12 +2,12 @@ package com.sadna.group13a.domain.Aggregates.TicketQueue;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Aggregate Root for the virtual waiting queue of a single event.
@@ -18,17 +18,18 @@ public class TicketQueue {
 
     private final String eventId;
     private int maxConcurrentUsers;
+    private volatile long version = 0L;
 
     // userId -> granted ticket (with expiry). Expired entries are lazily evicted.
     private final Map<String, QueueTicket> activeUsers;
-    private final LinkedList<QueueTicket> waitingUsers;
+    private final ConcurrentLinkedQueue<QueueTicket> waitingUsers;
 
     public TicketQueue(String eventId, int maxConcurrentUsers) {
         if (maxConcurrentUsers < 1) throw new IllegalArgumentException("maxConcurrentUsers must be >= 1");
         this.eventId = eventId;
         this.maxConcurrentUsers = maxConcurrentUsers;
         this.activeUsers = new ConcurrentHashMap<>();
-        this.waitingUsers = new LinkedList<>();
+        this.waitingUsers = new ConcurrentLinkedQueue<>();
     }
 
     // ── Commands ──────────────────────────────────────────────────
@@ -49,6 +50,7 @@ public class TicketQueue {
 
         int newPosition = waitingUsers.size() + 1;
         waitingUsers.add(new QueueTicket(userId, newPosition));
+        version++;
     }
 
     /**
@@ -76,6 +78,7 @@ public class TicketQueue {
             t.decrementPosition(admitted);
         }
 
+        if (admitted > 0) version++;
         return granted;
     }
 
@@ -84,6 +87,7 @@ public class TicketQueue {
      */
     public void removeActiveUser(String userId) {
         activeUsers.remove(userId);
+        version++;
     }
 
     /**
@@ -92,6 +96,7 @@ public class TicketQueue {
     public void clearQueue() {
         waitingUsers.clear();
         activeUsers.clear();
+        version++;
     }
 
     /**
@@ -100,6 +105,7 @@ public class TicketQueue {
     public void adjustMaxConcurrentUsers(int newMax) {
         if (newMax < 1) throw new IllegalArgumentException("Max concurrent users must be at least 1.");
         this.maxConcurrentUsers = newMax;
+        version++;
     }
 
     // ── Queries ───────────────────────────────────────────────────
@@ -136,6 +142,7 @@ public class TicketQueue {
     public int getActiveCount() { return activeUsers.size(); }
     public String getEventId() { return eventId; }
     public int getMaxConcurrentUsers() { return maxConcurrentUsers; }
+    public long getVersion() { return version; }
 
     public Set<String> getActiveUserIds() {
         evictExpiredActiveUsers();
@@ -143,7 +150,7 @@ public class TicketQueue {
     }
 
     public List<QueueTicket> getWaitingUsers() {
-        return Collections.unmodifiableList(waitingUsers);
+        return new ArrayList<>(waitingUsers);
     }
 
     // ── Private helpers ───────────────────────────────────────────

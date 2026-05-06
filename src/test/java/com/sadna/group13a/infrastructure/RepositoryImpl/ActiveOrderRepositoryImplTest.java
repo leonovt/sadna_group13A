@@ -9,9 +9,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Pure JUnit 5 — no Mockito, no Spring.
- */
+
 class ActiveOrderRepositoryImplTest {
 
     private ActiveOrderRepositoryImpl repo;

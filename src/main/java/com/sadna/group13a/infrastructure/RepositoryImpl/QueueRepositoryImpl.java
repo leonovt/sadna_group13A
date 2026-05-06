@@ -2,6 +2,7 @@ package com.sadna.group13a.infrastructure.RepositoryImpl;
 
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Interfaces.IQueueRepository;
+import com.sadna.group13a.domain.shared.OptimisticLockException;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -20,7 +21,14 @@ public class QueueRepositoryImpl implements IQueueRepository {
     }
 
     @Override
-    public void save(TicketQueue queue) {
+    public synchronized void save(TicketQueue queue) {
+        TicketQueue stored = store.get(queue.getEventId());
+        if (stored != null && stored != queue && stored.getVersion() > queue.getVersion()) {
+            throw new OptimisticLockException(
+                    "Optimistic lock conflict for TicketQueue " + queue.getEventId() +
+                    ": stored version " + stored.getVersion() +
+                    " > incoming version " + queue.getVersion());
+        }
         store.put(queue.getEventId(), queue);
     }
 

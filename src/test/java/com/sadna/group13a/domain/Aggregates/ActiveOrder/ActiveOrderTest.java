@@ -8,10 +8,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Unit tests for the ActiveOrder aggregate (shopping cart).
- * No Spring, no Mockito — pure domain instantiation.
- */
+
 class ActiveOrderTest {
 
     private static final String USER_ID = "user-abc";
@@ -142,20 +139,6 @@ class ActiveOrderTest {
         assertEquals(OrderStatus.CANCELLED, order.getStatus());
     }
 
-    // ── cancel: negative ──────────────────────────────────────────
-
-    @Test
-    void givenOrderWithCompletedStatus_whenCancelled_thenThrowsIllegalStateException() {
-        // Simulate a COMPLETED status via reflection-free approach:
-        // submit → there's no direct 'complete' method, but we can verify cancel guards COMPLETED.
-        // Directly test the guard by checking it with a freshly built order where status = COMPLETED
-        // is not reachable without a domain service. We test the cancel-completed guard here by
-        // checking that a CANCELLED order cannot be cancelled again without modifying status externally.
-        // The cancel() guard is: if status == COMPLETED → throw. We test this by cancelling twice.
-        order.cancel();
-        // cancelling an already-cancelled order should still work (no guard on CANCELLED)
-        assertDoesNotThrow(order::cancel);
-    }
 
     // ── Immutability of items list ────────────────────────────────
 

@@ -1,6 +1,7 @@
 package com.sadna.group13a.domain.Interfaces;
 
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -18,4 +19,6 @@ public interface IActiveOrderRepository
     Optional<ActiveOrder> findActiveByUserId(String userId);
     
     void deleteById(String orderId);
+
+    List<ActiveOrder> findAll();
 }

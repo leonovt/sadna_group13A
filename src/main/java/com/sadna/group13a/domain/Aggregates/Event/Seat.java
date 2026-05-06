@@ -161,6 +161,16 @@ public class Seat {
         this.holdExpiresAt = null;  // no longer relevant
     }
 
+    /**
+     * Reverses a completed sale — transitions SOLD → AVAILABLE.
+     * Used for transactional rollback when payment or persistence fails.
+     * No-op if the seat is not currently sold.
+     */
+    public synchronized void unsell() {
+        if (status != SeatStatus.SOLD) return;
+        clearHold();
+    }
+
     // ── Internal ──────────────────────────────────────────────────
 
     private void clearHold() {

@@ -1,6 +1,5 @@
 package com.sadna.group13a.infrastructure.RepositoryImpl;
 
-import com.sadna.group13a.domain.Aggregates.User.Admin;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,10 +10,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Pure JUnit 5 — no Mockito, no Spring.
- * Tests the actual ConcurrentHashMap-backed UserRepositoryImpl.
- */
+
 class UserRepositoryImplTest {
 
     private UserRepositoryImpl repo;
@@ -67,7 +63,7 @@ class UserRepositoryImplTest {
     @Test
     void givenTwoUsers_whenFindAll_thenReturnsBoth() {
         repo.save(new Member("u-4", "dave", "hash"));
-        repo.save(new Admin("u-5", "admin", "hash"));
+        repo.save(new Member("u-5", "admin2", "hash"));
 
         List<User> all = repo.findAll();
         assertEquals(2, all.size());

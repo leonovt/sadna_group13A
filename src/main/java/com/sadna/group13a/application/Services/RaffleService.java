@@ -7,7 +7,13 @@ import com.sadna.group13a.application.DTO.RaffleRegistrationDTO;
 import com.sadna.group13a.application.DTO.RaffleResultDTO;
 import com.sadna.group13a.application.DTO.WinningTicketDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
+import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
+import com.sadna.group13a.domain.Aggregates.Event.Event;
+import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
+import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
+import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
 import com.sadna.group13a.domain.Aggregates.Raffle.Raffle;
 import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
@@ -27,15 +33,22 @@ public class RaffleService {
     private static final Logger logger = LoggerFactory.getLogger(RaffleService.class);
 
     private final IRaffleRepository raffleRepository;
+    private final IEventRepository eventRepository;
+    private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
     private final IAuth authGateway;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
 
-    public RaffleService(IRaffleRepository raffleRepository, IUserRepository userRepository,
+    public RaffleService(IRaffleRepository raffleRepository,
+                         IEventRepository eventRepository,
+                         ICompanyRepository companyRepository,
+                         IUserRepository userRepository,
                          IAuth authGateway, ObjectMapper objectMapper,
                          ApplicationEventPublisher eventPublisher) {
         this.raffleRepository = raffleRepository;
+        this.eventRepository = eventRepository;
+        this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.authGateway = authGateway;
         this.objectMapper = objectMapper;
@@ -52,15 +65,32 @@ public class RaffleService {
         }
         String actingUserId = authGateway.extractUserId(token);
 
-        // Verify the user is an active member before allowing raffle creation
         Optional<User> userOpt = userRepository.findById(actingUserId);
         if (userOpt.isEmpty() || !userOpt.get().isActive()) {
             return Result.failure("Only active members can create a raffle.");
         }
 
+        Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
+        if (compOpt.isEmpty() || !compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+            return Result.failure("User lacks permission to manage events for this company.");
+        }
+
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            return Result.failure("Event not found.");
+        }
+
+        Event event = eventOpt.get();
+        try {
+            event.setSaleMode(EventSaleMode.RAFFLE);
+        } catch (Exception e) {
+            return Result.failure(e.getMessage());
+        }
+
         String raffleId = UUID.randomUUID().toString();
         Raffle raffle = new Raffle(raffleId, eventId, companyId);
         raffleRepository.save(raffle);
+        eventRepository.save(event);
 
         logger.info("User {} created raffle {} for event {}.", actingUserId, raffleId, eventId);
         return Result.success(raffleId);
@@ -82,6 +112,11 @@ public class RaffleService {
         }
 
         Raffle raffle = raffleOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(raffle.getCompanyId());
+        if (compOpt.isEmpty() || !compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+            return Result.failure("User lacks permission to manage events for this company.");
+        }
+
         try {
             raffle.close();
             raffleRepository.save(raffle);
@@ -142,13 +177,17 @@ public class RaffleService {
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
-        
+
         Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
         if (raffleOpt.isEmpty()) {
             return Result.failure("Raffle not found.");
         }
 
         Raffle raffle = raffleOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(raffle.getCompanyId());
+        if (compOpt.isEmpty() || !compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+            return Result.failure("User lacks permission to manage events for this company.");
+        }
 
         try {
             // 1. The Aggregate handles all the complex code generation internally!
@@ -236,8 +275,11 @@ public class RaffleService {
         AuthorizationCode code = codeOpt.get();
 
         try {
-            // ... and immediately translates it into a DTO so the pure Domain Object never reaches the Controller.
-            WinningTicketDTO dto = new WinningTicketDTO(code.getEventId(), code.getCode(), code.getExpirationTime());
+            WinningTicketDTO dto = new WinningTicketDTO(
+                code.getEventId(),
+                code.getCode(),
+                code.getExpirationTime()
+            );
             return Result.success(dto);
             
         } catch (Exception e) {
