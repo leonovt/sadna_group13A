@@ -45,6 +45,18 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Integration tests for {@link OrderService}.
+ *
+ * <p><strong>Philosophy:</strong> Every layer from Application down to Infrastructure
+ * is exercised with real, concrete objects.  No Mockito mocks are used for internal
+ * collaborators.  Only the external-boundary ports (IAuth, IPaymentGateway,
+ * INotificationService) are replaced with deterministic test doubles implemented
+ * right here in this file.
+ *
+ * <p>Spring context is NOT loaded — the service is wired by hand so that the tests
+ * run fast and are free of framework magic.
+ */
 class OrderServiceIntegrationTest {
 
     // ── Stable identifiers shared across test helpers ─────────────────────────────
@@ -121,6 +133,8 @@ class OrderServiceIntegrationTest {
                 orderRepo, historyRepo, eventRepo, companyRepo,
                 queueRepo, raffleRepo, paymentGateway, ticketSupplier,
                 userRepo, auth, checkoutDomainService, ticketingAccessDomainService,
+                queueRepo, raffleRepo, paymentGateway, userRepo,
+                auth, checkoutDomainService, ticketingAccessDomainService,
                 eventPublisher
         );
 
