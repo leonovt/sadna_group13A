@@ -39,11 +39,11 @@ public class Raffle
      * Note: The Application Service MUST verify the user is a registered Member 
      * before passing their ID to this method[cite: 1].
      */
-    public void registerParticipant(String userId) {
+    public synchronized void registerParticipant(String userId) {
         if (this.status != RaffleStatus.OPEN_FOR_REGISTRATION) {
             throw new IllegalStateException("Cannot register: The raffle is no longer open.");
         }
-        
+
         // The Set automatically ignores duplicates, but we can throw an error if we want to notify the frontend
         if (!participantUserIds.add(userId)) {
             throw new IllegalArgumentException("User is already registered for this raffle.");
