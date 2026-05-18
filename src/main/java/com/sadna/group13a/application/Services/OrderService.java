@@ -41,6 +41,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,8 +107,27 @@ public class OrderService {
      * Holds the seat/spot immediately to prevent double-booking.
      */
     public Result<String> addItemToCart(String token, String eventId, String zoneId, String seatId) {
+        if (seatId != null) {
+            return addBatchItemsToCart(token, eventId, zoneId, List.of(seatId), null);
+        } else {
+            return addBatchItemsToCart(token, eventId, zoneId, null, 1);
+        }
+    }
+
+    /**
+     * Adds multiple tickets for one event to the user's active cart atomically.
+     * For seated zones, provide explicit seat IDs via {@code seatIds}.
+     * For standing zones, pass {@code seatIds} as null/empty and set {@code quantity}.
+     * If any reservation fails, all already-held seats are released and the cart is unchanged.
+     *
+     * Thread safety: each seat hold/release delegates to synchronized methods on Seat /
+     * StandingZone. The {@code reservedSeats} rollback list is a local variable and is
+     * never shared between threads.
+     */
+    public Result<String> addBatchItemsToCart(String token, String eventId, String zoneId,
+                                               List<String> seatIds, Integer quantity) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to add item to cart");
+            logger.warn("Unauthorized attempt to add batch items to cart");
             return Result.failure("Unauthorized: invalid token");
         }
         String userId = authGateway.extractUserId(token);
@@ -128,22 +148,48 @@ public class OrderService {
             return Result.failure("Company is not active");
         }
 
+        List<String> seatsToReserve;
+        if (seatIds != null && !seatIds.isEmpty()) {
+            seatsToReserve = new ArrayList<>(seatIds);
+        } else {
+            if (quantity == null || quantity <= 0) {
+                return Result.failure("Quantity must be positive for standing zones");
+            }
+            seatsToReserve = new ArrayList<>(Collections.nCopies(quantity, null));
+        }
+
+        List<String> reservedSeats = new ArrayList<>();
         try {
-            event.reserveSeat(zoneId, seatId, userId);
+            for (String seatId : seatsToReserve) {
+                event.reserveSeat(zoneId, seatId, userId);
+                reservedSeats.add(seatId);
+            }
             eventRepository.save(event);
         } catch (Exception e) {
-            logger.warn("Failed to reserve seat {} in zone {} for user {}: {}", seatId, zoneId, userId, e.getMessage());
-            return Result.failure("Failed to reserve seat: " + e.getMessage());
+            for (String reservedSeatId : reservedSeats) {
+                try {
+                    event.releaseItem(zoneId, reservedSeatId, userId);
+                } catch (Exception re) {
+                    logger.warn("Failed to release seat {} during batch rollback: {}",
+                            reservedSeatId, re.getMessage());
+                }
+            }
+            logger.warn("Batch reservation failed for user {} in zone {}: {}",
+                    userId, zoneId, e.getMessage());
+            return Result.failure("Failed to reserve seats: " + e.getMessage());
         }
 
         double price = event.getZoneBasePrice(zoneId);
         ActiveOrder order = orderRepository.findActiveByUserId(userId)
                 .orElseGet(() -> new ActiveOrder(UUID.randomUUID().toString(), userId));
 
-        order.addItem(new OrderItem(eventId, zoneId, seatId, price));
+        for (String seatId : seatsToReserve) {
+            order.addItem(new OrderItem(eventId, zoneId, seatId, price));
+        }
         orderRepository.save(order);
 
-        logger.info("User {} added item to cart {}", userId, order.getId());
+        logger.info("User {} added {} item(s) to cart {} for event {}",
+                userId, seatsToReserve.size(), order.getId(), eventId);
         return Result.success(order.getId());
     }
 

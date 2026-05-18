@@ -19,7 +19,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import static org.mockito.ArgumentMatchers.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -175,6 +178,124 @@ class ActiveOrderManagementTest {
         Result<Void> result = orderService.cancelCart(token);
         assertTrue(result.isSuccess());
         verify(orderRepository).deleteById("order1");
+    }
+
+    @Test
+    @DisplayName("Given valid seated tickets — When adding batch to cart — Then all seats held and items added")
+    void GivenValidSeatedTickets_WhenAddingBatch_ThenAllHeldAndInCart() {
+        String token = "valid_token";
+        String userId = "user123";
+        String eventId = "event1";
+
+        when(authGateway.validateToken(token)).thenReturn(true);
+        when(authGateway.extractUserId(token)).thenReturn(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        Event event = mock(Event.class);
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(event.isPublished()).thenReturn(true);
+        when(event.getCompanyId()).thenReturn("company1");
+        when(event.getZoneBasePrice("zone1")).thenReturn(50.0);
+
+        ProductionCompany company = mock(ProductionCompany.class);
+        when(company.getStatus()).thenReturn(CompanyStatus.ACTIVE);
+        when(companyRepository.findById("company1")).thenReturn(Optional.of(company));
+        when(orderRepository.findActiveByUserId(userId)).thenReturn(Optional.empty());
+
+        Result<String> result = orderService.addBatchItemsToCart(
+                token, eventId, "zone1", List.of("seat1", "seat2"), null);
+
+        assertTrue(result.isSuccess());
+        verify(event).reserveSeat("zone1", "seat1", userId);
+        verify(event).reserveSeat("zone1", "seat2", userId);
+        verify(orderRepository).save(argThat(order -> order.getItems().size() == 2));
+    }
+
+    @Test
+    @DisplayName("Given standing zone — When adding batch by quantity — Then N spots held and items in cart")
+    void GivenStandingZone_WhenAddingBatchByQuantity_ThenNSpotsHeld() {
+        String token = "valid_token";
+        String userId = "user123";
+        String eventId = "event1";
+
+        when(authGateway.validateToken(token)).thenReturn(true);
+        when(authGateway.extractUserId(token)).thenReturn(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        Event event = mock(Event.class);
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(event.isPublished()).thenReturn(true);
+        when(event.getCompanyId()).thenReturn("company1");
+        when(event.getZoneBasePrice("standing1")).thenReturn(30.0);
+
+        ProductionCompany company = mock(ProductionCompany.class);
+        when(company.getStatus()).thenReturn(CompanyStatus.ACTIVE);
+        when(companyRepository.findById("company1")).thenReturn(Optional.of(company));
+        when(orderRepository.findActiveByUserId(userId)).thenReturn(Optional.empty());
+
+        Result<String> result = orderService.addBatchItemsToCart(
+                token, eventId, "standing1", null, 3);
+
+        assertTrue(result.isSuccess());
+        verify(event, times(3)).reserveSeat(eq("standing1"), isNull(), eq(userId));
+        verify(orderRepository).save(argThat(order -> order.getItems().size() == 3));
+    }
+
+    @Test
+    @DisplayName("Given second seat unavailable — When adding batch — Then first seat released and cart unchanged")
+    void GivenSecondSeatUnavailable_WhenAddingBatch_ThenFirstReleasedAndCartUnchanged() {
+        String token = "valid_token";
+        String userId = "user123";
+        String eventId = "event1";
+
+        when(authGateway.validateToken(token)).thenReturn(true);
+        when(authGateway.extractUserId(token)).thenReturn(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        Event event = mock(Event.class);
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(event.isPublished()).thenReturn(true);
+        when(event.getCompanyId()).thenReturn("company1");
+
+        ProductionCompany company = mock(ProductionCompany.class);
+        when(company.getStatus()).thenReturn(CompanyStatus.ACTIVE);
+        when(companyRepository.findById("company1")).thenReturn(Optional.of(company));
+
+        doNothing().when(event).reserveSeat("zone1", "seat1", userId);
+        doThrow(new com.sadna.group13a.domain.shared.SeatUnavailableException("seat2 is taken"))
+                .when(event).reserveSeat("zone1", "seat2", userId);
+
+        Result<String> result = orderService.addBatchItemsToCart(
+                token, eventId, "zone1", List.of("seat1", "seat2"), null);
+
+        assertFalse(result.isSuccess());
+        verify(event).releaseItem("zone1", "seat1", userId);
+        verify(orderRepository, never()).save(any(ActiveOrder.class));
+    }
+
+    @Test
+    @DisplayName("Given empty seat list and null quantity — When adding batch — Then validation error returned")
+    void GivenEmptySeatListAndNullQuantity_WhenAddingBatch_ThenValidationError() {
+        String token = "valid_token";
+        String userId = "user123";
+
+        when(authGateway.validateToken(token)).thenReturn(true);
+        when(authGateway.extractUserId(token)).thenReturn(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        Event event = mock(Event.class);
+        when(eventRepository.findById("event1")).thenReturn(Optional.of(event));
+        when(event.isPublished()).thenReturn(true);
+        when(event.getCompanyId()).thenReturn("company1");
+        ProductionCompany company = mock(ProductionCompany.class);
+        when(company.getStatus()).thenReturn(CompanyStatus.ACTIVE);
+        when(companyRepository.findById("company1")).thenReturn(Optional.of(company));
+
+        Result<String> result = orderService.addBatchItemsToCart(
+                token, "event1", "zone1", Collections.emptyList(), null);
+
+        assertFalse(result.isSuccess());
+        verify(orderRepository, never()).save(any(ActiveOrder.class));
     }
 
     @Test
