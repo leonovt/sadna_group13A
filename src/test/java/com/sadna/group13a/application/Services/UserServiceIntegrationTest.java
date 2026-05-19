@@ -189,12 +189,17 @@ class UserServiceIntegrationTest {
     class LogoutTests {
 
         @Test
-        @DisplayName("Valid token always succeeds")
-        void givenValidToken_whenLogout_thenSuccess() {
+        @DisplayName("Valid token succeeds and returns a fresh guest token")
+        void givenValidToken_whenLogout_thenSuccessAndGuestTokenReturned() {
             userService.register("hank", "pw");
-            String token = userService.login("hank", "pw").getOrThrow();
+            String memberToken = userService.login("hank", "pw").getOrThrow();
 
-            assertTrue(userService.logout(token).isSuccess());
+            Result<String> result = userService.logout(memberToken);
+
+            assertTrue(result.isSuccess());
+            String guestToken = result.getOrThrow();
+            assertNotNull(guestToken);
+            assertNotEquals(memberToken, guestToken);
         }
     }
 
