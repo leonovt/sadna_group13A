@@ -1,10 +1,12 @@
 package com.sadna.group13a.presentation.notification;
 
 import com.sadna.group13a.application.Interfaces.INotificationService;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+@Primary
 @Service
 public class WebSocketNotificationService implements INotificationService {
 
