@@ -2,6 +2,8 @@ package com.sadna.group13a.domain.DomainServices;
 
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
+import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
+import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
@@ -10,6 +12,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -39,6 +42,57 @@ class TicketingAccessDomainServiceTest {
         raffleEvent = new Event(EVENT_ID, "Rock Concert", "Desc", "co-1",
                 LocalDateTime.now().plusDays(7), "Music");
         raffleEvent.setSaleMode(EventSaleMode.RAFFLE);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // Event-level availability — published + future date
+    // ══════════════════════════════════════════════════════════════
+
+    @Nested
+    class EventAvailabilityTests {
+
+        private Event publishedFutureEvent;
+
+        @BeforeEach
+        void setUpPublished() {
+            publishedFutureEvent = new Event(EVENT_ID, "Concert", "Desc", "co-1",
+                    LocalDateTime.now().plusDays(7), "Music");
+            VenueMap venueMap = new VenueMap("vm-1", "Arena",
+                    List.of(new StandingZone("z-1", "GA", 50.0, 200)));
+            publishedFutureEvent.setVenueMap(venueMap);
+            publishedFutureEvent.publish();
+        }
+
+        @Test
+        void givenPublishedFutureEvent_whenValidatingAvailability_thenNoExceptionThrown() {
+            assertDoesNotThrow(() -> service.validateEventIsOpenForSale(publishedFutureEvent));
+        }
+
+        @Test
+        void givenUnpublishedEvent_whenValidatingAvailability_thenThrowsPermissionDeniedException() {
+            Event unpublished = new Event(EVENT_ID, "Concert", "Desc", "co-1",
+                    LocalDateTime.now().plusDays(7), "Music");
+            VenueMap venueMap = new VenueMap("vm-2", "Arena",
+                    List.of(new StandingZone("z-2", "GA", 50.0, 200)));
+            unpublished.setVenueMap(venueMap);
+            // intentionally not calling publish()
+
+            assertThrows(PermissionDeniedException.class,
+                    () -> service.validateEventIsOpenForSale(unpublished));
+        }
+
+        @Test
+        void givenPastEvent_whenValidatingAvailability_thenThrowsPermissionDeniedException() {
+            Event pastEvent = new Event(EVENT_ID, "Concert", "Desc", "co-1",
+                    LocalDateTime.now().minusDays(1), "Music");
+            VenueMap venueMap = new VenueMap("vm-3", "Arena",
+                    List.of(new StandingZone("z-3", "GA", 50.0, 200)));
+            pastEvent.setVenueMap(venueMap);
+            pastEvent.publish();
+
+            assertThrows(PermissionDeniedException.class,
+                    () -> service.validateEventIsOpenForSale(pastEvent));
+        }
     }
 
     // ══════════════════════════════════════════════════════════════

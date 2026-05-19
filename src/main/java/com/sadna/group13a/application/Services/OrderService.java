@@ -285,6 +285,7 @@ public class OrderService {
             }
 
             try {
+                ticketingAccessDomainService.validateEventIsOpenForSale(event);
                 ticketingAccessDomainService.validateAccess(event, userId, queue, authCode);
             } catch (PermissionDeniedException e) {
                 logger.warn("Access denied for user {} on event {}: {}", userId, eventId, e.getMessage());

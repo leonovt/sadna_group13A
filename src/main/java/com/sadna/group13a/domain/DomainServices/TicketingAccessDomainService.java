@@ -5,12 +5,33 @@ import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
 
+import java.time.LocalDateTime;
+
 /**
  * Domain Service — pure Java, no Spring annotations.
- * Acts as the gatekeeper: verifies that a user is legally allowed to start a checkout
- * for a given event based on its sale mode (REGULAR, QUEUE, or RAFFLE).
+ * Acts as the gatekeeper: verifies that a purchase can legally proceed for a given
+ * event and user. Covers two orthogonal concerns:
+ *   1. Event-level availability — is this event currently open for sale?
+ *   2. User-level authorization — is this specific user allowed to buy under the sale mode?
  */
 public class TicketingAccessDomainService {
+
+    /**
+     * Validates that the event itself is currently open for sale.
+     * Must be called before {@link #validateAccess} so that user-level checks
+     * are never reached for unavailable events.
+     *
+     * @param event the event being purchased
+     * @throws PermissionDeniedException if the event is not published or has already taken place
+     */
+    public void validateEventIsOpenForSale(Event event) {
+        if (!event.isPublished()) {
+            throw new PermissionDeniedException("purchase tickets — event is not published");
+        }
+        if (!LocalDateTime.now().isBefore(event.getEventDate())) {
+            throw new PermissionDeniedException("purchase tickets — event has already taken place");
+        }
+    }
 
     /**
      * Validates that the given user has the right to purchase tickets for the event right now.
