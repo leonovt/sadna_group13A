@@ -13,6 +13,7 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
@@ -75,6 +76,10 @@ class PaymentAndRefundTest {
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
                 checkoutDomainService, ticketingAccessDomainService, eventPublisher);
+
+        // Default: any userId resolves to an active member so user-guard tests pass through
+        when(userRepository.findById(anyString()))
+                .thenAnswer(inv -> Optional.of(new Member(inv.getArgument(0), "user", "hash")));
     }
 
     @Nested

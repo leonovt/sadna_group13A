@@ -12,7 +12,7 @@ app:
   seat:
     hold-duration-minutes: 10
 
-  # Bootstrap admin account
+  # Bootstrap admin credentials
   admin:
     username: admin
     password: admin123

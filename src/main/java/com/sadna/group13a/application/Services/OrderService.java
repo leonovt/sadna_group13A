@@ -133,8 +133,8 @@ public class OrderService {
         String userId = authGateway.extractUserId(token);
 
         Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isPresent() && !userOpt.get().isActive()) {
-            return Result.failure("Account is inactive.");
+        if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
+            return Result.failure("Only active members can purchase tickets.");
         }
 
         Optional<Event> eventOpt = eventRepository.findById(eventId);
@@ -225,8 +225,8 @@ public class OrderService {
         String userId = authGateway.extractUserId(token);
 
         Optional<User> checkoutUserOpt = userRepository.findById(userId);
-        if (checkoutUserOpt.isPresent() && !checkoutUserOpt.get().isActive()) {
-            return Result.failure("Account is inactive.");
+        if (checkoutUserOpt.isEmpty() || !checkoutUserOpt.get().canPurchase()) {
+            return Result.failure("Only active members can purchase tickets.");
         }
 
         // ── Fetch and validate the cart ───────────────────────────────────────────
@@ -285,6 +285,7 @@ public class OrderService {
             }
 
             try {
+                ticketingAccessDomainService.validateEventIsOpenForSale(event);
                 ticketingAccessDomainService.validateAccess(event, userId, queue, authCode);
             } catch (PermissionDeniedException e) {
                 logger.warn("Access denied for user {} on event {}: {}", userId, eventId, e.getMessage());

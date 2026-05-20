@@ -199,11 +199,10 @@ class QueueServiceIntegrationTest {
         }
 
         @Test
-        @DisplayName("Guest (userId not in repo) is admitted — only inactive members are blocked")
-        void givenGuestUserId_whenJoinQueue_thenAdmitted() {
+        @DisplayName("Guest (userId not in repo) is rejected — only active members may join a queue")
+        void givenGuestUserId_whenJoinQueue_thenRejected() {
             seedQueue(EVENT_ID, 5);
-            // service only rejects if the user IS found AND inactive
-            assertTrue(queueService.joinQueue(token("guest-xyz-999"), EVENT_ID).isSuccess());
+            assertFalse(queueService.joinQueue(token("guest-xyz-999"), EVENT_ID).isSuccess());
         }
     }
 

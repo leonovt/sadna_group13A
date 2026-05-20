@@ -66,7 +66,7 @@ public class RaffleService {
         String actingUserId = authGateway.extractUserId(token);
 
         Optional<User> userOpt = userRepository.findById(actingUserId);
-        if (userOpt.isEmpty() || !userOpt.get().isActive()) {
+        if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
             return Result.failure("Only active members can create a raffle.");
         }
 
@@ -142,7 +142,7 @@ public class RaffleService {
         logger.debug("User {} is attempting to join raffle {}", userId, raffleId);
 
         Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isEmpty() || !userOpt.get().isActive()) {
+        if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
             return Result.failure("Only active registered members can join a raffle.");
         }
 

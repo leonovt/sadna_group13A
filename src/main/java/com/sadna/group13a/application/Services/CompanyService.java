@@ -57,7 +57,9 @@ public class CompanyService {
         }
         String founderId = authGateway.extractUserId(token);
         Optional<User> founderOpt = userRepository.findById(founderId);
-        if (founderOpt.isEmpty()) return Result.failure("Founder not found or inactive.");
+        if (founderOpt.isEmpty() || !founderOpt.get().canPurchase()) {
+            return Result.failure("Founder not found or inactive.");
+        }
 
         boolean nameExists = companyRepository.findAll().stream().anyMatch(c -> c.getName().equalsIgnoreCase(name));
 
