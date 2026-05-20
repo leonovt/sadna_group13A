@@ -2,6 +2,7 @@ package com.sadna.group13a.application.EventListeners;
 
 import com.sadna.group13a.application.Interfaces.INotificationService;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
+import org.springframework.beans.factory.annotation.Qualifier;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
 import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
@@ -14,7 +15,7 @@ public class NotificationEventListener {
 
     private final INotificationService notificationService;
 
-    public NotificationEventListener(INotificationService notificationService) {
+    public NotificationEventListener(@Qualifier("webSocketNotificationService") INotificationService notificationService) {
         this.notificationService = notificationService;
     }
 
