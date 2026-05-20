@@ -12,6 +12,11 @@ app:
   seat:
     hold-duration-minutes: 10
 
+  # Bootstrap admin credentials
+  admin:
+    username: admin
+    password: admin123
+
 logging:
   level:
     com.sadna.group13a.domain: DEBUG
