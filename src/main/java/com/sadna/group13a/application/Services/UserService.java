@@ -17,6 +17,7 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPasswordEncoder;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Aggregates.User.Guest;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import org.springframework.stereotype.Service;
@@ -42,11 +43,12 @@ public class UserService
     }
 
     /**
-     * Its generate a token but does not save to the repo, therefore  every action that will try to fetch the user 
-       object will fail.
+     * Creates a Guest session: persists a Guest aggregate so the rest of the system
+     * can look it up by id, then returns a signed token for that guest.
      */
     public Result<String> enterAsGuest() {
         String guestId = "guest-" + UUID.randomUUID();
+        userRepository.save(new Guest(guestId, guestId));
         String token = authGateway.generateToken(guestId);
         logger.info("Guest session started: {}.", guestId);
         return Result.success(token);
@@ -144,10 +146,14 @@ public class UserService
         return Result.success(dto);
     }
 
-    public Result<Void> logout(String token) {
+    /**
+     * Logs the current session out and returns a fresh guest token,
+     * transitioning the caller back to guest mode.
+     */
+    public Result<String> logout(String token) {
         if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
         logger.info("User {} logged out.", authGateway.extractUserId(token));
-        return Result.success();
+        return enterAsGuest();
     }
 
     public Result<UserDTO> updateProfile(String token, String newUsername) {
@@ -178,7 +184,10 @@ public class UserService
             return Result.failure("Unauthorized.");
         }
         String userId = authGateway.extractUserId(token);
-        if (userRepository.findById(userId).isEmpty()) return Result.failure("Only registered members can view order history.");
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
+            return Result.failure("Only registered members can view order history.");
+        }
         
         List<OrderHistory> histories = historyRepository.findByUserId(userId);
 

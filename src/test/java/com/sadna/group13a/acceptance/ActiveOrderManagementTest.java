@@ -10,6 +10,7 @@ import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
+import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Interfaces.*;
@@ -72,6 +73,10 @@ class ActiveOrderManagementTest {
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
                 checkoutDomainService, ticketingAccessDomainService, eventPublisher
         );
+
+        // Default: any userId resolves to an active member so user-guard tests pass through
+        when(userRepository.findById(anyString()))
+                .thenAnswer(inv -> Optional.of(new Member(inv.getArgument(0), "user", "hash")));
     }
 
     @Test
@@ -189,7 +194,6 @@ class ActiveOrderManagementTest {
 
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         Event event = mock(Event.class);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
@@ -220,7 +224,6 @@ class ActiveOrderManagementTest {
 
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         Event event = mock(Event.class);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
@@ -250,7 +253,6 @@ class ActiveOrderManagementTest {
 
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         Event event = mock(Event.class);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
@@ -281,7 +283,6 @@ class ActiveOrderManagementTest {
 
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         Event event = mock(Event.class);
         when(eventRepository.findById("event1")).thenReturn(Optional.of(event));

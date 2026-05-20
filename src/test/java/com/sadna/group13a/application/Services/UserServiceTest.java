@@ -147,13 +147,16 @@ class UserServiceTest {
     // ── logout ────────────────────────────────────────────────────
 
     @Test
-    void givenValidToken_whenLogout_thenSucceeds() {
+    void givenValidToken_whenLogout_thenSucceedsAndReturnsGuestToken() {
         when(authGateway.validateToken(TOKEN)).thenReturn(true);
         when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
+        when(authGateway.generateToken(anyString())).thenReturn("guest-token");
 
-        Result<Void> result = userService.logout(TOKEN);
+        Result<String> result = userService.logout(TOKEN);
 
         assertTrue(result.isSuccess());
+        assertNotNull(result.getOrThrow());
+        verify(userRepository).save(argThat(u -> u.getRole().name().equals("GUEST")));
     }
 
     @Test

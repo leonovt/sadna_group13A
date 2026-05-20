@@ -165,8 +165,8 @@ public class QueueService {
         String userId = authGateway.extractUserId(token);
 
         Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isPresent() && !userOpt.get().isActive()) {
-            return Result.failure("Account is inactive.");
+        if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
+            return Result.failure("Only active members can join a queue.");
         }
 
         Optional<TicketQueue> queueOpt = queueRepository.findByEventId(eventId);
