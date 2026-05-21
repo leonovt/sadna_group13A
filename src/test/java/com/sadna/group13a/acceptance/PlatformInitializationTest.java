@@ -60,11 +60,14 @@ class PlatformInitializationTest {
             when(paymentGateway.isConnected()).thenReturn(true);
             when(ticketingGateway.isConnected()).thenReturn(true);
             when(userRepository.findByUsername("admin")).thenReturn(Optional.empty());
+            // Pre-condition: system has not been initialized yet
+            assertFalse(systemService.isPlatformInitialized(), "Pre: system must not be initialized before this test");
 
             Result<Void> result = systemService.initializePlatform("admin", "adminPass");
 
+            // Post-condition: system is now initialized and result indicates success
             assertTrue(result.isSuccess());
-            assertTrue(systemService.isPlatformInitialized());
+            assertTrue(systemService.isPlatformInitialized(), "Post: system must be initialized after successful init");
         }
 
         @Test
@@ -74,9 +77,12 @@ class PlatformInitializationTest {
             when(ticketingGateway.isConnected()).thenReturn(true);
             when(userRepository.findByUsername("admin")).thenReturn(Optional.empty());
             when(passwordEncoder.encodePassword("adminPass")).thenReturn("hashedPass");
+            // Pre-condition: no admin record exists and system is not initialized
+            assertFalse(systemService.isPlatformInitialized(), "Pre: system must not be initialized before this test");
 
             systemService.initializePlatform("admin", "adminPass");
 
+            // Post-condition: admin user was saved and password was encoded
             verify(userRepository).save(any(User.class));
             verify(passwordEncoder).encodePassword("adminPass");
         }
@@ -87,11 +93,14 @@ class PlatformInitializationTest {
             when(paymentGateway.isConnected()).thenReturn(true);
             when(ticketingGateway.isConnected()).thenReturn(true);
             when(userRepository.findByUsername("admin")).thenReturn(Optional.of(mock(User.class)));
+            // Pre-condition: admin already exists, system not yet initialized
+            assertFalse(systemService.isPlatformInitialized(), "Pre: system must not be initialized before this test");
 
             Result<Void> result = systemService.initializePlatform("admin", "adminPass");
 
+            // Post-condition: initialization fails and system remains uninitialized; no duplicate saved
             assertFalse(result.isSuccess());
-            assertFalse(systemService.isPlatformInitialized());
+            assertFalse(systemService.isPlatformInitialized(), "Post: system must remain uninitialized when admin already exists");
             verify(userRepository, never()).save(any(User.class));
         }
 
@@ -100,9 +109,12 @@ class PlatformInitializationTest {
         void GivenValidConfig_WhenInitializing_ThenProviderConnectivityVerified() {
             when(paymentGateway.isConnected()).thenReturn(true);
             when(ticketingGateway.isConnected()).thenReturn(true);
+            // Pre-condition: system is not yet initialized
+            assertFalse(systemService.isPlatformInitialized(), "Pre: system must not be initialized before this test");
 
             systemService.initializePlatform("admin", "adminPass");
 
+            // Post-condition: both external providers had their connectivity checked
             verify(paymentGateway).isConnected();
             verify(ticketingGateway).isConnected();
         }
@@ -116,12 +128,15 @@ class PlatformInitializationTest {
         @DisplayName("Given payment provider unreachable — When initializing — Then initialization fails with critical error")
         void GivenPaymentProviderUnreachable_WhenInitializing_ThenInitializationFails() {
             when(paymentGateway.isConnected()).thenReturn(false);
+            // Pre-condition: system is not initialized; payment provider is down
+            assertFalse(systemService.isPlatformInitialized(), "Pre: system must not be initialized before this test");
 
             Result<Void> result = systemService.initializePlatform("admin", "adminPass");
 
+            // Post-condition: initialization rejected and system stays uninitialized
             assertFalse(result.isSuccess());
             assertEquals("Failed to connect to the external payment service.", result.getErrorMessage());
-            assertFalse(systemService.isPlatformInitialized());
+            assertFalse(systemService.isPlatformInitialized(), "Post: system must remain uninitialized when payment provider is unreachable");
         }
 
         @Test
@@ -129,12 +144,15 @@ class PlatformInitializationTest {
         void GivenTicketSupplierUnreachable_WhenInitializing_ThenInitializationFails() {
             when(paymentGateway.isConnected()).thenReturn(true);
             when(ticketingGateway.isConnected()).thenReturn(false);
+            // Pre-condition: system is not initialized; payment provider OK but ticket supplier is down
+            assertFalse(systemService.isPlatformInitialized(), "Pre: system must not be initialized before this test");
 
             Result<Void> result = systemService.initializePlatform("admin", "adminPass");
 
+            // Post-condition: initialization rejected and system stays uninitialized
             assertFalse(result.isSuccess());
             assertEquals("Failed to connect to the external ticketing service.", result.getErrorMessage());
-            assertFalse(systemService.isPlatformInitialized());
+            assertFalse(systemService.isPlatformInitialized(), "Post: system must remain uninitialized when ticket supplier is unreachable");
         }
 
         @Test

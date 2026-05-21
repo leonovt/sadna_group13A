@@ -60,11 +60,14 @@ class SalesReportTest {
     @DisplayName("Given manager — When generating report — Then report includes ONLY events in their sub-tree")
     void GivenManager_WhenGeneratingReport_ThenOnlySubTreeData() {
         String founderToken = setupCompanyAndUser("c1", "u1", "founder");
+        // Pre-condition: company exists and the requesting user is the founder (has VIEW_REPORTS permission)
+        assertTrue(companyRepository.findById("c1").isPresent(), "Pre: company must exist before generating report");
 
         Result<SalesReportDTO> result = companyService.generateSalesReport(founderToken, "c1");
-        assertTrue(result.isSuccess());
 
-        assertNotNull(result.getOrThrow().companyId());
+        // Post-condition: report is returned for the company
+        assertTrue(result.isSuccess(), "Post: report generation must succeed for the company founder");
+        assertNotNull(result.getOrThrow().companyId(), "Post: report must include the company ID");
     }
 
     @Test
@@ -75,19 +78,25 @@ class SalesReportTest {
         OrderHistoryItem paidItem = new OrderHistoryItem("e1", "Event", LocalDateTime.now().plusDays(1), "c1", "Company", "VIP", "A1", 100.0);
         OrderHistory paidOrder = new OrderHistory("receipt1", "u1", LocalDateTime.now(), 100.0, java.util.List.of(paidItem));
         historyRepository.save(paidOrder);
+        // Pre-condition: exactly one paid order exists in history before report generation
+        assertEquals(1, historyRepository.findByUserId("u1").size(), "Pre: one paid order must exist before generating report");
 
         Result<SalesReportDTO> result = companyService.generateSalesReport(founderToken, "c1");
-        assertTrue(result.isSuccess());
-        
+        assertTrue(result.isSuccess(), "Post: report must be generated successfully");
+
+        // Post-condition: report includes only paid transactions with correct totals
         SalesReportDTO report = result.getOrThrow();
-        assertEquals(1, report.totalOrders());
-        assertEquals(100.0, report.totalRevenue());
+        assertEquals(1, report.totalOrders(), "Post: report must count exactly 1 paid order");
+        assertEquals(100.0, report.totalRevenue(), "Post: total revenue must match the paid order amount");
     }
 
     @Test
     @DisplayName("Given report total — Then matches exactly the amounts charged by payment provider minus refunds")
     void GivenReportTotal_ThenMatchesPaymentProviderChargesMinusRefunds() {
         String founderToken = setupCompanyAndUser("c1", "u1", "founder");
+
+        // Pre-condition: no history orders exist yet
+        assertTrue(historyRepository.findByUserId("u1").isEmpty(), "Pre: no orders must exist before this test");
 
         // Process payments through stub to verify integration works alongside DB history
         paymentGateway.processPayment(50.0, "CC");
@@ -101,10 +110,11 @@ class SalesReportTest {
         historyRepository.save(o2);
 
         Result<SalesReportDTO> result = companyService.generateSalesReport(founderToken, "c1");
-        assertTrue(result.isSuccess());
-        
+        assertTrue(result.isSuccess(), "Post: report must be generated successfully");
+
+        // Post-condition: report total matches the sum of all paid transactions
         SalesReportDTO report = result.getOrThrow();
-        assertEquals(125.0, report.totalRevenue());
+        assertEquals(125.0, report.totalRevenue(), "Post: total revenue must equal 50 + 75 = 125");
     }
 
     @Test
@@ -113,9 +123,14 @@ class SalesReportTest {
         setupCompanyAndUser("c1", "u1", "founder");
         userRepository.save(new Member("u2", "intruder", "hash"));
         String intruderToken = authGateway.generateToken("u2");
+        // Pre-condition: intruder is not part of the company staff
+        assertFalse(companyRepository.findById("c1").get().getStaff().containsKey("u2"),
+                "Pre: requesting user must not be in company staff");
 
         Result<SalesReportDTO> result = companyService.generateSalesReport(intruderToken, "c1");
-        assertFalse(result.isSuccess());
-        assertTrue(result.getErrorMessage().contains("Permission denied"));
+
+        // Post-condition: report access is denied for unauthorized user
+        assertFalse(result.isSuccess(), "Post: report request must be denied for non-staff user");
+        assertTrue(result.getErrorMessage().contains("Permission denied"), "Post: error must indicate permission denial");
     }
 }

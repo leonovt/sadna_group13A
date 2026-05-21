@@ -86,24 +86,34 @@ class TicketReservationTest {
     @DisplayName("Given lottery winner with available seats — When reserving — Then seats HELD for 10 minutes")
     void GivenLotteryWinnerWithAvailableSeats_WhenReserving_ThenSeatsHeld10Min() {
         setupData("e1", "c1", "z1", "s1", EventSaleMode.RAFFLE);
+        // Pre-condition: event is published, seat is AVAILABLE, and user is authenticated
+        Event preEvent = eventRepository.findById("e1").get();
+        SeatedZone preZone = (SeatedZone) preEvent.getVenueMap().getZoneById("z1");
+        assertEquals(SeatStatus.AVAILABLE, preZone.findSeatById("s1").get().getStatus(), "Pre: seat must be AVAILABLE before reservation");
+        assertTrue(preEvent.isPublished(), "Pre: event must be published before reservation");
 
         String token = authGateway.generateToken("u1");
         Result<String> cartRes = orderService.addItemToCart(token, "e1", "z1", "s1");
 
-        assertTrue(cartRes.isSuccess());
+        // Post-condition: reservation succeeds and seat status changes to HELD with an expiry
+        assertTrue(cartRes.isSuccess(), "Post: seat reservation must succeed");
 
         Event fetchedEvent = eventRepository.findById("e1").get();
         SeatedZone fetchedZone = (SeatedZone) fetchedEvent.getVenueMap().getZoneById("z1");
         Seat fetchedSeat = fetchedZone.findSeatById("s1").get();
 
-        assertEquals(SeatStatus.HELD, fetchedSeat.getStatus());
-        assertNotNull(fetchedSeat.getHoldExpiresAt());
+        assertEquals(SeatStatus.HELD, fetchedSeat.getStatus(), "Post: seat must be in HELD state after reservation");
+        assertNotNull(fetchedSeat.getHoldExpiresAt(), "Post: seat hold must have an expiry time set");
     }
 
     @Test
     @DisplayName("Given two winners — When both hold same seat simultaneously — Then only one succeeds")
     void GivenTwoWinners_WhenBothHoldSameSeat_ThenOnlyOneSucceeds() throws InterruptedException {
         setupData("e1", "c1", "z1", "s1", EventSaleMode.REGULAR);
+        // Pre-condition: seat is AVAILABLE and exactly one instance exists for two competing users
+        Event preEvent = eventRepository.findById("e1").get();
+        SeatedZone preZone = (SeatedZone) preEvent.getVenueMap().getZoneById("z1");
+        assertEquals(SeatStatus.AVAILABLE, preZone.findSeatById("s1").get().getStatus(), "Pre: seat must be AVAILABLE before concurrent reservation");
 
         String token1 = authGateway.generateToken("u1");
         String token2 = authGateway.generateToken("u2");
@@ -134,8 +144,9 @@ class TicketReservationTest {
 
         latch.await();
 
-        assertEquals(1, successCount.get());
-        assertEquals(1, failCount.get());
+        // Post-condition: exactly one user holds the seat; the other is rejected
+        assertEquals(1, successCount.get(), "Post: exactly one concurrent reservation must succeed");
+        assertEquals(1, failCount.get(), "Post: exactly one concurrent reservation must be rejected");
     }
 
     @Test
@@ -149,6 +160,9 @@ class TicketReservationTest {
         Event event = eventRepository.findById("e1").get();
         SeatedZone zone = (SeatedZone) event.getVenueMap().getZoneById("z1");
         Seat seat = zone.findSeatById("s1").get();
+        // Pre-condition: seat is currently HELD (reservation was just made)
+        assertEquals(SeatStatus.HELD, seat.getStatus(), "Pre: seat must be HELD before expiry check");
+        assertNotNull(seat.getHoldExpiresAt(), "Pre: seat must have a hold expiry time set");
 
         Field expiresAtField = Seat.class.getDeclaredField("holdExpiresAt");
         expiresAtField.setAccessible(true);
@@ -156,7 +170,8 @@ class TicketReservationTest {
 
         eventRepository.save(event);
 
-        assertTrue(seat.getEffectiveStatus() == SeatStatus.AVAILABLE);
+        // Post-condition: seat is automatically released back to AVAILABLE after expiry
+        assertTrue(seat.getEffectiveStatus() == SeatStatus.AVAILABLE, "Post: seat must be AVAILABLE after hold expiry");
     }
 
     @Test

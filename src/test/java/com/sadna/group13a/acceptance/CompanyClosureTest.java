@@ -62,16 +62,16 @@ class CompanyClosureTest {
 
         ProductionCompany company = mock(ProductionCompany.class);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+        // Pre-condition: company exists and the acting user is authenticated as the founder
+        assertTrue(authGateway.validateToken(token), "Pre: founder must be authenticated");
+        assertTrue(companyRepository.findById(companyId).isPresent(), "Pre: company must exist before closure");
 
         Result<Void> result = companyService.suspendCompany(token, companyId);
 
-        assertTrue(result.isSuccess(), "Founder should successfully suspend/close the company");
+        // Post-condition: company is suspended and saved (domain events will remove events from search)
+        assertTrue(result.isSuccess(), "Post: founder must successfully suspend the company");
         verify(company).suspendCompany(founderId);
         verify(companyRepository).save(company);
-
-        // This signifies the intent that upon save, Domain Events trigger Global Search
-        // projections
-        // to remove the events. Thus we test the boundary logic.
     }
 
     @Test
@@ -86,16 +86,16 @@ class CompanyClosureTest {
 
         ProductionCompany company = mock(ProductionCompany.class);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+        // Pre-condition: company is active (founder is authenticated)
+        assertTrue(authGateway.validateToken(token), "Pre: founder must be authenticated before closing company");
 
         // By invoking suspendCompany, its domain states transition to SUSPENDED
         Result<Void> result = companyService.suspendCompany(token, companyId);
 
-        assertTrue(result.isSuccess());
+        // Post-condition: company is suspended; any subsequent purchase checks on company.isActive() will fail
+        assertTrue(result.isSuccess(), "Post: company suspension must succeed");
         verify(company).suspendCompany(founderId);
-        // Any subsequent interactions like CheckoutDomainService.checkout checking
-        // company.isActive() will throw
-        // This accepts the available methods as sufficient for verifying state
-        // transition trigger boundaries.
+        verify(companyRepository).save(company);
     }
 
     @Test
@@ -109,16 +109,18 @@ class CompanyClosureTest {
         when(authGateway.extractUserId(token)).thenReturn(ownerId);
 
         ProductionCompany company = mock(ProductionCompany.class);
-        // Throw an exception when a non-founder attempts suspension, simulating the
-        // domain restriction
+        // Throw an exception when a non-founder attempts suspension, simulating the domain restriction
         doThrow(new RuntimeException("Only founder can suspend/close the company")).when(company)
                 .suspendCompany(ownerId);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+        // Pre-condition: acting user is authenticated but is NOT the founder
+        assertTrue(authGateway.validateToken(token), "Pre: owner must be authenticated");
 
         Result<Void> result = companyService.suspendCompany(token, companyId);
 
-        assertFalse(result.isSuccess(), "Non-founder owner should not be allowed to suspend the company");
-        assertTrue(result.getErrorMessage().contains("Only founder"));
+        // Post-condition: closure is blocked and company is not saved
+        assertFalse(result.isSuccess(), "Post: non-founder owner must not be allowed to suspend the company");
+        assertTrue(result.getErrorMessage().contains("Only founder"), "Post: error must indicate founder-only restriction");
         verify(companyRepository, never()).save(any());
     }
 
@@ -134,12 +136,14 @@ class CompanyClosureTest {
 
         ProductionCompany company = mock(ProductionCompany.class);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+        // Pre-condition: founder is authenticated and company exists
+        assertTrue(authGateway.validateToken(token), "Pre: founder must be authenticated");
+        assertTrue(companyRepository.findById(companyId).isPresent(), "Pre: company must exist before closure");
 
         Result<Void> result = companyService.suspendCompany(token, companyId);
 
-        assertTrue(result.isSuccess());
-        // Domain events dispatched during save trigger notifications to all staff.
-        // Assuming notificationService publishes to staff defined in company.getStaff()
+        // Post-condition: company is saved (domain events on save trigger staff notifications)
+        assertTrue(result.isSuccess(), "Post: company suspension must succeed");
         verify(companyRepository).save(company);
     }
 

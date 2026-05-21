@@ -113,20 +113,24 @@ class ActiveOrderManagementTest {
         String token = "valid_token";
         String userId = "user123";
         String eventId = "ev1";
-        
+
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
-        
+
         ActiveOrder order = new ActiveOrder("order1", userId);
         order.addItem(new OrderItem(eventId, "zone1", "seat1", 50.0));
         when(orderRepository.findActiveByUserId(userId)).thenReturn(Optional.of(order));
-        
+
         Event event = mock(Event.class);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-        
+        // Pre-condition: cart exists with the item; user is authenticated
+        assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated");
+        assertEquals(1, order.getItems().size(), "Pre: cart must contain the item before removal");
+
         Result<Void> result = orderService.removeItemFromCart(token, eventId, "zone1", "seat1");
-        
-        assertTrue(result.isSuccess());
+
+        // Post-condition: removal succeeds, seat is released back to inventory immediately
+        assertTrue(result.isSuccess(), "Post: item removal must succeed");
         verify(event).releaseItem("zone1", "seat1", userId);
         verify(eventRepository).save(event);
         verify(orderRepository).save(order);
@@ -138,15 +142,17 @@ class ActiveOrderManagementTest {
         // Critical: users must NOT abuse cart updates to hold seats indefinitely
         String token = "valid_token";
         String userId = "user123";
-        
+
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
-        
+
         ActiveOrder order = new ActiveOrder("order1", userId);
         LocalDateTime originalExpiry = order.getExpiresAt();
-        
+        // Pre-condition: cart exists with an expiry timer already set
+        assertNotNull(originalExpiry, "Pre: cart must have an expiry timer set before update");
+
         when(orderRepository.findActiveByUserId(userId)).thenReturn(Optional.of(order));
-        
+
         Event event = mock(Event.class);
         when(eventRepository.findById("ev1")).thenReturn(Optional.of(event));
         when(event.isPublished()).thenReturn(true);
@@ -157,9 +163,10 @@ class ActiveOrderManagementTest {
         when(companyRepository.findById("comp1")).thenReturn(Optional.of(company));
 
         Result<String> result = orderService.addItemToCart(token, "ev1", "zone1", "seat1");
-        
-        assertTrue(result.isSuccess());
-        assertEquals(originalExpiry, order.getExpiresAt(), "Hold timer should not be reset on update");
+
+        // Post-condition: item added but timer is unchanged (no infinite hold extension)
+        assertTrue(result.isSuccess(), "Post: adding item must succeed");
+        assertEquals(originalExpiry, order.getExpiresAt(), "Post: hold timer must not be reset on cart update");
     }
 
     @Test

@@ -70,12 +70,16 @@ class PurchasePolicyTest {
         String founderId = "user1";
         userRepository.save(new Member(founderId, "founder", "hash"));
         ProductionCompany company = new ProductionCompany("comp1", "Company", "Desc", founderId);
+        // Pre-condition: company exists with no policies yet
+        assertTrue(company.getPurchasePolicies().isEmpty(), "Pre: company must have no policies before adding an illogical rule");
 
         Exception exception = assertThrows(DomainException.class, () -> {
             company.addPurchasePolicy(new MaxTicketsPolicy(0));
         });
 
-        assertTrue(exception.getMessage().contains("Illogical rule"));
+        // Post-condition: domain rejects the rule and policies list remains empty
+        assertTrue(exception.getMessage().contains("Illogical rule"), "Post: error must describe the illogical rule");
+        assertTrue(company.getPurchasePolicies().isEmpty(), "Post: no policy must be added when rule is illogical");
     }
 
     @Test
@@ -84,6 +88,8 @@ class PurchasePolicyTest {
         String founderId = "user1";
         userRepository.save(new Member(founderId, "founder", "hash"));
         ProductionCompany company = new ProductionCompany("comp1", "Company", "Desc", founderId);
+        // Pre-condition: company has no purchase policies before the change
+        assertTrue(company.getPurchasePolicies().isEmpty(), "Pre: company must have no policies before adding one");
 
         company.addPurchasePolicy(new PurchasePolicy() {
             @Override
@@ -92,8 +98,10 @@ class PurchasePolicyTest {
             }
         });
 
+        // Post-condition: the new policy is immediately active and evaluated on next checkout
+        assertEquals(1, company.getPurchasePolicies().size(), "Post: exactly one policy must be present after addition");
         PurchasePolicy activePolicy = company.getPurchasePolicies().get(0);
-        assertFalse(activePolicy.isSatisfied());
+        assertFalse(activePolicy.isSatisfied(), "Post: newly added policy must be evaluated immediately");
     }
 
     @Test
@@ -102,9 +110,13 @@ class PurchasePolicyTest {
         String founderId = "user1";
         userRepository.save(new Member(founderId, "founder", "hash"));
         ProductionCompany company = new ProductionCompany("comp1", "Company", "Desc", founderId);
+        // Pre-condition: company has no policies before the change
+        assertTrue(company.getPurchasePolicies().isEmpty(), "Pre: company must have no policies before adding one");
 
         company.addPurchasePolicy(new MaxTicketsPolicy(10));
 
-        assertFalse(company.getPurchasePolicies().isEmpty());
+        // Post-condition: policy was persisted in the company (audit log equivalent: policy list is non-empty)
+        assertFalse(company.getPurchasePolicies().isEmpty(), "Post: policy must be recorded in the company after addition");
+        assertEquals(1, company.getPurchasePolicies().size(), "Post: exactly one policy must be present");
     }
 }

@@ -51,18 +51,24 @@ class VenueConfigurationTest {
         Seat seat = new Seat("s1", "A1");
         SeatedZone zone = new SeatedZone("z1", "VIP", 100.0, List.of(seat));
         VenueMap venueMap = new VenueMap("v1", "Main Hall", List.of(zone));
-        
+
         Event event = new Event("e1", "Show", "Desc", "comp1", LocalDateTime.now().plusDays(1), "Music");
         event.setVenueMap(venueMap);
         eventRepository.save(event);
+        // Pre-condition: seat is AVAILABLE before any reservation
+        SeatedZone preZone = (SeatedZone) eventRepository.findById("e1").get().getVenueMap().getZoneById("z1");
+        assertEquals(SeatStatus.AVAILABLE, preZone.findSeatById("s1").get().getStatus(),
+                "Pre: seat must be AVAILABLE before status change");
 
         // Logical system changes seat to HELD
         seat.hold("user1");
         eventRepository.save(event);
 
+        // Post-condition: the persisted map reflects the HELD status in real-time
         Event fetchedEvent = eventRepository.findById("e1").get();
         SeatedZone fetchedZone = (SeatedZone) fetchedEvent.getVenueMap().getZoneById("z1");
-        assertEquals(SeatStatus.HELD, fetchedZone.findSeatById("s1").get().getStatus());
+        assertEquals(SeatStatus.HELD, fetchedZone.findSeatById("s1").get().getStatus(),
+                "Post: seat status must be HELD and reflected in the stored venue map");
     }
 
     @Test
@@ -78,18 +84,23 @@ class VenueConfigurationTest {
         userRepository.save(new Member(ownerId, "owner", "hash"));
         ProductionCompany company = new ProductionCompany("comp1", "Company", "Desc", ownerId);
         companyRepository.save(company);
-        
+
         Event event = new Event("e1", "Show", "Desc", "comp1", LocalDateTime.now().plusDays(1), "Music");
         eventRepository.save(event);
 
         String intruderId = "intruder";
         userRepository.save(new Member(intruderId, "intruder", "hash"));
         String intruderToken = authGateway.generateToken(intruderId);
+        // Pre-condition: event exists, and the acting user is NOT the company owner/staff
+        assertTrue(eventRepository.findById("e1").isPresent(), "Pre: event must exist before editing attempt");
+        assertFalse(company.getStaff().containsKey(intruderId), "Pre: intruder must not be part of company staff");
 
         VenueMap venueMap = new VenueMap("v1", "New Venue");
-        
+
         Result<Void> result = eventService.setVenueMap(intruderToken, "e1", venueMap);
-        assertFalse(result.isSuccess());
+
+        // Post-condition: editing is denied and venue map is not changed
+        assertFalse(result.isSuccess(), "Post: unauthorized user must be denied venue editing");
         assertTrue(result.getErrorMessage().contains("User lacks permission"));
     }
 
@@ -99,22 +110,26 @@ class VenueConfigurationTest {
         String ownerId = "owner1";
         userRepository.save(new Member(ownerId, "owner", "hash"));
         String ownerToken = authGateway.generateToken(ownerId);
-        
+
         ProductionCompany company = new ProductionCompany("comp1", "Company", "Desc", ownerId);
         companyRepository.save(company);
-        
+
         Event event = new Event("e1", "Show", "Desc", "comp1", LocalDateTime.now().plusDays(1), "Music");
         eventRepository.save(event);
+        // Pre-condition: event exists without a venue map, and user is the company founder
+        assertNull(eventRepository.findById("e1").get().getVenueMap(), "Pre: event must not have a venue map before configuration");
+        assertTrue(company.getStaff().containsKey(ownerId), "Pre: user must be company staff to configure venue");
 
         Seat seat = new Seat("s1", "A1");
         SeatedZone zone = new SeatedZone("z1", "Standard", 50.0, List.of(seat));
         VenueMap venueMap = new VenueMap("v1", "Stadium", List.of(zone));
 
         Result<Void> result = eventService.setVenueMap(ownerToken, "e1", venueMap);
-        assertTrue(result.isSuccess());
 
+        // Post-condition: venue map is saved with the correct zones, inventory is now prepared
+        assertTrue(result.isSuccess(), "Post: venue configuration must succeed for the company owner");
         Event fetched = eventRepository.findById("e1").get();
-        assertEquals(1, fetched.getVenueMap().getZones().size());
-        assertEquals("Stadium", fetched.getVenueMap().getVenueName());
+        assertEquals(1, fetched.getVenueMap().getZones().size(), "Post: venue map must contain the configured zone");
+        assertEquals("Stadium", fetched.getVenueMap().getVenueName(), "Post: venue name must match the saved configuration");
     }
 }

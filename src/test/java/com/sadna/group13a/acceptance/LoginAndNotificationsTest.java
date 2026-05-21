@@ -61,11 +61,14 @@ class LoginAndNotificationsTest {
             when(userRepository.findByUsername("johndoe")).thenReturn(Optional.of(member));
             when(passwordEncoder.matches("123456", "hashed_pass")).thenReturn(true);
             when(authGateway.generateToken("1")).thenReturn("valid_token");
+            // Pre-condition: member is registered and active
+            assertTrue(member.isActive(), "Pre: member must be active to log in");
 
             Result<String> result = userService.login("johndoe", "123456");
 
-            assertTrue(result.isSuccess(), "Login should succeed");
-            assertEquals("valid_token", result.getOrThrow(), "Should return a valid session token");
+            // Post-condition: login succeeds and a valid session token is returned
+            assertTrue(result.isSuccess(), "Post: login must succeed for valid credentials");
+            assertEquals("valid_token", result.getOrThrow(), "Post: returned token must match the generated session token");
         }
 
         @Test
@@ -79,12 +82,15 @@ class LoginAndNotificationsTest {
             // Assume notification service returns notifications for the user
             List<String> mockNotifications = List.of("Refund processed", "Lottery won");
             when(notificationService.getPendingNotifications("2")).thenReturn(mockNotifications);
+            // Pre-condition: member has pending notifications accumulated while offline
+            assertEquals(2, mockNotifications.size(), "Pre: 2 pending notifications must exist before login");
 
             Result<String> result = userService.login("janedoe", "password");
             List<String> pending = notificationService.getPendingNotifications(member.getId());
 
-            assertTrue(result.isSuccess());
-            assertEquals(2, pending.size());
+            // Post-condition: login succeeds and all pending notifications are immediately available
+            assertTrue(result.isSuccess(), "Post: login must succeed");
+            assertEquals(2, pending.size(), "Post: all pending notifications must be returned after login");
             verify(notificationService, times(1)).getPendingNotifications("2");
         }
 
@@ -95,12 +101,15 @@ class LoginAndNotificationsTest {
             when(authGateway.validateToken("valid_token")).thenReturn(true);
             when(authGateway.extractUserId("valid_token")).thenReturn("3");
             when(userRepository.findById("3")).thenReturn(Optional.of(member));
+            // Pre-condition: user has an active session (valid token)
+            assertTrue(authGateway.validateToken("valid_token"), "Pre: session token must be valid before fetching profile");
 
             Result<UserDTO> profileResult = userService.getUserProfile("valid_token");
 
-            assertTrue(profileResult.isSuccess(), "Profile fetch should succeed");
-            assertEquals("bob", profileResult.getOrThrow().username(), "Username should be available for display");
-            assertEquals(UserRole.MEMBER, profileResult.getOrThrow().role(), "User role should be MEMBER");
+            // Post-condition: profile is returned with username visible and role set to MEMBER
+            assertTrue(profileResult.isSuccess(), "Post: profile fetch should succeed");
+            assertEquals("bob", profileResult.getOrThrow().username(), "Post: username must be available for display after login");
+            assertEquals(UserRole.MEMBER, profileResult.getOrThrow().role(), "Post: user role must be MEMBER after login");
         }
     }
 
@@ -114,10 +123,13 @@ class LoginAndNotificationsTest {
             Member member = new Member("4", "alice", "hashed_pass");
             when(userRepository.findByUsername("alice")).thenReturn(Optional.of(member));
             when(passwordEncoder.matches("wrong_password", "hashed_pass")).thenReturn(false);
+            // Pre-condition: user exists but the provided password does not match
+            assertTrue(userRepository.findByUsername("alice").isPresent(), "Pre: user must exist in repository");
 
             Result<String> result = userService.login("alice", "wrong_password");
 
-            assertFalse(result.isSuccess(), "Login should fail");
+            // Post-condition: login fails with an appropriate error; no session token issued
+            assertFalse(result.isSuccess(), "Post: login must fail for wrong password");
             assertEquals("Invalid username or password.", result.getErrorMessage());
         }
 
@@ -125,10 +137,13 @@ class LoginAndNotificationsTest {
         @DisplayName("Given nonexistent username — When login — Then error returned")
         void GivenNonexistentUsername_WhenLogin_ThenError() {
             when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+            // Pre-condition: no user with this username exists
+            assertFalse(userRepository.findByUsername("ghost").isPresent(), "Pre: user must not exist in repository");
 
             Result<String> result = userService.login("ghost", "any_password");
 
-            assertFalse(result.isSuccess(), "Login should fail");
+            // Post-condition: login fails with a generic error (no username enumeration)
+            assertFalse(result.isSuccess(), "Post: login must fail for unknown username");
             assertEquals("Invalid username or password.", result.getErrorMessage());
         }
 

@@ -41,6 +41,8 @@ class LotteryRegistrationTest {
             String eventId = "event1";
 
             when(authGateway.validateToken(token)).thenReturn(false);
+            // Pre-condition: the token is invalid (user is a guest, not logged in)
+            assertFalse(authGateway.validateToken(token), "Pre: user must not be authenticated for this test");
 
             // Simulating API blocking registration for guests
             when(lotteryService.registerForLottery(token, eventId))
@@ -48,8 +50,9 @@ class LotteryRegistrationTest {
 
             Result<Void> result = lotteryService.registerForLottery(token, eventId);
 
-            assertFalse(result.isSuccess(), "Lottery registration should be blocked for guests");
-            assertTrue(result.getErrorMessage().contains("Unauthorized"));
+            // Post-condition: registration is blocked and returns an unauthorized error
+            assertFalse(result.isSuccess(), "Post: lottery registration must be blocked for guests");
+            assertTrue(result.getErrorMessage().contains("Unauthorized"), "Post: error must indicate authentication is required");
         }
 
         @Test
@@ -60,12 +63,15 @@ class LotteryRegistrationTest {
 
             when(authGateway.validateToken(token)).thenReturn(true);
             when(authGateway.extractUserId(token)).thenReturn("user1");
+            // Pre-condition: user is authenticated as a member
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated before registering for lottery");
 
             when(lotteryService.registerForLottery(token, eventId)).thenReturn(Result.success());
 
             Result<Void> result = lotteryService.registerForLottery(token, eventId);
 
-            assertTrue(result.isSuccess(), "Registration should succeed for authenticated members");
+            // Post-condition: registration is confirmed
+            assertTrue(result.isSuccess(), "Post: registration must succeed for authenticated members");
             verify(lotteryService).registerForLottery(token, eventId);
         }
     }
@@ -82,15 +88,18 @@ class LotteryRegistrationTest {
 
             when(authGateway.validateToken(token)).thenReturn(true);
             when(authGateway.extractUserId(token)).thenReturn("user1");
+            // Pre-condition: user is authenticated and has won the lottery draw
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated to receive an access code");
 
             LotteryDrawResult mockDrawResult = new LotteryDrawResult("access123", 30);
             when(lotteryService.getWinnerAccessCode(token, eventId)).thenReturn(Result.success(mockDrawResult));
 
             Result<LotteryDrawResult> result = lotteryService.getWinnerAccessCode(token, eventId);
 
-            assertTrue(result.isSuccess(), "Access code should be successfully retrieved for a winner");
-            assertEquals("access123", result.getOrThrow().code());
-            assertEquals(30, result.getOrThrow().expiryMinutes());
+            // Post-condition: access code is issued with a time limit
+            assertTrue(result.isSuccess(), "Post: access code must be issued for a lottery winner");
+            assertEquals("access123", result.getOrThrow().code(), "Post: access code must be returned");
+            assertEquals(30, result.getOrThrow().expiryMinutes(), "Post: access code must have an expiry time limit");
         }
 
         @Test
@@ -101,6 +110,8 @@ class LotteryRegistrationTest {
             String expiredCode = "access_expired";
 
             when(authGateway.validateToken(token)).thenReturn(true);
+            // Pre-condition: user is authenticated but their access code has expired
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated for this test");
 
             // Simulating access being denied when passing an expired/invalid code
             when(lotteryService.validateAccessCode(token, eventId, expiredCode))
@@ -108,8 +119,9 @@ class LotteryRegistrationTest {
 
             Result<Boolean> result = lotteryService.validateAccessCode(token, eventId, expiredCode);
 
-            assertFalse(result.isSuccess(), "Expired access code should block seat selection access");
-            assertTrue(result.getErrorMessage().contains("expired"));
+            // Post-condition: expired code is rejected and seat selection is blocked
+            assertFalse(result.isSuccess(), "Post: expired access code must block seat selection");
+            assertTrue(result.getErrorMessage().contains("expired"), "Post: error must indicate the code has expired");
         }
     }
 

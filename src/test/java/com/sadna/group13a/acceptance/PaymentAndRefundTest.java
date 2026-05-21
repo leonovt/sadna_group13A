@@ -119,12 +119,16 @@ class PaymentAndRefundTest {
                     .thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_success"));
+            // Pre-condition: user is authenticated, active order has items, and cart has not expired
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated");
+            assertEquals(1, order.getItems().size(), "Pre: active order must contain items");
+            assertTrue(order.getExpiresAt().isAfter(LocalDateTime.now()), "Pre: cart must not have expired");
 
             // Act: process payment
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
 
-            // Assert: order status == PAID (implied by checkout success)
-            assertTrue(result.isSuccess());
+            // Post-condition: payment charged, order history saved, active order removed, event published
+            assertTrue(result.isSuccess(), "Post: payment processing must succeed for valid order");
             verify(paymentGateway).processPayment(100.0, paymentDetails);
             verify(historyRepository).save(any(OrderHistory.class));
             verify(orderRepository).deleteById(activeOrderId);
@@ -168,15 +172,16 @@ class PaymentAndRefundTest {
             when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.failure("Card declined"));
+            // Pre-condition: user is authenticated, order exists with items
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated");
+            assertEquals(1, order.getItems().size(), "Pre: active order must have items to be charged");
 
             // Act: attempt payment
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
 
-            // Assert: order status == PAYMENT_FAILED
-            assertFalse(result.isSuccess());
+            // Post-condition: payment rejected; no history saved and cart not deleted
+            assertFalse(result.isSuccess(), "Post: checkout must fail when card is declined");
             assertEquals("Payment declined: Card declined", result.getErrorMessage());
-
-            // Assert: history is not saved, cart not deleted
             verify(historyRepository, never()).save(any());
             verify(orderRepository, never()).deleteById(any());
         }

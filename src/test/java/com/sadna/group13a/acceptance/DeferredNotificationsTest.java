@@ -49,8 +49,7 @@ class DeferredNotificationsTest {
     @Test
     @DisplayName("Given user was offline and has pending notifications — When user logs in — Then all pending notifications displayed immediately")
     void GivenOfflineUserWithPending_WhenLogin_ThenAllPendingDisplayed() {
-        // Arrange: user offline, system sends notifications (lottery win, refund, queue
-        // update)
+        // Arrange: user offline, system sends notifications (lottery win, refund, queue update)
         String userId = "user1";
         Member member = new Member(userId, "johndoe", "hashed_pass");
         when(userRepository.findByUsername("johndoe")).thenReturn(Optional.of(member));
@@ -59,14 +58,17 @@ class DeferredNotificationsTest {
 
         List<String> pendingNotifications = List.of("Lottery won!", "Refund processed", "Queue update: it's your turn");
         when(notificationService.getPendingNotifications(userId)).thenReturn(pendingNotifications);
+        // Pre-condition: user is registered, and has 3 pending notifications accumulated while offline
+        assertTrue(member.isActive(), "Pre: user must be an active member to log in");
+        assertEquals(3, notificationService.getPendingNotifications(userId).size(), "Pre: 3 pending notifications must exist before login");
 
         // Act: user logs in
         Result<String> loginResult = userService.login("johndoe", "123456");
         List<String> displayedNotifications = notificationService.getPendingNotifications(userId);
 
-        // Assert: all pending notifications returned after login
-        assertTrue(loginResult.isSuccess());
-        assertEquals(3, displayedNotifications.size());
+        // Post-condition: login succeeds and all pending notifications are returned immediately
+        assertTrue(loginResult.isSuccess(), "Post: login must succeed for a registered active user");
+        assertEquals(3, displayedNotifications.size(), "Post: all 3 pending notifications must be displayed on login");
         assertTrue(displayedNotifications.contains("Lottery won!"));
         assertTrue(displayedNotifications.contains("Refund processed"));
         assertTrue(displayedNotifications.contains("Queue update: it's your turn"));
@@ -83,14 +85,18 @@ class DeferredNotificationsTest {
 
         // Mock returning only new (pending) notifications
         when(notificationService.getPendingNotifications(userId)).thenReturn(List.of("Only new notification"));
+        // Pre-condition: user is registered; previously read notifications are not in the pending list
+        assertFalse(notificationService.getPendingNotifications(userId).contains("Old read notification"),
+                "Pre: previously read notifications must not appear in pending list");
 
         Result<String> loginResult = userService.login("janedoe", "password");
         List<String> displayedNotifications = notificationService.getPendingNotifications(userId);
 
-        assertTrue(loginResult.isSuccess());
-        assertEquals(1, displayedNotifications.size());
+        // Post-condition: only unread (new) notifications are shown
+        assertTrue(loginResult.isSuccess(), "Post: login must succeed");
+        assertEquals(1, displayedNotifications.size(), "Post: only new notifications must be shown");
         assertEquals("Only new notification", displayedNotifications.get(0));
-        assertFalse(displayedNotifications.contains("Old read notification"));
+        assertFalse(displayedNotifications.contains("Old read notification"), "Post: previously read notifications must not be reshown");
     }
 
     @Test
@@ -107,15 +113,19 @@ class DeferredNotificationsTest {
                 "11:00 AM - Event update",
                 "12:00 PM - Queue update");
         when(notificationService.getPendingNotifications(userId)).thenReturn(chronologicallyOrderedNotifications);
+        // Pre-condition: user is registered and has 3 pending notifications in chronological order
+        List<String> prePending = notificationService.getPendingNotifications(userId);
+        assertEquals(3, prePending.size(), "Pre: 3 pending notifications must exist");
 
         Result<String> loginResult = userService.login("bob", "123");
         List<String> notifications = notificationService.getPendingNotifications(userId);
 
-        assertTrue(loginResult.isSuccess());
-        assertEquals(3, notifications.size());
-        assertEquals("10:00 AM - Purchase completed", notifications.get(0));
+        // Post-condition: notifications are shown in chronological (oldest-first) order
+        assertTrue(loginResult.isSuccess(), "Post: login must succeed");
+        assertEquals(3, notifications.size(), "Post: all 3 deferred notifications must be displayed");
+        assertEquals("10:00 AM - Purchase completed", notifications.get(0), "Post: oldest notification must appear first");
         assertEquals("11:00 AM - Event update", notifications.get(1));
-        assertEquals("12:00 PM - Queue update", notifications.get(2));
+        assertEquals("12:00 PM - Queue update", notifications.get(2), "Post: most recent notification must appear last");
     }
 
     // Assumed to exist in another branch

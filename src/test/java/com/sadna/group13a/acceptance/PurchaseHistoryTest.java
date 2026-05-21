@@ -64,14 +64,18 @@ class PurchaseHistoryTest {
                 "Zone A", "1A", 150.0);
         OrderHistory history = new OrderHistory("receipt1", userId, LocalDateTime.now(), 150.0, List.of(item));
         when(historyRepository.findByUserId(userId)).thenReturn(List.of(history));
+        // Pre-condition: user is authenticated, active, and has at least one completed purchase
+        assertTrue(authGateway.validateToken(token), "Pre: user must have a valid session token");
+        assertEquals(1, historyRepository.findByUserId(userId).size(), "Pre: user must have at least one purchase in history");
 
         Result<List<OrderHistoryDTO>> result = userService.viewOrderHistory(token);
 
-        assertTrue(result.isSuccess());
+        // Post-condition: history is returned with the original price and event title preserved as a snapshot
+        assertTrue(result.isSuccess(), "Post: history retrieval must succeed for authenticated member");
         List<OrderHistoryDTO> histories = result.getOrThrow();
-        assertEquals(1, histories.size());
-        assertEquals("Original Title", histories.get(0).items().get(0).eventTitle());
-        assertEquals(150.0, histories.get(0).items().get(0).pricePaid());
+        assertEquals(1, histories.size(), "Post: exactly one history entry must be returned");
+        assertEquals("Original Title", histories.get(0).items().get(0).eventTitle(), "Post: event title must reflect the original snapshot");
+        assertEquals(150.0, histories.get(0).items().get(0).pricePaid(), "Post: price paid must reflect the original purchase price");
     }
 
     @Test
@@ -82,10 +86,13 @@ class PurchaseHistoryTest {
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
         when(userRepository.findById(userId)).thenReturn(Optional.of(new Member(userId, "user1", "hash")));
+        // Pre-condition: user is authenticated with their own token
+        assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated before viewing history");
+        assertEquals(userId, authGateway.extractUserId(token), "Pre: token must identify the requesting user");
 
         userService.viewOrderHistory(token);
 
-        // Ensure we only query history for the extracted user ID
+        // Post-condition: only the authenticated user's history is queried; no cross-user data access
         verify(historyRepository).findByUserId(userId);
         verify(historyRepository, never()).findByUserId("user2");
     }
@@ -95,10 +102,13 @@ class PurchaseHistoryTest {
     void GivenUnauthenticatedUser_WhenAccessingHistory_ThenAccessDenied() {
         String token = "invalid_token";
         when(authGateway.validateToken(token)).thenReturn(false);
+        // Pre-condition: token is invalid (user is not authenticated)
+        assertFalse(authGateway.validateToken(token), "Pre: token must be invalid for this test");
 
         Result<List<OrderHistoryDTO>> result = userService.viewOrderHistory(token);
 
-        assertFalse(result.isSuccess());
+        // Post-condition: access is denied and the history repository is never queried
+        assertFalse(result.isSuccess(), "Post: unauthenticated access to history must be denied");
         assertEquals("Unauthorized.", result.getErrorMessage());
         verify(historyRepository, never()).findByUserId(anyString());
     }

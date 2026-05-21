@@ -38,12 +38,15 @@ class MarketplaceOpeningTest {
 
             when(marketplaceService.getSystemStatus()).thenReturn("INITIALIZED");
             when(marketplaceService.openMarketplace(adminId)).thenReturn(Result.success());
+            // Pre-condition: system is in INITIALIZED state, not yet OPEN
+            assertEquals("INITIALIZED", marketplaceService.getSystemStatus(), "Pre: system must be INITIALIZED before opening");
 
             Result<Void> result = marketplaceService.openMarketplace(adminId);
 
+            // Post-condition: open call succeeds and status transitions to OPEN
             assertTrue(result.isSuccess(), "Marketplace should open successfully");
             when(marketplaceService.getSystemStatus()).thenReturn("OPEN");
-            assertEquals("OPEN", marketplaceService.getSystemStatus());
+            assertEquals("OPEN", marketplaceService.getSystemStatus(), "Post: system status must be OPEN after successful opening");
             verify(marketplaceService).openMarketplace(adminId);
         }
 
@@ -52,9 +55,12 @@ class MarketplaceOpeningTest {
         void GivenOpenMarketplace_WhenExternalUserAccesses_ThenAccessGranted() {
             when(marketplaceService.getSystemStatus()).thenReturn("OPEN");
             when(marketplaceService.checkPublicAccess()).thenReturn(Result.success());
+            // Pre-condition: marketplace is already in OPEN state
+            assertEquals("OPEN", marketplaceService.getSystemStatus(), "Pre: marketplace must be OPEN before checking public access");
 
             Result<Void> result = marketplaceService.checkPublicAccess();
 
+            // Post-condition: public access is granted
             assertTrue(result.isSuccess(), "Public access should be granted when OPEN");
         }
     }
@@ -69,11 +75,15 @@ class MarketplaceOpeningTest {
             String adminId = "admin123";
             when(marketplaceService.getSystemStatus()).thenReturn("UNINITIALIZED");
             when(marketplaceService.openMarketplace(adminId)).thenReturn(Result.failure("System not initialized"));
+            // Pre-condition: system has not been initialized
+            assertEquals("UNINITIALIZED", marketplaceService.getSystemStatus(), "Pre: system must be uninitialized for this test");
 
             Result<Void> result = marketplaceService.openMarketplace(adminId);
 
+            // Post-condition: opening is blocked and system status unchanged
             assertFalse(result.isSuccess(), "Cannot open uninitialized system");
             assertTrue(result.getErrorMessage().contains("not initialized"));
+            assertEquals("UNINITIALIZED", marketplaceService.getSystemStatus(), "Post: system status must remain UNINITIALIZED after failed open");
         }
 
         @Test
@@ -81,6 +91,8 @@ class MarketplaceOpeningTest {
         void GivenPaymentProviderDown_WhenOpening_ThenBlockedWithAlert() {
             String adminId = "admin123";
             when(marketplaceService.getSystemStatus()).thenReturn("INITIALIZED");
+            // Pre-condition: system is initialized but payment provider is unavailable
+            assertEquals("INITIALIZED", marketplaceService.getSystemStatus(), "Pre: system must be INITIALIZED for this test");
 
             // Simulating internal check payment gateway failure
             when(marketplaceService.openMarketplace(adminId))
@@ -88,6 +100,7 @@ class MarketplaceOpeningTest {
 
             Result<Void> result = marketplaceService.openMarketplace(adminId);
 
+            // Post-condition: opening is blocked with a payment-related error
             assertFalse(result.isSuccess(), "Marketplace cannot open if payment provider is down");
             assertTrue(result.getErrorMessage().contains("Payment provider"));
         }
@@ -98,9 +111,12 @@ class MarketplaceOpeningTest {
             when(marketplaceService.getSystemStatus()).thenReturn("INITIALIZED");
             when(marketplaceService.checkPublicAccess())
                     .thenReturn(Result.failure("Marketplace is down for maintenance"));
+            // Pre-condition: marketplace is initialized but not yet OPEN
+            assertEquals("INITIALIZED", marketplaceService.getSystemStatus(), "Pre: marketplace must not be OPEN yet");
 
             Result<Void> result = marketplaceService.checkPublicAccess();
 
+            // Post-condition: public access is blocked with a maintenance message
             assertFalse(result.isSuccess(), "Public access must be blocked if not OPEN");
             assertTrue(result.getErrorMessage().contains("maintenance") || result.getErrorMessage().contains("down"));
         }

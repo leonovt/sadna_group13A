@@ -191,6 +191,12 @@ public class CompanyService {
             ProductionCompany company = compOpt.get();
             Set<String> subtree = company.getStaffSubTree(targetUserId);
             company.fireStaff(actingUserId, targetUserId);
+            // After firing, sub-appointees are re-parented to actingUserId; cascade-remove them too
+            for (String uid : subtree) {
+                if (!uid.equals(targetUserId) && company.getStaff().containsKey(uid)) {
+                    company.fireStaff(actingUserId, uid);
+                }
+            }
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
             return Result.success();
