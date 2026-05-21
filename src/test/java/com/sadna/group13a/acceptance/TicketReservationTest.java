@@ -83,6 +83,44 @@ class TicketReservationTest {
     }
 
     @Test
+    @DisplayName("Given authenticated member and available seat in regular-sale event — When reserving — Then seat HELD and item in cart")
+    void GivenAuthenticatedMemberAndAvailableSeat_WhenReserving_ThenSeatHeldAndItemInCart() {
+        setupData("e1", "c1", "z1", "s1", EventSaleMode.REGULAR);
+
+        // Pre-condition: event is published, seat is AVAILABLE, user is an active member
+        Event preEvent = eventRepository.findById("e1").get();
+        assertTrue(preEvent.isPublished(), "Pre: event must be published before reservation");
+        SeatedZone preZone = (SeatedZone) preEvent.getVenueMap().getZoneById("z1");
+        assertEquals(SeatStatus.AVAILABLE, preZone.findSeatById("s1").get().getStatus(),
+                "Pre: seat must be AVAILABLE before reservation");
+        assertTrue(userRepository.findById("u1").isPresent(), "Pre: user must exist");
+
+        String token = authGateway.generateToken("u1");
+        Result<String> result = orderService.addItemToCart(token, "e1", "z1", "s1");
+
+        // Post-condition: reservation succeeds, seat is HELD with expiry, cart contains the item
+        assertTrue(result.isSuccess(), "Post: reservation must succeed for authenticated member with available seat");
+
+        Event postEvent = eventRepository.findById("e1").get();
+        SeatedZone postZone = (SeatedZone) postEvent.getVenueMap().getZoneById("z1");
+        Seat postSeat = postZone.findSeatById("s1").get();
+        assertEquals(SeatStatus.HELD, postSeat.getStatus(), "Post: seat must be HELD after reservation");
+        assertNotNull(postSeat.getHoldExpiresAt(), "Post: seat hold must have an expiry time set");
+        assertTrue(postSeat.getHoldExpiresAt().isAfter(java.time.Instant.now()),
+                "Post: hold expiry must be in the future");
+
+        String cartId = result.getOrThrow();
+        assertNotNull(cartId, "Post: cart ID must be returned");
+        var cart = activeOrderRepository.findActiveByUserId("u1");
+        assertTrue(cart.isPresent(), "Post: active cart must exist for the user");
+        assertEquals(1, cart.get().getItems().size(), "Post: cart must contain exactly one item");
+        var item = cart.get().getItems().get(0);
+        assertEquals("e1", item.getEventId(), "Post: cart item must reference the correct event");
+        assertEquals("z1", item.getZoneId(), "Post: cart item must reference the correct zone");
+        assertEquals("s1", item.getSeatId(), "Post: cart item must reference the correct seat");
+    }
+
+    @Test
     @DisplayName("Given lottery winner with available seats — When reserving — Then seats HELD for 10 minutes")
     void GivenLotteryWinnerWithAvailableSeats_WhenReserving_ThenSeatsHeld10Min() {
         setupData("e1", "c1", "z1", "s1", EventSaleMode.RAFFLE);
