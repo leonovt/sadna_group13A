@@ -118,10 +118,15 @@ class PurchaseCompletionTest {
             when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_1"));
+            // Pre-condition: cart exists and has not expired; user is authenticated and active
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated");
+            assertTrue(order.getExpiresAt().isAfter(LocalDateTime.now()), "Pre: cart must not have expired before checkout");
+            assertEquals(1, order.getItems().size(), "Pre: cart must contain items");
 
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
 
-            assertTrue(result.isSuccess());
+            // Post-condition: payment charged, history saved, active order deleted
+            assertTrue(result.isSuccess(), "Post: checkout must succeed for valid reservation within timer");
             verify(paymentGateway).processPayment(100.0, paymentDetails);
             verify(historyRepository).save(any(OrderHistory.class));
             verify(orderRepository).deleteById(activeOrderId);
@@ -263,12 +268,15 @@ class PurchaseCompletionTest {
 
             ActiveOrder order = new ActiveOrder(activeOrderId, userId);
             order.addItem(new OrderItem(eventId, "zone1", "seat1", 100.0));
-            // Simulate expiration by returning empty or handling inside service
+            // Pre-condition: user is authenticated; cart has been removed (timer expired)
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated");
+            // Simulate expiration by returning empty
             when(orderRepository.findById(activeOrderId)).thenReturn(Optional.empty());
 
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
 
-            assertFalse(result.isSuccess());
+            // Post-condition: payment is blocked since cart no longer exists; no charge is made
+            assertFalse(result.isSuccess(), "Post: checkout must fail when cart has expired");
             assertEquals("Cart not found", result.getErrorMessage());
             verify(paymentGateway, never()).processPayment(anyDouble(), anyString());
         }

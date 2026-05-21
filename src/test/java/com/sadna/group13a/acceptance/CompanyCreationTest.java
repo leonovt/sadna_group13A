@@ -66,18 +66,21 @@ class CompanyCreationTest {
 
             Member member = new Member(userId, "founder_dude", "hash");
             when(userRepository.findById(userId)).thenReturn(Optional.of(member));
+            // Pre-condition: user is authenticated as an active member and no company with this name exists yet
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated before creating a company");
+            assertTrue(member.isActive(), "Pre: user must be an active member to open a company");
 
             Result<Boolean> result = companyService.createCompany(token, "My Unique Company", "Company Description");
 
-            assertTrue(result.isSuccess(), "Company creation should be successful");
-
+            // Post-condition: company is saved with the creating member as founder
+            assertTrue(result.isSuccess(), "Post: company creation must succeed");
             ArgumentCaptor<ProductionCompany> companyCaptor = ArgumentCaptor.forClass(ProductionCompany.class);
             verify(companyRepository).save(companyCaptor.capture());
 
             ProductionCompany savedCompany = companyCaptor.getValue();
-            assertEquals("My Unique Company", savedCompany.getName());
-            assertTrue(savedCompany.getStaff().containsKey(userId));
-            assertEquals(CompanyRole.FOUNDER, savedCompany.getStaff().get(userId).getRole());
+            assertEquals("My Unique Company", savedCompany.getName(), "Post: company name must match the requested name");
+            assertTrue(savedCompany.getStaff().containsKey(userId), "Post: creating member must be in company staff");
+            assertEquals(CompanyRole.FOUNDER, savedCompany.getStaff().get(userId).getRole(), "Post: creating member must be assigned FOUNDER role");
         }
 
         @Test
@@ -92,6 +95,8 @@ class CompanyCreationTest {
 
             Member member = new Member(userId, "founder_dude", "hash");
             when(userRepository.findById(userId)).thenReturn(Optional.of(member));
+            // Pre-condition: user is authenticated as an active member
+            assertTrue(member.isActive(), "Pre: user must be an active member to open a company");
 
             companyService.createCompany(token, "Awesome Policies Inc", "Desc");
 
@@ -100,11 +105,8 @@ class CompanyCreationTest {
 
             ProductionCompany savedCompany = companyCaptor.getValue();
 
-            // Note: Since this implementation depends on another branch, we simulate
-            // examining the saved company's policies.
-            // If the methods getPurchasePolicies() or getDiscountPolicies() existed, we
-            // would assert they are not null.
-            assertNotNull(savedCompany, "Company must be created with implicit default policies initialized.");
+            // Post-condition: company is created (default policies implied by non-null saved company)
+            assertNotNull(savedCompany, "Post: company must be created with implicit default policies initialized.");
         }
 
         @Test
@@ -118,6 +120,8 @@ class CompanyCreationTest {
 
             Member member = new Member(userId, "founder_dude", "hash");
             when(userRepository.findById(userId)).thenReturn(Optional.of(member));
+            // Pre-condition: user is authenticated as an active member
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated to create a company");
 
             companyService.createCompany(token, "Immediate Access Co", "Desc");
 
@@ -125,13 +129,13 @@ class CompanyCreationTest {
             verify(companyRepository).save(companyCaptor.capture());
             ProductionCompany company = companyCaptor.getValue();
 
-            // Simulate the immediate availability to fetch company details through an
-            // authorized request
+            // Simulate the immediate availability to fetch company details through an authorized request
             when(companyRepository.findById(company.getId())).thenReturn(Optional.of(company));
 
             Result<CompanyDTO> resultDto = companyService.getCompany(token, company.getId());
-            assertTrue(resultDto.isSuccess());
-            assertEquals(userId, resultDto.getOrThrow().founderId());
+            // Post-condition: founder can immediately access the company management data
+            assertTrue(resultDto.isSuccess(), "Post: founder must have immediate management access after company creation");
+            assertEquals(userId, resultDto.getOrThrow().founderId(), "Post: company founder ID must match the creating user");
         }
     }
 

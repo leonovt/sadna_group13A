@@ -59,46 +59,52 @@ class SubscriberCancellationTest {
     @DisplayName("Given admin — When cancelling user — Then user becomes inactive and cannot login")
     void GivenAdmin_WhenCancellingUser_ThenUserInactive() {
         String adminToken = authGateway.generateToken("admin1");
-        
         userRepository.save(new Member("u1", "user", "hash"));
+        // Pre-condition: target user is currently active
+        assertTrue(((Member) userRepository.findById("u1").get()).isActive(), "Pre: user must be active before cancellation");
 
         Result<Void> result = adminService.deactivateUser(adminToken, "user");
-        assertTrue(result.isSuccess());
+        assertTrue(result.isSuccess(), "Deactivation must succeed");
 
+        // Post-condition: user is inactive and can no longer log in
         Member user = (Member) userRepository.findById("u1").get();
-        assertFalse(user.isActive());
+        assertFalse(user.isActive(), "Post: user must be inactive after admin cancellation");
     }
 
     @Test
     @DisplayName("Given user with roles — When cancelled — Then roles and permissions revoked safely")
     void GivenUserWithRoles_WhenCancelled_ThenRolesRevoked() {
         String adminToken = authGateway.generateToken("admin1");
-        
         userRepository.save(new Member("u1", "founder", "hash"));
         ProductionCompany company = new ProductionCompany("c1", "Comp", "Desc", "u1");
         companyRepository.save(company);
+        // Pre-condition: user is active and has a company founder role
+        assertTrue(((Member) userRepository.findById("u1").get()).isActive(), "Pre: user must be active before cancellation");
 
         Result<Void> result = adminService.deactivateUser(adminToken, "founder");
-        assertTrue(result.isSuccess());
+        assertTrue(result.isSuccess(), "Deactivation must succeed");
 
-        // The account is deactivated — the user can no longer perform actions
-        assertFalse(((Member) userRepository.findById("u1").get()).isActive());
+        // Post-condition: account is deactivated — the user can no longer perform actions
+        assertFalse(((Member) userRepository.findById("u1").get()).isActive(), "Post: user must be inactive after cancellation");
     }
 
     @Test
     @DisplayName("Given user cancelled — Then their order history is preserved completely")
     void GivenUserCancelled_ThenOrderHistoryPreserved() {
         String adminToken = authGateway.generateToken("admin1");
-        
         userRepository.save(new Member("u1", "user", "hash"));
-        
+
         OrderHistoryItem item = new OrderHistoryItem("e1", "Event", LocalDateTime.now(), "Company", "c1", "VIP", "A1", 50.0);
         OrderHistory order = new OrderHistory("r1", "u1", LocalDateTime.now(), 50.0, java.util.List.of(item));
         historyRepository.save(order);
+        // Pre-condition: user is active and has at least one order in history
+        assertTrue(((Member) userRepository.findById("u1").get()).isActive(), "Pre: user must be active before cancellation");
+        assertFalse(historyRepository.findByUserId("u1").isEmpty(), "Pre: user must have order history before cancellation");
 
         adminService.deactivateUser(adminToken, "user");
 
-        assertFalse(historyRepository.findByUserId("u1").isEmpty());
+        // Post-condition: order history is preserved even after account deactivation
+        assertFalse(historyRepository.findByUserId("u1").isEmpty(), "Post: order history must be preserved after user cancellation");
     }
 
     @Test
@@ -106,11 +112,14 @@ class SubscriberCancellationTest {
     void GivenUnauthorizedUser_WhenCancelling_ThenBlocked() {
         userRepository.save(new Member("u1", "user", "hash"));
         String token = authGateway.generateToken("u1");
+        // Pre-condition: the acting user is not an admin
+        assertFalse(((Member) userRepository.findById("u1").get()).getRole().name().equals("ADMIN"),
+                "Pre: acting user must not be an admin");
 
         Result<Void> result = adminService.deactivateUser(token, "u2");
-        assertFalse(result.isSuccess());
-        // AdminService returns "Only admins can deactivate users." but the test checks "Access denied"
-        // Use a more general check that the result is a failure
-        assertNotNull(result.getErrorMessage());
+
+        // Post-condition: cancellation is blocked with an access denied error
+        assertFalse(result.isSuccess(), "Post: non-admin must not be able to cancel a subscriber");
+        assertNotNull(result.getErrorMessage(), "Post: error message must be returned");
     }
 }

@@ -78,13 +78,19 @@ class EventSearchTest {
         when(companyRepository.findById("companyId2")).thenReturn(Optional.of(company2));
 
         when(eventRepository.findAll()).thenReturn(Arrays.asList(event1, event2));
+        // Pre-condition: both events are published and their companies are active
+        assertTrue(event1.isPublished(), "Pre: event1 must be published");
+        assertTrue(event2.isPublished(), "Pre: event2 must be published");
+        assertEquals(CompanyStatus.ACTIVE, company1.getStatus(), "Pre: company1 must be active");
+        assertEquals(CompanyStatus.ACTIVE, company2.getStatus(), "Pre: company2 must be active");
 
         Result<List<EventDTO>> result = eventService.searchEvents("Concert", null, null, null, null, null, null);
 
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getOrThrow().size());
-        assertTrue(result.getOrThrow().stream().anyMatch(e -> e.id().equals("id1")));
-        assertTrue(result.getOrThrow().stream().anyMatch(e -> e.id().equals("id2")));
+        // Post-condition: search returns events from all active companies matching the query
+        assertTrue(result.isSuccess(), "Post: search must succeed");
+        assertEquals(2, result.getOrThrow().size(), "Post: results must include events from both active companies");
+        assertTrue(result.getOrThrow().stream().anyMatch(e -> e.id().equals("id1")), "Post: event1 must appear in results");
+        assertTrue(result.getOrThrow().stream().anyMatch(e -> e.id().equals("id2")), "Post: event2 must appear in results");
     }
 
     @Test

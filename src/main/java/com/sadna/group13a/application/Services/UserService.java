@@ -61,6 +61,13 @@ public class UserService
         logger.debug("Attempting to register new user: {}", username);
 
         try {
+            if (username == null || username.isBlank()) {
+                return Result.failure("Username cannot be empty.");
+            }
+            if (rawPassword == null || rawPassword.isBlank()) {
+                return Result.failure("Password cannot be empty.");
+            }
+
             if (userRepository.findByUsername(username).isPresent()) {
                 logger.warn("Registration failed: Username '{}' is already taken.", username);
                 return Result.failure("Username is already taken.");

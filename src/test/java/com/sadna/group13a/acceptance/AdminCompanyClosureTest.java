@@ -71,7 +71,7 @@ class AdminCompanyClosureTest {
 
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(adminId);
-        
+
         Member adminMember = new Member(adminId, "admin_user", "hashed");
         when(userRepository.findById(adminId)).thenReturn(Optional.of(adminMember));
         Admin adminRecord = new Admin("admin_rec_1", adminId);
@@ -79,20 +79,24 @@ class AdminCompanyClosureTest {
 
         ProductionCompany company = mock(ProductionCompany.class);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
-        
+        // Pre-condition: admin is authenticated, admin record exists, and target company exists
+        assertTrue(authGateway.validateToken(token), "Pre: admin must have a valid token");
+        assertTrue(adminRepository.findByUserId(adminId).isPresent(), "Pre: admin record must exist");
+        assertTrue(companyRepository.findById(companyId).isPresent(), "Pre: company must exist before closure");
+
         Result<Void> result = adminService.closeCompanyGlobally(token, companyId);
-        
-        assertTrue(result.isSuccess(), "Admin should successfully close the company");
-        
+
+        // Post-condition: company is force-closed and a domain event is published for downstream cleanup
+        assertTrue(result.isSuccess(), "Post: admin must successfully close the company");
         verify(company).forceClose();
         verify(companyRepository).save(company);
-        
+
         ArgumentCaptor<CompanyClosedByAdminEvent> eventCaptor = ArgumentCaptor.forClass(CompanyClosedByAdminEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
-        
+
         CompanyClosedByAdminEvent publishedEvent = eventCaptor.getValue();
-        assertEquals(companyId, publishedEvent.companyId());
-        assertEquals(adminId, publishedEvent.adminId());
+        assertEquals(companyId, publishedEvent.companyId(), "Post: event must reference the closed company");
+        assertEquals(adminId, publishedEvent.adminId(), "Post: event must record which admin performed the closure");
     }
 
     @Test
@@ -187,15 +191,18 @@ class AdminCompanyClosureTest {
 
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(userId);
-        
+
         Member member = new Member(userId, "normal_user", "hashed");
         when(userRepository.findById(userId)).thenReturn(Optional.of(member));
+        // Pre-condition: acting user is authenticated but has no admin record
+        assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated");
+        assertTrue(adminRepository.findByUserId(userId).isEmpty(), "Pre: acting user must not be an admin");
 
         Result<Void> result = adminService.closeCompanyGlobally(token, companyId);
-        
-        assertFalse(result.isSuccess(), "Non-admin should not be able to close the company");
-        assertTrue(result.getErrorMessage().contains("Only admins"));
-        
+
+        // Post-condition: closure is denied and company is untouched
+        assertFalse(result.isSuccess(), "Post: non-admin must not be able to close the company");
+        assertTrue(result.getErrorMessage().contains("Only admins"), "Post: error must indicate admin-only restriction");
         verify(companyRepository, never()).save(any(ProductionCompany.class));
     }
 }

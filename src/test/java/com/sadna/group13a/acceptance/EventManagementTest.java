@@ -102,11 +102,15 @@ class EventManagementTest {
         ProductionCompany company = mock(ProductionCompany.class);
         when(company.hasPermission("user1", CompanyPermission.MANAGE_EVENTS)).thenReturn(true);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+        // Pre-condition: event exists and user has MANAGE_EVENTS permission
+        assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated");
+        assertTrue(company.hasPermission("user1", CompanyPermission.MANAGE_EVENTS), "Pre: user must have MANAGE_EVENTS permission");
 
         VenueMap newMap = mock(VenueMap.class);
         Result<Void> result = eventService.setVenueMap(token, eventId, newMap);
 
-        assertTrue(result.isSuccess(), "Inventory and Venue update should be successful");
+        // Post-condition: inventory update succeeds and event is saved with new map
+        assertTrue(result.isSuccess(), "Post: inventory and venue update must succeed for authorized user");
         verify(event).setVenueMap(newMap);
         verify(eventRepository).save(event);
     }
@@ -128,6 +132,8 @@ class EventManagementTest {
         ProductionCompany company = mock(ProductionCompany.class);
         when(company.hasPermission("user1", CompanyPermission.MANAGE_EVENTS)).thenReturn(true);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+        // Pre-condition: user has permission but the new map conflicts with existing purchase policies
+        assertTrue(company.hasPermission("user1", CompanyPermission.MANAGE_EVENTS), "Pre: user must have MANAGE_EVENTS permission");
 
         VenueMap contradictingMap = mock(VenueMap.class);
         doThrow(new IllegalArgumentException("Inventory conflicts with existing purchase policy"))
@@ -135,7 +141,8 @@ class EventManagementTest {
 
         Result<Void> result = eventService.setVenueMap(token, eventId, contradictingMap);
 
-        assertFalse(result.isSuccess(), "Inventory change contradicting policy should block the update");
+        // Post-condition: conflicting inventory change is blocked; event is not saved
+        assertFalse(result.isSuccess(), "Post: inventory change contradicting policy must be blocked");
         assertTrue(result.getErrorMessage().contains("policy") || result.getErrorMessage().contains("conflicts"));
         verify(eventRepository, never()).save(any());
     }
@@ -157,11 +164,15 @@ class EventManagementTest {
         ProductionCompany company = mock(ProductionCompany.class);
         when(company.hasPermission("unauthorized_user", CompanyPermission.MANAGE_EVENTS)).thenReturn(false);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+        // Pre-condition: user is authenticated but does NOT have MANAGE_EVENTS permission
+        assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated");
+        assertFalse(company.hasPermission("unauthorized_user", CompanyPermission.MANAGE_EVENTS), "Pre: user must not have MANAGE_EVENTS permission");
 
         Result<Void> result = eventService.updateEventDetails(token, eventId, "New Title", "New Desc",
                 LocalDateTime.now(), "Concerts");
 
-        assertFalse(result.isSuccess(), "User should be denied to edit the event details");
+        // Post-condition: editing is denied and event is not saved
+        assertFalse(result.isSuccess(), "Post: user must be denied to edit event without permission");
         assertTrue(result.getErrorMessage().contains("User lacks permission"));
         verify(eventRepository, never()).save(any());
     }
