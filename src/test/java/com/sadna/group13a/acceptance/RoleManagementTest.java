@@ -123,6 +123,33 @@ class RoleManagementTest {
     }
 
     @Test
+    @DisplayName("Given two owners — When both try to nominate the same user as manager — Then second appointment blocked")
+    void GivenTwoOwners_WhenBothNominateSamePerson_ThenSecondIsBlocked() {
+        setupUsersAndCompany("u1", "u2");
+        userRepository.save(new Member("u3", "u3", "hash"));
+
+        String t1 = authGateway.generateToken("u1");
+        // Promote u2 to owner so both u1 and u2 are owners capable of nominating
+        companyService.appointOwner(t1, "c1", "u2");
+        String t2 = authGateway.generateToken("u2");
+        companyService.acceptNomination(t2, "c1");
+
+        // Pre-condition: u3 is not yet nominated by anyone
+        ProductionCompany preCompany = companyRepository.findById("c1").get();
+        assertFalse(preCompany.getStaff().containsKey("u3"), "Pre: u3 must not be in staff before any nomination");
+        assertTrue(preCompany.getPendingAppointments().isEmpty(), "Pre: no pending appointments must exist");
+
+        Result<Void> first = companyService.appointManager(t1, "c1", "u3", Set.of(CompanyPermission.MANAGE_EVENTS));
+        Result<Void> second = companyService.appointManager(t2, "c1", "u3", Set.of(CompanyPermission.VIEW_REPORTS));
+
+        // Post-condition: first nomination is accepted; second is rejected because u3 already has a pending appointment
+        assertTrue(first.isSuccess(), "Post: first nomination must succeed");
+        assertFalse(second.isSuccess(), "Post: second nomination for the same person must be rejected");
+        assertTrue(second.getErrorMessage().contains("pending") || second.getErrorMessage().contains("appointment"),
+                "Post: error must indicate u3 already has a pending appointment");
+    }
+
+    @Test
     @DisplayName("Given manager — When updating permissions of their appointee — Then permissions update exactly")
     void GivenManager_WhenUpdatingPermissions_ThenSuccess() {
         setupUsersAndCompany("u1", "u2");

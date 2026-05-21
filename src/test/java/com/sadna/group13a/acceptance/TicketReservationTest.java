@@ -188,6 +188,76 @@ class TicketReservationTest {
     }
 
     @Test
+    @DisplayName("Given 5 users competing for 1 seat — When all try simultaneously — Then exactly 1 succeeds")
+    void GivenFiveUsersConcurrent_WhenAllReserveSameSeat_ThenExactlyOneSucceeds() throws InterruptedException {
+        setupData("e1", "c1", "z1", "s1", EventSaleMode.REGULAR);
+        for (int i = 3; i <= 5; i++) {
+            userRepository.save(new Member("u" + i, "u" + i, "h"));
+        }
+
+        // Pre-condition: single seat is AVAILABLE; five distinct authenticated users are ready
+        Event preEvent = eventRepository.findById("e1").get();
+        SeatedZone preZone = (SeatedZone) preEvent.getVenueMap().getZoneById("z1");
+        assertEquals(SeatStatus.AVAILABLE, preZone.findSeatById("s1").get().getStatus(),
+                "Pre: seat must be AVAILABLE before any concurrent reservation attempt");
+
+        String[] tokens = new String[5];
+        for (int i = 0; i < 5; i++) {
+            tokens[i] = authGateway.generateToken("u" + (i + 1));
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(5);
+        CountDownLatch ready = new CountDownLatch(5);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failCount = new AtomicInteger(0);
+
+        for (String token : tokens) {
+            executor.submit(() -> {
+                ready.countDown();
+                try { start.await(); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+                if (orderService.addItemToCart(token, "e1", "z1", "s1").isSuccess())
+                    successCount.incrementAndGet();
+                else
+                    failCount.incrementAndGet();
+            });
+        }
+
+        ready.await();
+        start.countDown();
+        executor.shutdown();
+        executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+
+        // Post-condition: exactly 1 thread holds the seat; the other 4 are rejected
+        assertEquals(1, successCount.get(), "Post: exactly one concurrent reservation must succeed");
+        assertEquals(4, failCount.get(), "Post: remaining four attempts must be rejected");
+
+        Event postEvent = eventRepository.findById("e1").get();
+        SeatedZone postZone = (SeatedZone) postEvent.getVenueMap().getZoneById("z1");
+        assertEquals(SeatStatus.HELD, postZone.findSeatById("s1").get().getStatus(),
+                "Post: seat must be HELD after the winning reservation");
+    }
+
+    @Test
+    @DisplayName("Given user has no cart — When attempting checkout — Then rejected with cart-not-found error")
+    void GivenNoCart_WhenAttemptingCheckout_ThenRejected() {
+        setupData("e1", "c1", "z1", "s1", EventSaleMode.REGULAR);
+
+        String token = authGateway.generateToken("u1");
+        // Pre-condition: user is authenticated but has no active cart
+        assertTrue(activeOrderRepository.findActiveByUserId("u1").isEmpty(),
+                "Pre: user must have no active cart before attempting checkout");
+
+        Result<com.sadna.group13a.application.DTO.OrderHistoryDTO> result =
+                orderService.executeCheckout(token, "non-existent-cart-id", null, "cc_good");
+
+        // Post-condition: checkout is blocked because no reservation was ever made
+        assertFalse(result.isSuccess(), "Post: checkout must fail when user has no reserved cart");
+        assertEquals("Cart not found", result.getErrorMessage(),
+                "Post: error must clearly state that no cart exists");
+    }
+
+    @Test
     @DisplayName("Given held seats — When 10 min pass — Then seats auto-released")
     void GivenHeldSeats_When10MinPass_ThenSeatsAutoReleased() throws Exception {
         setupData("e1", "c1", "z1", "s1", EventSaleMode.REGULAR);

@@ -160,4 +160,23 @@ class VirtualQueueTest {
     void GivenQueueActive_ThenNoNewEntriesAfterSoldOut() {
         assertTrue(true, "Event/Queue coordination for sold-out handled in integration.");
     }
+
+    @Test
+    @DisplayName("Given no queue configured for event — When user joins — Then direct access granted and user proceeds straight to reserving")
+    void GivenNoQueueForEvent_WhenUserJoins_ThenDirectAccessGrantedImmediately() {
+        String eventId = "event-no-queue";
+        String token = setupUser("u1");
+        // Pre-condition: no queue exists for this event (unrestricted sale)
+        assertTrue(queueRepository.findByEventId(eventId).isEmpty(),
+                "Pre: no queue must be configured for this event");
+
+        Result<QueueStatusDTO> result = queueService.joinQueue(token, eventId);
+
+        // Post-condition: user is immediately active (no wait), position 0, no expiry constraint
+        assertTrue(result.isSuccess(), "Post: joining must succeed even without a queue");
+        assertTrue(result.getOrThrow().isActive(),
+                "Post: user must be immediately active when no queue is configured");
+        assertEquals(0, result.getOrThrow().positionInLine(),
+                "Post: position must be 0 — user goes straight to reserving without waiting");
+    }
 }
