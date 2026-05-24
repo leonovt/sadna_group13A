@@ -52,18 +52,21 @@ public class CompanyService {
 
     public Result<Boolean> createCompany(String token, String name, String description) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to create a company.");
+            logger.warn("Unauthorized attempt to create company '{}'.", name);
             return Result.failure("User not authenticated.");
         }
         String founderId = authGateway.extractUserId(token);
         Optional<User> founderOpt = userRepository.findById(founderId);
         if (founderOpt.isEmpty() || !founderOpt.get().canPurchase()) {
+            logger.warn("createCompany failed: founder '{}' not found or inactive.", founderId);
             return Result.failure("Founder not found or inactive.");
         }
 
         boolean nameExists = companyRepository.findAll().stream().anyMatch(c -> c.getName().equalsIgnoreCase(name));
-
-        if (nameExists) return Result.failure("Company name already exists");
+        if (nameExists) {
+            logger.warn("createCompany failed: company name '{}' already exists.", name);
+            return Result.failure("Company name already exists");
+        }
 
         ProductionCompany company = new ProductionCompany(UUID.randomUUID().toString(), name, description, founderId);
         companyRepository.save(company);
@@ -73,41 +76,55 @@ public class CompanyService {
             m.addCompanyRole(company.getId(), CompanyRole.FOUNDER, null);
             userRepository.save(m);
         }
+        logger.info("Company '{}' (id='{}') created by founder '{}'.", name, company.getId(), founderId);
         return Result.success();
     }
 
     public Result<Void> appointManager(String token, String companyId, String targetUsername,
                                        Set<CompanyPermission> permissions) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to appoint a manager.");
+            logger.warn("Unauthorized attempt to appoint manager in company '{}'.", companyId);
             return Result.failure("User not authenticated.");
         }
+        String initiatorId = authGateway.extractUserId(token);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("appointManager failed: company '{}' not found.", companyId);
+            return Result.failure("Company not found");
+        }
 
         Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
-        if (targetOpt.isEmpty()) return Result.failure("Target user not found or inactive.");
+        if (targetOpt.isEmpty()) {
+            logger.warn("appointManager failed: target user '{}' not found.", targetUsername);
+            return Result.failure("Target user not found or inactive.");
+        }
 
         String targetUserId = targetOpt.get().getId();
-        String initiatorId = authGateway.extractUserId(token);
         ProductionCompany company = compOpt.get();
         try {
             company.nominateStaff(initiatorId, targetUserId, CompanyRole.MANAGER, permissions);
             companyRepository.save(company);
-            logger.info("User {} nominated {} as manager of company {}. Awaiting confirmation.", initiatorId, targetUserId, companyId);
+            logger.info("User '{}' nominated '{}' as manager of company '{}'. Awaiting confirmation.",
+                    initiatorId, targetUserId, companyId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("appointManager failed for initiator '{}' in company '{}': {}",
+                    initiatorId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<CompanyDTO> getCompany(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to get company details.");
+            logger.warn("Unauthorized attempt to get details for company '{}'.", companyId);
             return Result.failure("User not authenticated.");
         }
+        String requesterId = authGateway.extractUserId(token);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("getCompany failed: company '{}' not found (requester='{}').", companyId, requesterId);
+            return Result.failure("Company not found");
+        }
 
         ProductionCompany company = compOpt.get();
         var staffDTOs = company.getStaff().values().stream()
@@ -116,77 +133,102 @@ public class CompanyService {
         String founderId = company.getStaff().values().stream()
                 .filter(s -> s.getRole() == CompanyRole.FOUNDER)
                 .findFirst().map(CompanyStaffMember::getUserId).orElse("");
+        logger.debug("User '{}' retrieved details for company '{}'.", requesterId, companyId);
         return Result.success(new CompanyDTO(company.getId(), company.getName(), company.getDescription(),
                 company.getStatus(), founderId, staffDTOs));
     }
 
     public Result<Void> suspendCompany(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to suspend a company.");
+            logger.warn("Unauthorized attempt to suspend company '{}'.", companyId);
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("suspendCompany failed: company '{}' not found (actor='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
         try {
             ProductionCompany company = compOpt.get();
             company.suspendCompany(actingUserId);
             companyRepository.save(company);
+            logger.warn("User '{}' suspended company '{}'.", actingUserId, companyId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("suspendCompany failed for user '{}' on company '{}': {}",
+                    actingUserId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<Void> reopenCompany(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to reopen a company.");
+            logger.warn("Unauthorized attempt to reopen company '{}'.", companyId);
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("reopenCompany failed: company '{}' not found (actor='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
         try {
             ProductionCompany company = compOpt.get();
             company.reopenCompany(actingUserId);
             companyRepository.save(company);
+            logger.info("User '{}' reopened company '{}'.", actingUserId, companyId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("reopenCompany failed for user '{}' on company '{}': {}",
+                    actingUserId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<List<StaffMemberDTO>> getRoleTree(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to get role tree.");
+            logger.warn("Unauthorized attempt to get role tree for company '{}'.", companyId);
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("getRoleTree failed: company '{}' not found (requester='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
         try {
             var dtos = compOpt.get().getRoleTree(actingUserId).values().stream()
                     .map(s -> new StaffMemberDTO(s.getUserId(), s.getRole(), s.getPermissions()))
                     .collect(Collectors.toList());
+            logger.debug("User '{}' retrieved role tree for company '{}' ({} member(s)).",
+                    actingUserId, companyId, dtos.size());
             return Result.success(dtos);
         } catch (Exception e) {
-            logger.error("Error retrieving role tree for company {} by user {}", companyId, actingUserId, e);
+            logger.error("getRoleTree failed for company '{}' by user '{}': {}",
+                    companyId, actingUserId, e.getMessage(), e);
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<Void> fireManager(String token, String companyId, String targetUsername) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to fire a manager.");
+            logger.warn("Unauthorized attempt to fire manager '{}' from company '{}'.", targetUsername, companyId);
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
         Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
-        if (targetOpt.isEmpty()) return Result.failure("Target user not found or inactive.");
+        if (targetOpt.isEmpty()) {
+            logger.warn("fireManager failed: target user '{}' not found.", targetUsername);
+            return Result.failure("Target user not found or inactive.");
+        }
 
         String targetUserId = targetOpt.get().getId();
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("fireManager failed: company '{}' not found (actor='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
         try {
             ProductionCompany company = compOpt.get();
             Set<String> subtree = company.getStaffSubTree(targetUserId);
@@ -199,95 +241,148 @@ public class CompanyService {
             }
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
+            logger.warn("User '{}' fired manager '{}' from company '{}' (cascade removed {} subtree member(s)).",
+                    actingUserId, targetUserId, companyId, subtree.size() - 1);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("fireManager failed for actor '{}' targeting '{}' in company '{}': {}",
+                    actingUserId, targetUserId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<Void> removeOwner(String token, String companyId, String targetUsername) {
-        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized attempt to remove owner '{}' from company '{}'.", targetUsername, companyId);
+            return Result.failure("User not authenticated.");
+        }
         String actingUserId = authGateway.extractUserId(token);
 
         Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
-        if (targetOpt.isEmpty()) return Result.failure("Target user not found.");
+        if (targetOpt.isEmpty()) {
+            logger.warn("removeOwner failed: target user '{}' not found.", targetUsername);
+            return Result.failure("Target user not found.");
+        }
 
         String targetUserId = targetOpt.get().getId();
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("removeOwner failed: company '{}' not found (actor='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
 
         ProductionCompany company = compOpt.get();
         CompanyStaffMember target = company.getStaff().get(targetUserId);
-        if (target == null) return Result.failure("User is not in this company.");
-        if (target.getRole() != CompanyRole.OWNER) return Result.failure("Target is not an Owner.");
+        if (target == null) {
+            logger.warn("removeOwner failed: user '{}' is not in company '{}'.", targetUserId, companyId);
+            return Result.failure("User is not in this company.");
+        }
+        if (target.getRole() != CompanyRole.OWNER) {
+            logger.warn("removeOwner failed: user '{}' in company '{}' has role {} (not OWNER).",
+                    targetUserId, companyId, target.getRole());
+            return Result.failure("Target is not an Owner.");
+        }
 
         try {
             Set<String> subtree = company.getStaffSubTree(targetUserId);
             company.fireStaff(actingUserId, targetUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
-            logger.info("User {} removed owner {} from company {}.", actingUserId, targetUserId, companyId);
+            logger.warn("User '{}' removed owner '{}' from company '{}'.", actingUserId, targetUserId, companyId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("removeOwner failed for actor '{}' targeting '{}' in company '{}': {}",
+                    actingUserId, targetUserId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<Void> resign(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to resign from a company.");
+            logger.warn("Unauthorized attempt to resign from company '{}'.", companyId);
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("resign failed: company '{}' not found (actor='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
         try {
             ProductionCompany company = compOpt.get();
             Set<String> subtree = company.getStaffSubTree(actingUserId);
             company.resign(actingUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
+            logger.info("User '{}' resigned from company '{}'.", actingUserId, companyId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("resign failed for user '{}' in company '{}': {}",
+                    actingUserId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<Void> appointOwner(String token, String companyId, String targetUsername) {
-        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized attempt to appoint owner in company '{}'.", companyId);
+            return Result.failure("User not authenticated.");
+        }
+        String initiatorId = authGateway.extractUserId(token);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("appointOwner failed: company '{}' not found.", companyId);
+            return Result.failure("Company not found");
+        }
 
         Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
-        if (targetOpt.isEmpty()) return Result.failure("Target user not found.");
+        if (targetOpt.isEmpty()) {
+            logger.warn("appointOwner failed: target user '{}' not found.", targetUsername);
+            return Result.failure("Target user not found.");
+        }
 
         String targetUserId = targetOpt.get().getId();
-        String initiatorId = authGateway.extractUserId(token);
         ProductionCompany company = compOpt.get();
         try {
             company.nominateStaff(initiatorId, targetUserId, CompanyRole.OWNER, null);
             companyRepository.save(company);
-            logger.info("User {} nominated {} as owner of company {}. Awaiting confirmation.", initiatorId, targetUserId, companyId);
+            logger.info("User '{}' nominated '{}' as owner of company '{}'. Awaiting confirmation.",
+                    initiatorId, targetUserId, companyId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("appointOwner failed for initiator '{}' in company '{}': {}",
+                    initiatorId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<Void> acceptNomination(String token, String companyId) {
-        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized attempt to accept nomination in company '{}'.", companyId);
+            return Result.failure("User not authenticated.");
+        }
         String nomineeId = authGateway.extractUserId(token);
 
         Optional<User> userOpt = userRepository.findById(nomineeId);
-        if (userOpt.isEmpty()) return Result.failure("User not found.");
+        if (userOpt.isEmpty()) {
+            logger.warn("acceptNomination failed: user '{}' not found.", nomineeId);
+            return Result.failure("User not found.");
+        }
 
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found.");
+        if (compOpt.isEmpty()) {
+            logger.warn("acceptNomination failed: company '{}' not found (nominee='{}').", companyId, nomineeId);
+            return Result.failure("Company not found.");
+        }
 
         ProductionCompany company = compOpt.get();
         try {
             var pending = company.getPendingAppointments().get(nomineeId);
-            if (pending == null) return Result.failure("No pending nomination found.");
+            if (pending == null) {
+                logger.warn("acceptNomination failed: no pending nomination for user '{}' in company '{}'.",
+                        nomineeId, companyId);
+                return Result.failure("No pending nomination found.");
+            }
             CompanyRole assignedRole = pending.getProposedRole();
             String appointerId = pending.getAppointerId();
 
@@ -298,53 +393,81 @@ public class CompanyService {
                 m.addCompanyRole(companyId, assignedRole, appointerId);
                 userRepository.save(m);
             }
-            logger.info("User {} accepted nomination for role {} in company {}.", nomineeId, assignedRole, companyId);
+            logger.info("User '{}' accepted nomination for role {} in company '{}'.",
+                    nomineeId, assignedRole, companyId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("acceptNomination failed for user '{}' in company '{}': {}",
+                    nomineeId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<Void> rejectNomination(String token, String companyId) {
-        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized attempt to reject nomination in company '{}'.", companyId);
+            return Result.failure("User not authenticated.");
+        }
         String nomineeId = authGateway.extractUserId(token);
 
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found.");
+        if (compOpt.isEmpty()) {
+            logger.warn("rejectNomination failed: company '{}' not found (nominee='{}').", companyId, nomineeId);
+            return Result.failure("Company not found.");
+        }
 
         ProductionCompany company = compOpt.get();
         try {
             company.rejectNomination(nomineeId);
             companyRepository.save(company);
-            logger.info("User {} rejected nomination in company {}.", nomineeId, companyId);
+            logger.info("User '{}' rejected nomination in company '{}'.", nomineeId, companyId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("rejectNomination failed for user '{}' in company '{}': {}",
+                    nomineeId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<List<OrderHistoryDTO>> viewCompanyOrders(String token, String companyId) {
-        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized attempt to view orders for company '{}'.", companyId);
+            return Result.failure("User not authenticated.");
+        }
         String actingUserId = authGateway.extractUserId(token);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("viewCompanyOrders failed: company '{}' not found (requester='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
         ProductionCompany company = compOpt.get();
         if (!company.isOwner(actingUserId) && !company.hasPermission(actingUserId, CompanyPermission.VIEW_REPORTS)) {
+            logger.warn("viewCompanyOrders denied: user '{}' lacks VIEW_REPORTS permission for company '{}'.",
+                    actingUserId, companyId);
             return Result.failure("Permission denied: VIEW_REPORTS required.");
         }
         List<OrderHistoryDTO> dtos = historyRepository.findByCompanyId(companyId).stream()
                 .map(h -> objectMapper.convertValue(h, OrderHistoryDTO.class))
                 .collect(Collectors.toList());
+        logger.debug("User '{}' retrieved {} order(s) for company '{}'.", actingUserId, dtos.size(), companyId);
         return Result.success(dtos);
     }
 
     public Result<SalesReportDTO> generateSalesReport(String token, String companyId) {
-        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized attempt to generate sales report for company '{}'.", companyId);
+            return Result.failure("User not authenticated.");
+        }
         String actingUserId = authGateway.extractUserId(token);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("generateSalesReport failed: company '{}' not found (requester='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
         ProductionCompany company = compOpt.get();
         if (!company.isOwner(actingUserId) && !company.hasPermission(actingUserId, CompanyPermission.VIEW_REPORTS)) {
+            logger.warn("generateSalesReport denied: user '{}' lacks VIEW_REPORTS permission for company '{}'.",
+                    actingUserId, companyId);
             return Result.failure("Permission denied: VIEW_REPORTS required.");
         }
         List<OrderHistory> orders = historyRepository.findByCompanyId(companyId);
@@ -355,29 +478,41 @@ public class CompanyService {
         List<OrderHistoryDTO> dtos = orders.stream()
                 .map(h -> objectMapper.convertValue(h, OrderHistoryDTO.class))
                 .collect(Collectors.toList());
-        logger.info("Sales report generated for company {} by user {}.", companyId, actingUserId);
+        logger.info("Sales report generated for company '{}' by user '{}': {} order(s), total revenue={}.",
+                companyId, actingUserId, orders.size(), totalRevenue);
         return Result.success(new SalesReportDTO(companyId, company.getName(), orders.size(), totalRevenue, dtos));
     }
 
     public Result<Void> updatePermissions(String token, String companyId, String targetManagerUsername,
                                           Set<CompanyPermission> permissions) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to update permissions.");
+            logger.warn("Unauthorized attempt to update permissions for '{}' in company '{}'.",
+                    targetManagerUsername, companyId);
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
         Optional<User> targetOpt = userRepository.findByUsername(targetManagerUsername);
-        if (targetOpt.isEmpty()) return Result.failure("Target user not found or inactive.");
+        if (targetOpt.isEmpty()) {
+            logger.warn("updatePermissions failed: target user '{}' not found.", targetManagerUsername);
+            return Result.failure("Target user not found or inactive.");
+        }
 
         String targetManagerId = targetOpt.get().getId();
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("updatePermissions failed: company '{}' not found (actor='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
         try {
             ProductionCompany company = compOpt.get();
             company.updatePermissions(actingUserId, targetManagerId, permissions);
             companyRepository.save(company);
+            logger.info("User '{}' updated permissions for '{}' in company '{}': {}.",
+                    actingUserId, targetManagerId, companyId, permissions);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("updatePermissions failed for actor '{}' targeting '{}' in company '{}': {}",
+                    actingUserId, targetManagerId, companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
