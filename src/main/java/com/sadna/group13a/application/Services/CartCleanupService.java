@@ -26,28 +26,55 @@ public class CartCleanupService {
 
     @Scheduled(fixedDelay = 60_000)
     public void expireStaleOrders() {
-        List<ActiveOrder> expired = orderRepository.findAll().stream()
-                .filter(ActiveOrder::isExpired)
-                .toList();
+        logger.debug("Cart cleanup scheduled task started.");
+        try {
+            List<ActiveOrder> expired = orderRepository.findAll().stream()
+                    .filter(ActiveOrder::isExpired)
+                    .toList();
 
-        for (ActiveOrder order : expired) {
-            for (OrderItem item : order.getItems()) {
-                releaseHold(order.getUserId(), item.getEventId(), item.getZoneId(), item.getSeatId());
+            if (expired.isEmpty()) {
+                logger.debug("Cart cleanup: no expired carts found.");
+                return;
             }
-            orderRepository.deleteById(order.getId());
-            logger.info("Expired cart {} for user {} cleaned up.", order.getId(), order.getUserId());
+
+            int cleaned = 0;
+            for (ActiveOrder order : expired) {
+                try {
+                    for (OrderItem item : order.getItems()) {
+                        releaseHold(order.getUserId(), item.getEventId(), item.getZoneId(), item.getSeatId());
+                    }
+                    orderRepository.deleteById(order.getId());
+                    logger.info("Expired cart '{}' for user '{}' deleted ({} item(s)).",
+                            order.getId(), order.getUserId(), order.getItems().size());
+                    cleaned++;
+                } catch (Exception e) {
+                    logger.error("Failed to clean up expired cart '{}' for user '{}': {}",
+                            order.getId(), order.getUserId(), e.getMessage(), e);
+                }
+            }
+
+            logger.info("Cart cleanup complete: {} expired cart(s) removed.", cleaned);
+        } catch (Exception e) {
+            logger.error("Cart cleanup task failed unexpectedly: {}", e.getMessage(), e);
         }
     }
 
     private void releaseHold(String userId, String eventId, String zoneId, String seatId) {
-        eventRepository.findById(eventId).ifPresent(event -> {
-            try {
-                event.releaseItem(zoneId, seatId, userId);
-                eventRepository.save(event);
-            } catch (Exception e) {
-                logger.warn("Failed to release hold for expired cart user={} zone={} seat={}: {}",
-                        userId, zoneId, seatId, e.getMessage());
-            }
-        });
+        var eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("Cannot release hold for user '{}': event '{}' not found (zone={}, seat={}).",
+                    userId, eventId, zoneId, seatId);
+            return;
+        }
+        var event = eventOpt.get();
+        try {
+            event.releaseItem(zoneId, seatId, userId);
+            eventRepository.save(event);
+            logger.debug("Released hold for user '{}' on event '{}' zone='{}' seat='{}'.",
+                    userId, eventId, zoneId, seatId);
+        } catch (Exception e) {
+            logger.warn("Failed to release hold for expired cart user='{}' event='{}' zone='{}' seat='{}': {}",
+                    userId, eventId, zoneId, seatId, e.getMessage());
+        }
     }
 }
