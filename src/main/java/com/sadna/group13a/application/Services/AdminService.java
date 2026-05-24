@@ -65,121 +65,182 @@ public class AdminService {
 
     public Result<Void> deactivateUser(String token, String targetUsername) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized deactivateUser attempt.");
+            logger.warn("Unauthorized deactivateUser attempt for target '{}'.", targetUsername);
             return Result.failure("Unauthorized: Invalid token.");
         }
-        if (!isAdmin(token)) return Result.failure("Only admins can deactivate users.");
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to deactivate user '{}'.", adminId, targetUsername);
+            return Result.failure("Only admins can deactivate users.");
+        }
 
         Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
-        if (targetOpt.isEmpty()) return Result.failure("Target user not found.");
+        if (targetOpt.isEmpty()) {
+            logger.warn("Admin '{}' tried to deactivate non-existent user '{}'.", adminId, targetUsername);
+            return Result.failure("Target user not found.");
+        }
 
         User target = targetOpt.get();
         if (adminRepository.findByUserId(target.getId()).isPresent()) {
+            logger.warn("Admin '{}' attempted to deactivate another admin '{}'.", adminId, targetUsername);
             return Result.failure("Cannot deactivate another admin.");
         }
 
-        String adminId = authGateway.extractUserId(token);
         target.deactivate();
         userRepository.save(target);
         eventPublisher.publishEvent(new UserBannedEvent(target.getId(), adminId));
         systemLogService.logEvent("deactivateUser adminId=" + adminId + " target=" + targetUsername);
-        logger.info("Admin {} deactivated user '{}'.", adminId, targetUsername);
+        logger.warn("Admin '{}' deactivated user '{}'.", adminId, targetUsername);
         return Result.success();
     }
 
     public Result<Void> reactivateUser(String token, String targetUsername) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized reactivateUser attempt.");
+            logger.warn("Unauthorized reactivateUser attempt for target '{}'.", targetUsername);
             return Result.failure("Unauthorized: Invalid token.");
         }
-        if (!isAdmin(token)) return Result.failure("Only admins can reactivate users.");
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to reactivate user '{}'.", adminId, targetUsername);
+            return Result.failure("Only admins can reactivate users.");
+        }
 
         Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
-        if (targetOpt.isEmpty()) return Result.failure("Target user not found.");
+        if (targetOpt.isEmpty()) {
+            logger.warn("Admin '{}' tried to reactivate non-existent user '{}'.", adminId, targetUsername);
+            return Result.failure("Target user not found.");
+        }
 
-        String adminId = authGateway.extractUserId(token);
         User target = targetOpt.get();
         target.activate();
         userRepository.save(target);
         systemLogService.logEvent("reactivateUser adminId=" + adminId + " target=" + targetUsername);
-        logger.info("Admin {} reactivated user '{}'.", adminId, targetUsername);
+        logger.info("Admin '{}' reactivated user '{}'.", adminId, targetUsername);
         return Result.success();
     }
 
     // ── Event Management ──────────────────────────────────────────
 
     public Result<Void> cancelEventGlobally(String token, String eventId) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized: Invalid token.");
-        if (!isAdmin(token)) return Result.failure("Only admins can cancel events.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized cancelEventGlobally attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to cancel event '{}'.", adminId, eventId);
+            return Result.failure("Only admins can cancel events.");
+        }
 
         Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found.");
+        if (eventOpt.isEmpty()) {
+            logger.warn("Admin '{}' tried to cancel non-existent event '{}'.", adminId, eventId);
+            return Result.failure("Event not found.");
+        }
 
-        String adminId = authGateway.extractUserId(token);
         Event event = eventOpt.get();
         event.unpublish();
         eventRepository.save(event);
         systemLogService.logEvent("cancelEventGlobally adminId=" + adminId + " eventId=" + eventId);
-        logger.warn("Admin {} cancelled event {}.", adminId, eventId);
+        logger.warn("Admin '{}' cancelled event '{}'.", adminId, eventId);
         return Result.success();
     }
 
     // ── Company Management ────────────────────────────────────────
 
     public Result<Void> closeCompanyGlobally(String token, String companyId) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized: Invalid token.");
-        if (!isAdmin(token)) return Result.failure("Only admins can force-close companies.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized closeCompanyGlobally attempt for company '{}'.", companyId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to force-close company '{}'.", adminId, companyId);
+            return Result.failure("Only admins can force-close companies.");
+        }
 
         Optional<ProductionCompany> companyOpt = companyRepository.findById(companyId);
-        if (companyOpt.isEmpty()) return Result.failure("Company not found.");
+        if (companyOpt.isEmpty()) {
+            logger.warn("Admin '{}' tried to close non-existent company '{}'.", adminId, companyId);
+            return Result.failure("Company not found.");
+        }
 
-        String adminId = authGateway.extractUserId(token);
         ProductionCompany company = companyOpt.get();
         company.forceClose();
         companyRepository.save(company);
         eventPublisher.publishEvent(new CompanyClosedByAdminEvent(companyId, adminId));
         systemLogService.logEvent("closeCompanyGlobally adminId=" + adminId + " companyId=" + companyId);
-        logger.warn("Admin {} force-closed company {}.", adminId, companyId);
+        logger.warn("Admin '{}' force-closed company '{}'.", adminId, companyId);
         return Result.success();
     }
 
     // ── Queue Control ─────────────────────────────────────────────
 
     public Result<List<TicketQueue>> viewAllQueues(String token) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
-        if (!isAdmin(token)) return Result.failure("Only admins can view all queues.");
-        return Result.success(queueRepository.findAll());
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized viewAllQueues attempt.");
+            return Result.failure("Unauthorized.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to view all queues.", adminId);
+            return Result.failure("Only admins can view all queues.");
+        }
+        List<TicketQueue> queues = queueRepository.findAll();
+        logger.info("Admin '{}' retrieved all queues ({} total).", adminId, queues.size());
+        return Result.success(queues);
     }
 
     public Result<Void> clearEventQueue(String token, String eventId) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
-        if (!isAdmin(token)) return Result.failure("Only admins can clear queues.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized clearEventQueue attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to clear queue for event '{}'.", adminId, eventId);
+            return Result.failure("Only admins can clear queues.");
+        }
 
         Optional<TicketQueue> queueOpt = queueRepository.findByEventId(eventId);
-        if (queueOpt.isEmpty()) return Result.failure("No queue found for event " + eventId);
+        if (queueOpt.isEmpty()) {
+            logger.warn("Admin '{}' tried to clear queue for event '{}' but no queue exists.", adminId, eventId);
+            return Result.failure("No queue found for event " + eventId);
+        }
 
         TicketQueue queue = queueOpt.get();
         queue.clearQueue();
         queueRepository.save(queue);
-
-        logger.warn("Admin {} cleared queue for event {}.", authGateway.extractUserId(token), eventId);
+        logger.warn("Admin '{}' cleared queue for event '{}'.", adminId, eventId);
         return Result.success();
     }
 
     public Result<Void> adjustQueueRate(String token, String eventId, int newMaxConcurrentUsers) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
-        if (!isAdmin(token)) return Result.failure("Only admins can adjust queue rate.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized adjustQueueRate attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to adjust queue rate for event '{}'.", adminId, eventId);
+            return Result.failure("Only admins can adjust queue rate.");
+        }
 
         Optional<TicketQueue> queueOpt = queueRepository.findByEventId(eventId);
-        if (queueOpt.isEmpty()) return Result.failure("No queue found for event " + eventId);
+        if (queueOpt.isEmpty()) {
+            logger.warn("Admin '{}' tried to adjust queue rate for event '{}' but no queue exists.", adminId, eventId);
+            return Result.failure("No queue found for event " + eventId);
+        }
 
         try {
             TicketQueue queue = queueOpt.get();
             queue.adjustMaxConcurrentUsers(newMaxConcurrentUsers);
             queueRepository.save(queue);
-            logger.info("Admin adjusted queue rate for event {} to {}.", eventId, newMaxConcurrentUsers);
+            logger.info("Admin '{}' adjusted queue capacity for event '{}' to {}.", adminId, eventId, newMaxConcurrentUsers);
             return Result.success();
         } catch (IllegalArgumentException e) {
+            logger.error("Admin '{}' supplied invalid queue capacity {} for event '{}': {}",
+                    adminId, newMaxConcurrentUsers, eventId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
@@ -187,8 +248,15 @@ public class AdminService {
     // ── Analytics ─────────────────────────────────────────────────
 
     public Result<SystemAnalyticsDTO> getSystemAnalytics(String token) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
-        if (!isAdmin(token)) return Result.failure("Only admins can view system analytics.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized getSystemAnalytics attempt.");
+            return Result.failure("Unauthorized.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to view system analytics.", adminId);
+            return Result.failure("Only admins can view system analytics.");
+        }
 
         int totalUsers = userRepository.findAll().size();
         int activeQueues = queueRepository.findAll().size();
@@ -197,12 +265,21 @@ public class AdminService {
                 .count();
         int publishedEvents = eventRepository.findPublished().size();
 
+        logger.info("Admin '{}' retrieved system analytics: users={}, queues={}, companies={}, events={}.",
+                adminId, totalUsers, activeQueues, activeCompanies, publishedEvents);
         return Result.success(new SystemAnalyticsDTO(totalUsers, activeQueues, activeCompanies, publishedEvents));
     }
 
     public Result<List<OrderHistoryDTO>> viewGlobalPurchaseHistory(String token) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
-        if (!isAdmin(token)) return Result.failure("Only admins can view global purchase history.");
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized viewGlobalPurchaseHistory attempt.");
+            return Result.failure("Unauthorized.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to view global purchase history.", adminId);
+            return Result.failure("Only admins can view global purchase history.");
+        }
 
         List<OrderHistoryDTO> dtos = historyRepository.findAll().stream()
                 .map(h -> new OrderHistoryDTO(
@@ -213,21 +290,40 @@ public class AdminService {
                                         i.getSeatLabel(), i.getPricePaid()))
                                 .collect(Collectors.toList())))
                 .collect(Collectors.toList());
+        logger.info("Admin '{}' retrieved global purchase history ({} orders).", adminId, dtos.size());
         return Result.success(dtos);
     }
 
     // ── Logs (SLR-8) ─────────────────────────────────────────────
 
     public Result<List<String>> getEventLog(String token) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
-        if (!isAdmin(token)) return Result.failure("Only admins can view event logs.");
-        return Result.success(systemLogService.getEventLog());
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized getEventLog attempt.");
+            return Result.failure("Unauthorized.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to view event logs.", adminId);
+            return Result.failure("Only admins can view event logs.");
+        }
+        List<String> log = systemLogService.getEventLog();
+        logger.info("Admin '{}' retrieved event log ({} entries).", adminId, log.size());
+        return Result.success(log);
     }
 
     public Result<List<String>> getErrorLog(String token) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
-        if (!isAdmin(token)) return Result.failure("Only admins can view error logs.");
-        return Result.success(systemLogService.getErrorLog());
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized getErrorLog attempt.");
+            return Result.failure("Unauthorized.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to view error logs.", adminId);
+            return Result.failure("Only admins can view error logs.");
+        }
+        List<String> log = systemLogService.getErrorLog();
+        logger.info("Admin '{}' retrieved error log ({} entries).", adminId, log.size());
+        return Result.success(log);
     }
 
     // ── Private helpers ───────────────────────────────────────────
