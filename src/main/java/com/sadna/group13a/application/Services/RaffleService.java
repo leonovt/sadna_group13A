@@ -61,22 +61,30 @@ public class RaffleService {
      */
     public Result<String> createRaffle(String token, String eventId, String companyId) {
         if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized createRaffle attempt for event '{}'.", eventId);
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
 
         Optional<User> userOpt = userRepository.findById(actingUserId);
         if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
+            logger.warn("User '{}' cannot create raffle — not an active member.", actingUserId);
             return Result.failure("Only active members can create a raffle.");
         }
 
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty() || !compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+        if (compOpt.isEmpty()) {
+            logger.warn("User '{}' tried to create raffle but company '{}' not found.", actingUserId, companyId);
+            return Result.failure("User lacks permission to manage events for this company.");
+        }
+        if (!compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS permission on company '{}' — createRaffle denied.", actingUserId, companyId);
             return Result.failure("User lacks permission to manage events for this company.");
         }
 
         Optional<Event> eventOpt = eventRepository.findById(eventId);
         if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to create raffle for non-existent event '{}'.", actingUserId, eventId);
             return Result.failure("Event not found.");
         }
 
@@ -84,6 +92,7 @@ public class RaffleService {
         try {
             event.setSaleMode(EventSaleMode.RAFFLE);
         } catch (Exception e) {
+            logger.warn("User '{}' failed to set RAFFLE sale mode for event '{}': {}", actingUserId, eventId, e.getMessage());
             return Result.failure(e.getMessage());
         }
 
@@ -92,7 +101,7 @@ public class RaffleService {
         raffleRepository.save(raffle);
         eventRepository.save(event);
 
-        logger.info("User {} created raffle {} for event {}.", actingUserId, raffleId, eventId);
+        logger.info("User '{}' created raffle '{}' for event '{}'.", actingUserId, raffleId, eventId);
         return Result.success(raffleId);
     }
 
@@ -102,28 +111,35 @@ public class RaffleService {
      */
     public Result<Void> closeRaffle(String token, String raffleId) {
         if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized closeRaffle attempt for raffle '{}'.", raffleId);
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
 
         Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
         if (raffleOpt.isEmpty()) {
+            logger.warn("User '{}' tried to close non-existent raffle '{}'.", actingUserId, raffleId);
             return Result.failure("Raffle not found.");
         }
 
         Raffle raffle = raffleOpt.get();
         Optional<ProductionCompany> compOpt = companyRepository.findById(raffle.getCompanyId());
-        if (compOpt.isEmpty() || !compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+        if (compOpt.isEmpty()) {
+            logger.warn("User '{}' tried to close raffle '{}' but company '{}' not found.", actingUserId, raffleId, raffle.getCompanyId());
+            return Result.failure("User lacks permission to manage events for this company.");
+        }
+        if (!compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS permission — closeRaffle '{}' denied.", actingUserId, raffleId);
             return Result.failure("User lacks permission to manage events for this company.");
         }
 
         try {
             raffle.close();
             raffleRepository.save(raffle);
-            logger.info("User {} closed raffle {}.", actingUserId, raffleId);
+            logger.warn("User '{}' closed raffle '{}'.", actingUserId, raffleId);
             return Result.success();
         } catch (Exception e) {
-            logger.error("Failed to close raffle {}: {}", raffleId, e.getMessage());
+            logger.error("User '{}' failed to close raffle '{}': {}", actingUserId, raffleId, e.getMessage(), e);
             return Result.failure("Failed to close raffle: " + e.getMessage());
         }
     }
@@ -133,21 +149,23 @@ public class RaffleService {
      */
     public Result<Void> joinRaffle(String token, RaffleRegistrationDTO requestDto) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to join raffle with invalid token.");
+            logger.warn("Unauthorized joinRaffle attempt for raffle '{}'.", requestDto.raffleId());
             return Result.failure("User not authenticated.");
         }
         String userId = authGateway.extractUserId(token);
         String raffleId = requestDto.raffleId();
-        
-        logger.debug("User {} is attempting to join raffle {}", userId, raffleId);
+
+        logger.debug("User '{}' attempting to join raffle '{}'.", userId, raffleId);
 
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
+            logger.warn("User '{}' cannot join raffle '{}' — not an active member.", userId, raffleId);
             return Result.failure("Only active registered members can join a raffle.");
         }
 
         Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
         if (raffleOpt.isEmpty()) {
+            logger.warn("User '{}' tried to join non-existent raffle '{}'.", userId, raffleId);
             return Result.failure("Raffle not found.");
         }
 
@@ -156,14 +174,15 @@ public class RaffleService {
         try {
             raffle.registerParticipant(userId);
             raffleRepository.save(raffle);
-            
-            logger.info("User {} successfully joined raffle {}", userId, raffleId);
+
+            logger.info("User '{}' joined raffle '{}'.", userId, raffleId);
             return Result.success();
-            
+
         } catch (IllegalStateException | IllegalArgumentException e) {
+            logger.warn("User '{}' failed to join raffle '{}': {}", userId, raffleId, e.getMessage());
             return Result.failure(e.getMessage());
         } catch (Exception e) {
-            logger.error("Unexpected error while user {} was joining raffle {}", userId, raffleId, e);
+            logger.error("Unexpected error while user '{}' was joining raffle '{}': {}", userId, raffleId, e.getMessage(), e);
             return Result.failure("An unexpected internal error occurred.");
         }
     }
@@ -173,43 +192,43 @@ public class RaffleService {
      */
     public Result<RaffleResultDTO> drawWinners(String token, String raffleId, int winnersCount, int validMinutes) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to draw winners for raffle {} with invalid token.", raffleId);
+            logger.warn("Unauthorized drawWinners attempt for raffle '{}'.", raffleId);
             return Result.failure("User not authenticated.");
         }
         String actingUserId = authGateway.extractUserId(token);
 
         Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
         if (raffleOpt.isEmpty()) {
+            logger.warn("User '{}' tried to draw winners for non-existent raffle '{}'.", actingUserId, raffleId);
             return Result.failure("Raffle not found.");
         }
 
         Raffle raffle = raffleOpt.get();
         Optional<ProductionCompany> compOpt = companyRepository.findById(raffle.getCompanyId());
-        if (compOpt.isEmpty() || !compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+        if (compOpt.isEmpty()) {
+            logger.warn("User '{}' tried to draw winners for raffle '{}' but company '{}' not found.", actingUserId, raffleId, raffle.getCompanyId());
+            return Result.failure("User lacks permission to manage events for this company.");
+        }
+        if (!compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS permission — drawWinners for raffle '{}' denied.", actingUserId, raffleId);
             return Result.failure("User lacks permission to manage events for this company.");
         }
 
         try {
-            // 1. The Aggregate handles all the complex code generation internally!
             raffle.executeDraw(winnersCount, validMinutes);
             raffleRepository.save(raffle);
 
             int actuallyDrawn = raffle.getWinningCodes().size();
             eventPublisher.publishEvent(new RaffleDrawnEvent(raffleId, raffle.getEventId(), actuallyDrawn));
-            logger.info("User {} successfully executed draw for raffle {}.", actingUserId, raffleId);
-            
-            RaffleResultDTO responseDto = new RaffleResultDTO(
-                raffle.getId(),
-                "Draw executed successfully.",
-                actuallyDrawn
-            );
-            
-            return Result.success(responseDto);
-            
+            logger.info("User '{}' executed draw for raffle '{}' — {} winner(s) selected.", actingUserId, raffleId, actuallyDrawn);
+
+            return Result.success(new RaffleResultDTO(raffle.getId(), "Draw executed successfully.", actuallyDrawn));
+
         } catch (IllegalStateException e) {
+            logger.warn("User '{}' failed to draw winners for raffle '{}': {}", actingUserId, raffleId, e.getMessage());
             return Result.failure(e.getMessage());
         } catch (Exception e) {
-            logger.error("Unexpected error during draw execution for raffle {}", raffleId, e);
+            logger.error("Unexpected error during draw for raffle '{}' by user '{}': {}", raffleId, actingUserId, e.getMessage(), e);
             return Result.failure("An unexpected internal error occurred.");
         }
     }
@@ -219,11 +238,14 @@ public class RaffleService {
      */
     public Result<RaffleDTO> getRaffleDetails(String token, String raffleId) {
         if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized getRaffleDetails attempt for raffle '{}'.", raffleId);
             return Result.failure("User not authenticated.");
         }
+        String callerId = authGateway.extractUserId(token);
 
         Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
         if (raffleOpt.isEmpty()) {
+            logger.warn("getRaffleDetails: raffle '{}' not found (caller='{}').", raffleId, callerId);
             return Result.failure("Raffle not found.");
         }
 
@@ -231,20 +253,21 @@ public class RaffleService {
 
         try {
             RaffleDTO baseDto = objectMapper.convertValue(raffle, RaffleDTO.class);
-            
+
             // Inject the manual calculation for privacy (so we don't expose the user IDs list)
             RaffleDTO finalDto = new RaffleDTO(
                 baseDto.id(),
                 baseDto.eventId(),
                 baseDto.companyId(),
                 baseDto.status(),
-                raffle.getParticipantUserIds().size() 
+                raffle.getParticipantUserIds().size()
             );
-            
+
+            logger.debug("getRaffleDetails: raffle '{}' retrieved by '{}' ({} participant(s)).", raffleId, callerId, finalDto.totalParticipants());
             return Result.success(finalDto);
-            
+
         } catch (Exception e) {
-            logger.error("Failed to map Raffle to DTO using ObjectMapper", e);
+            logger.error("Failed to map raffle '{}' to DTO: {}", raffleId, e.getMessage(), e);
             return Result.failure("Internal mapping error.");
         }
     }
@@ -254,21 +277,23 @@ public class RaffleService {
      */
     public Result<WinningTicketDTO> checkMyResult(String token, String raffleId) {
         if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized checkMyResult attempt for raffle '{}'.", raffleId);
             return Result.failure("User not authenticated.");
         }
         String userId = authGateway.extractUserId(token);
 
         Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
         if (raffleOpt.isEmpty()) {
+            logger.warn("checkMyResult: raffle '{}' not found (caller='{}').", raffleId, userId);
             return Result.failure("Raffle not found.");
         }
 
         Raffle raffle = raffleOpt.get();
-        
-        // The service asks the Aggregate for the domain object...
+
         Optional<AuthorizationCode> codeOpt = raffle.getAuthorizationCodeFor(userId);
 
         if (codeOpt.isEmpty()) {
+            logger.debug("checkMyResult: user '{}' did not win raffle '{}' (or draw not yet run).", userId, raffleId);
             return Result.failure("You did not win this raffle, or the draw hasn't happened yet.");
         }
 
@@ -280,10 +305,11 @@ public class RaffleService {
                 code.getCode(),
                 code.getExpirationTime()
             );
+            logger.debug("checkMyResult: user '{}' is a winner of raffle '{}'.", userId, raffleId);
             return Result.success(dto);
-            
+
         } catch (Exception e) {
-            logger.error("Failed to map AuthorizationCode to DTO using ObjectMapper", e);
+            logger.error("Failed to map AuthorizationCode to DTO for user '{}' raffle '{}': {}", userId, raffleId, e.getMessage(), e);
             return Result.failure("Internal mapping error.");
         }
     }

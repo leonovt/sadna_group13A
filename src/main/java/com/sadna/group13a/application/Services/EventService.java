@@ -53,21 +53,26 @@ public class EventService
                                       LocalDateTime date, String category, String location)
     {
         if(!authGateway.validateToken(tokenString)) {
-            logger.warn("Unauthorized attempt to create event with token: {}", tokenString);
+            logger.warn("Unauthorized createEvent attempt for company '{}'.", companyId);
             return Result.failure("Unauthorized: Invalid token.");
         }
         String initiatorId = authGateway.extractUserId(tokenString);
         Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
-        if (compOpt.isEmpty()) return Result.failure("Company not found");
+        if (compOpt.isEmpty()) {
+            logger.warn("User '{}' tried to create event but company '{}' not found.", initiatorId, companyId);
+            return Result.failure("Company not found");
+        }
 
         ProductionCompany company = compOpt.get();
         if (!company.hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS permission on company '{}' — createEvent denied.", initiatorId, companyId);
             return Result.failure("User lacks permission to manage events");
         }
 
         Event event = new Event(UUID.randomUUID().toString(), title, description, companyId, date, category);
         event.setLocation(location);
         eventRepository.save(event);
+        logger.info("User '{}' created event '{}' ('{}') under company '{}'.", initiatorId, event.getId(), title, companyId);
         return Result.success(event.getId());
     }
 
@@ -76,24 +81,34 @@ public class EventService
      */
     public Result<Void> publishEvent(String tokenString, String eventId) {
         if(!authGateway.validateToken(tokenString)) {
-            logger.warn("Unauthorized attempt to publish event with token: {}", tokenString);
+            logger.warn("Unauthorized publishEvent attempt for event '{}'.", eventId);
             return Result.failure("Unauthorized: Invalid token.");
         }
         String initiatorId = authGateway.extractUserId(tokenString);
         Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found");
-        
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to publish non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
         Event event = eventOpt.get();
         Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
-        if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+        if (compOpt.isEmpty()) {
+            logger.warn("User '{}' tried to publish event '{}' but company '{}' not found.", initiatorId, eventId, event.getCompanyId());
+            return Result.failure("User lacks permission to publish this event");
+        }
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS permission — publishEvent '{}' denied.", initiatorId, eventId);
             return Result.failure("User lacks permission to publish this event");
         }
 
         try {
             event.publish();
             eventRepository.save(event);
+            logger.warn("User '{}' published event '{}'.", initiatorId, eventId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("User '{}' failed to publish event '{}': {}", initiatorId, eventId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
@@ -103,11 +118,16 @@ public class EventService
      */
     public Result<EventDTO> getEvent(String token, String eventId) {
         if (token != null && !authGateway.validateToken(token)) {
+            logger.warn("Unauthorized getEvent attempt for event '{}' — invalid token.", eventId);
             return Result.failure("Unauthorized: Invalid token.");
         }
+        String callerId = (token != null) ? authGateway.extractUserId(token) : "anonymous";
         Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found");
-        
+        if (eventOpt.isEmpty()) {
+            logger.warn("getEvent: event '{}' not found (caller='{}').", eventId, callerId);
+            return Result.failure("Event not found");
+        }
+
         Event e = eventOpt.get();
         EventDTO dto = new EventDTO(
             e.getId(),
@@ -120,30 +140,40 @@ public class EventService
             e.isPublished(),
             e.isPublished() ? e.getTotalAvailable() : 0
         );
+        logger.debug("getEvent: event '{}' retrieved by '{}'.", eventId, callerId);
         return Result.success(dto);
     }
 
     public Result<Void> setVenueMap(String tokenString, String eventId, VenueMap venueMap) {
-        //validation
         if(!authGateway.validateToken(tokenString)) {
-            logger.warn("Unauthorized attempt to set venue map with token: {}", tokenString);
+            logger.warn("Unauthorized setVenueMap attempt for event '{}'.", eventId);
             return Result.failure("Unauthorized: Invalid token.");
         }
         String initiatorId = authGateway.extractUserId(tokenString);
         Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found");
-        
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set venue map on non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
         Event event = eventOpt.get();
         Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
-        if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+        if (compOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set venue map for event '{}' but company '{}' not found.", initiatorId, eventId, event.getCompanyId());
             return Result.failure("User lacks permission to manage events");
         }
-        
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS permission — setVenueMap for event '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage events");
+        }
+
         try {
             event.setVenueMap(venueMap);
             eventRepository.save(event);
+            logger.info("User '{}' set venue map on event '{}'.", initiatorId, eventId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("User '{}' failed to set venue map on event '{}': {}", initiatorId, eventId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
@@ -152,90 +182,128 @@ public class EventService
     {
         if(!authGateway.validateToken(tokeString))
         {
-            logger.warn("Unauthorized attempt to unpublish event with token: {}", tokeString);
+            logger.warn("Unauthorized unpublishEvent attempt for event '{}'.", eventId);
             return Result.failure("Unauthorized: Invalid token.");
         }
         String initiatorId = authGateway.extractUserId(tokeString);
         Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found");
-        
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to unpublish non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
         Event event = eventOpt.get();
         Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
-        if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+        if (compOpt.isEmpty()) {
+            logger.warn("User '{}' tried to unpublish event '{}' but company '{}' not found.", initiatorId, eventId, event.getCompanyId());
             return Result.failure("User lacks permission to manage events");
         }
-        
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS permission — unpublishEvent '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage events");
+        }
+
         event.unpublish();
         eventRepository.save(event);
+        logger.warn("User '{}' unpublished event '{}'.", initiatorId, eventId);
         return Result.success();
     }
 
     public Result<Void> updateEventDetails(String tokenString, String eventId, String title, String description, LocalDateTime date, String category) {
         if(!authGateway.validateToken(tokenString)) {
-            logger.warn("Unauthorized attempt to update event details with token: {}", tokenString);
+            logger.warn("Unauthorized updateEventDetails attempt for event '{}'.", eventId);
             return Result.failure("Unauthorized: Invalid token.");
         }
         String initiatorId = authGateway.extractUserId(tokenString);
         Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found");
-        
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to update non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
         Event event = eventOpt.get();
         Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
-        if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+        if (compOpt.isEmpty()) {
+            logger.warn("User '{}' tried to update event '{}' but company '{}' not found.", initiatorId, eventId, event.getCompanyId());
             return Result.failure("User lacks permission to manage events");
         }
-        
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS permission — updateEventDetails '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage events");
+        }
+
         try {
             if (title != null) event.setTitle(title);
             if (description != null) event.setDescription(description);
             if (date != null) event.setEventDate(date);
             if (category != null) event.setCategory(category);
             eventRepository.save(event);
+            logger.info("User '{}' updated details for event '{}'.", initiatorId, eventId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("User '{}' failed to update event '{}': {}", initiatorId, eventId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<Void> setSaleMode(String tokenString, String eventId, EventSaleMode saleMode) {
         if (!authGateway.validateToken(tokenString)) {
-            logger.warn("Unauthorized attempt to set sale mode with token: {}", tokenString);
+            logger.warn("Unauthorized setSaleMode attempt for event '{}'.", eventId);
             return Result.failure("Unauthorized: Invalid token.");
         }
         String initiatorId = authGateway.extractUserId(tokenString);
         Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found");
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set sale mode on non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
 
         Event event = eventOpt.get();
         Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
-        if (compOpt.isEmpty() || !compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+        if (compOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set sale mode for event '{}' but company '{}' not found.", initiatorId, eventId, event.getCompanyId());
+            return Result.failure("User lacks permission to manage events");
+        }
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS permission — setSaleMode for event '{}' denied.", initiatorId, eventId);
             return Result.failure("User lacks permission to manage events");
         }
 
         try {
             event.setSaleMode(saleMode);
             eventRepository.save(event);
+            logger.info("User '{}' set sale mode to '{}' for event '{}'.", initiatorId, saleMode, eventId);
             return Result.success();
         } catch (Exception e) {
+            logger.warn("User '{}' failed to set sale mode for event '{}': {}", initiatorId, eventId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
 
     public Result<VenueMapDTO> getVenueMap(String token, String eventId) {
         if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized getVenueMap attempt for event '{}'.", eventId);
             return Result.failure("Unauthorized: Invalid token.");
         }
+        String callerId = authGateway.extractUserId(token);
         Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found");
+        if (eventOpt.isEmpty()) {
+            logger.warn("getVenueMap: event '{}' not found (caller='{}').", eventId, callerId);
+            return Result.failure("Event not found");
+        }
 
         Event event = eventOpt.get();
-        if (event.getVenueMap() == null) return Result.failure("Event has no venue map configured");
+        if (event.getVenueMap() == null) {
+            logger.warn("getVenueMap: event '{}' has no venue map (caller='{}').", eventId, callerId);
+            return Result.failure("Event has no venue map configured");
+        }
 
         VenueMap map = event.getVenueMap();
         List<ZoneDTO> zoneDTOs = map.getZones().stream()
                 .map(this::toZoneDTO)
                 .collect(Collectors.toList());
 
+        logger.debug("getVenueMap: venue map for event '{}' retrieved by '{}'.", eventId, callerId);
         return Result.success(new VenueMapDTO(map.getId(), map.getVenueName(), zoneDTOs));
     }
 
@@ -284,6 +352,8 @@ public class EventService
                 e.getEventDate(), e.getCategory(), e.getLocation(), e.isPublished(), e.getTotalAvailable()
             ))
             .collect(Collectors.toList());
+        logger.debug("searchEvents: {} result(s) — query='{}' category='{}' location='{}' from='{}' to='{}' minPrice='{}' maxPrice='{}'.",
+                dtos.size(), query, category, location, fromDate, toDate, minPrice, maxPrice);
         return Result.success(dtos);
     }
 }

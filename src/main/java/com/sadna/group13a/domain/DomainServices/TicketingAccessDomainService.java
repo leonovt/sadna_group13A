@@ -5,6 +5,9 @@ import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.LocalDateTime;
 
 /**
@@ -16,6 +19,8 @@ import java.time.LocalDateTime;
  */
 public class TicketingAccessDomainService {
 
+    private static final Logger logger = LoggerFactory.getLogger(TicketingAccessDomainService.class);
+
     /**
      * Validates that the event itself is currently open for sale.
      * Must be called before {@link #validateAccess} so that user-level checks
@@ -26,11 +31,14 @@ public class TicketingAccessDomainService {
      */
     public void validateEventIsOpenForSale(Event event) {
         if (!event.isPublished()) {
+            logger.warn("validateEventIsOpenForSale: event '{}' is not published — sale blocked.", event.getId());
             throw new PermissionDeniedException("purchase tickets — event is not published");
         }
         if (!LocalDateTime.now().isBefore(event.getEventDate())) {
+            logger.warn("validateEventIsOpenForSale: event '{}' has already taken place — sale blocked.", event.getId());
             throw new PermissionDeniedException("purchase tickets — event has already taken place");
         }
+        logger.debug("validateEventIsOpenForSale: event '{}' is open for sale.", event.getId());
     }
 
     /**
@@ -51,22 +59,29 @@ public class TicketingAccessDomainService {
         switch (event.getSaleMode()) {
             case REGULAR -> {
                 // No restriction — all authenticated users may proceed
+                logger.debug("validateAccess: user '{}' granted REGULAR access for event '{}'.", userId, event.getId());
             }
             case QUEUE -> {
                 if (queue == null) {
+                    logger.warn("validateAccess: user '{}' denied — QUEUE event '{}' has no queue configured.", userId, event.getId());
                     throw new PermissionDeniedException("purchase tickets for a queue-based event with no queue configured");
                 }
                 if (!queue.isUserActive(userId)) {
+                    logger.warn("validateAccess: user '{}' denied — not in the active queue window for event '{}'.", userId, event.getId());
                     throw new PermissionDeniedException(userId, "purchase tickets — not in the active queue window");
                 }
+                logger.debug("validateAccess: user '{}' granted QUEUE access for event '{}'.", userId, event.getId());
             }
             case RAFFLE -> {
                 if (authCode == null) {
+                    logger.warn("validateAccess: user '{}' denied — no raffle authorization code for event '{}'.", userId, event.getId());
                     throw new PermissionDeniedException(userId, "purchase tickets — a raffle authorization code is required");
                 }
                 if (!authCode.isValidFor(userId, event.getId())) {
+                    logger.warn("validateAccess: user '{}' denied — authorization code invalid or expired for event '{}'.", userId, event.getId());
                     throw new PermissionDeniedException(userId, "purchase tickets — authorization code is invalid or has expired");
                 }
+                logger.debug("validateAccess: user '{}' granted RAFFLE access for event '{}'.", userId, event.getId());
             }
         }
     }
