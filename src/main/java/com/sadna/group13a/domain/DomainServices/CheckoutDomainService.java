@@ -9,6 +9,9 @@ import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +25,8 @@ import java.util.List;
  * automatically rolled back so callers always get all-or-nothing atomicity per event.
  */
 public class CheckoutDomainService {
+
+    private static final Logger logger = LoggerFactory.getLogger(CheckoutDomainService.class);
 
     /**
      * Processes a set of cart items belonging to one event.
@@ -46,11 +51,14 @@ public class CheckoutDomainService {
             List<DiscountPolicy> discountPolicies) {
 
         if (order.isExpired()) {
+            logger.warn("Checkout rejected for order '{}' (user '{}'): order has expired.", order.getId(), order.getUserId());
             throw new DomainException("Order has expired and can no longer be checked out");
         }
 
         for (PurchasePolicy pp : purchasePolicies) {
             if (!pp.isSatisfied()) {
+                logger.warn("Checkout blocked for order '{}' (user '{}', event '{}'): purchase policy not satisfied.",
+                        order.getId(), order.getUserId(), event.getId());
                 throw new DomainException("Purchase is not permitted by the current purchase policy");
             }
         }
@@ -83,16 +91,21 @@ public class CheckoutDomainService {
                         finalPrice));
             }
         } catch (Exception e) {
+            logger.warn("Seat transition failed for order '{}' (user '{}', event '{}'): {} — rolling back {} sold seat(s).",
+                    order.getId(), order.getUserId(), event.getId(), e.getMessage(), rollbackActions.size());
             for (Runnable rollback : rollbackActions) {
                 try {
                     rollback.run();
-                } catch (Exception ignored) {
-                    // best-effort rollback; log in caller if needed
+                } catch (Exception re) {
+                    logger.error("Rollback failed during checkout of order '{}' (event '{}'): {}",
+                            order.getId(), event.getId(), re.getMessage());
                 }
             }
             throw e;
         }
 
+        logger.debug("Checkout complete for order '{}' (user '{}', event '{}'): {} item(s) sold.",
+                order.getId(), order.getUserId(), event.getId(), historyItems.size());
         return historyItems;
     }
 }

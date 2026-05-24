@@ -62,9 +62,11 @@ public class UserService
 
         try {
             if (username == null || username.isBlank()) {
+                logger.warn("Registration failed: username is null or blank.");
                 return Result.failure("Username cannot be empty.");
             }
             if (rawPassword == null || rawPassword.isBlank()) {
+                logger.warn("Registration failed: password is null or blank for username '{}'.", username);
                 return Result.failure("Password cannot be empty.");
             }
 
@@ -158,26 +160,43 @@ public class UserService
      * transitioning the caller back to guest mode.
      */
     public Result<String> logout(String token) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
-        logger.info("User {} logged out.", authGateway.extractUserId(token));
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized logout attempt with invalid token.");
+            return Result.failure("Unauthorized.");
+        }
+        String userId = authGateway.extractUserId(token);
+        logger.info("User {} logged out.", userId);
         return enterAsGuest();
     }
 
     public Result<UserDTO> updateProfile(String token, String newUsername) {
-        if (!authGateway.validateToken(token)) return Result.failure("Unauthorized.");
-        if (newUsername == null || newUsername.isBlank()) return Result.failure("Username cannot be blank.");
-
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized updateProfile attempt.");
+            return Result.failure("Unauthorized.");
+        }
         String userId = authGateway.extractUserId(token);
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isEmpty()) return Result.failure("User not found.");
 
-        if (userRepository.findByUsername(newUsername).isPresent()) return Result.failure("Username already taken.");
+        if (newUsername == null || newUsername.isBlank()) {
+            logger.warn("updateProfile failed for user '{}': new username is null or blank.", userId);
+            return Result.failure("Username cannot be blank.");
+        }
+
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            logger.warn("updateProfile failed: user '{}' not found.", userId);
+            return Result.failure("User not found.");
+        }
+
+        if (userRepository.findByUsername(newUsername).isPresent()) {
+            logger.warn("updateProfile failed for user '{}': username '{}' is already taken.", userId, newUsername);
+            return Result.failure("Username already taken.");
+        }
 
         User user = userOpt.get();
         user.setUsername(newUsername);
         userRepository.save(user);
 
-        logger.info("User {} changed username to '{}'.", userId, newUsername);
+        logger.info("User '{}' changed username to '{}'.", userId, newUsername);
         return Result.success(objectMapper.convertValue(user, UserDTO.class));
     }
 
@@ -193,15 +212,17 @@ public class UserService
         String userId = authGateway.extractUserId(token);
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
+            logger.warn("viewOrderHistory denied for user '{}' — not an active member.", userId);
             return Result.failure("Only registered members can view order history.");
         }
-        
+
         List<OrderHistory> histories = historyRepository.findByUserId(userId);
 
         List<OrderHistoryDTO> dtos = histories.stream()
             .map(history -> objectMapper.convertValue(history, OrderHistoryDTO.class))
             .collect(Collectors.toList());
 
+        logger.debug("viewOrderHistory: user '{}' retrieved {} order(s).", userId, dtos.size());
         return Result.success(dtos);
     }
 }

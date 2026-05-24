@@ -127,24 +127,33 @@ public class OrderService {
     public Result<String> addBatchItemsToCart(String token, String eventId, String zoneId,
                                                List<String> seatIds, Integer quantity) {
         if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized attempt to add batch items to cart");
+            logger.warn("Unauthorized addBatchItemsToCart attempt for event '{}'.", eventId);
             return Result.failure("Unauthorized: invalid token");
         }
         String userId = authGateway.extractUserId(token);
 
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
+            logger.warn("User '{}' cannot purchase tickets — not an active member.", userId);
             return Result.failure("Only active members can purchase tickets.");
         }
 
         Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) return Result.failure("Event not found");
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to add items for non-existent event '{}'.", userId, eventId);
+            return Result.failure("Event not found");
+        }
 
         Event event = eventOpt.get();
-        if (!event.isPublished()) return Result.failure("Event is not published");
+        if (!event.isPublished()) {
+            logger.warn("User '{}' tried to add items for unpublished event '{}'.", userId, eventId);
+            return Result.failure("Event is not published");
+        }
 
         Optional<ProductionCompany> companyOpt = companyRepository.findById(event.getCompanyId());
         if (companyOpt.isEmpty() || companyOpt.get().getStatus() != CompanyStatus.ACTIVE) {
+            logger.warn("User '{}' tried to add items for event '{}' but company '{}' is not active.",
+                    userId, eventId, event.getCompanyId());
             return Result.failure("Company is not active");
         }
 
@@ -153,6 +162,8 @@ public class OrderService {
             seatsToReserve = new ArrayList<>(seatIds);
         } else {
             if (quantity == null || quantity <= 0) {
+                logger.warn("User '{}' supplied invalid quantity '{}' for standing zone '{}' in event '{}'.",
+                        userId, quantity, zoneId, eventId);
                 return Result.failure("Quantity must be positive for standing zones");
             }
             seatsToReserve = new ArrayList<>(Collections.nCopies(quantity, null));
@@ -226,20 +237,30 @@ public class OrderService {
 
         Optional<User> checkoutUserOpt = userRepository.findById(userId);
         if (checkoutUserOpt.isEmpty() || !checkoutUserOpt.get().canPurchase()) {
+            logger.warn("User '{}' cannot checkout — not an active member.", userId);
             return Result.failure("Only active members can purchase tickets.");
         }
 
         // ── Fetch and validate the cart ───────────────────────────────────────────
         Optional<ActiveOrder> orderOpt = orderRepository.findById(activeOrderId);
-        if (orderOpt.isEmpty()) return Result.failure("Cart not found");
+        if (orderOpt.isEmpty()) {
+            logger.warn("User '{}' tried to checkout non-existent cart '{}'.", userId, activeOrderId);
+            return Result.failure("Cart not found");
+        }
         ActiveOrder order = orderOpt.get();
 
         if (!order.getUserId().equals(userId)) {
-            logger.warn("User {} attempted to check out cart belonging to {}", userId, order.getUserId());
+            logger.warn("User '{}' attempted to check out cart '{}' belonging to '{}'.", userId, activeOrderId, order.getUserId());
             return Result.failure("Unauthorized: this cart does not belong to you");
         }
-        if (order.getItems().isEmpty()) return Result.failure("Cart is empty");
-        if (order.isExpired()) return Result.failure("Cart has expired");
+        if (order.getItems().isEmpty()) {
+            logger.warn("User '{}' tried to checkout empty cart '{}'.", userId, activeOrderId);
+            return Result.failure("Cart is empty");
+        }
+        if (order.isExpired()) {
+            logger.warn("User '{}' tried to checkout expired cart '{}'.", userId, activeOrderId);
+            return Result.failure("Cart has expired");
+        }
 
         // ── Group items by event ──────────────────────────────────────────────────
         Map<String, List<OrderItem>> itemsByEvent = order.getItems().stream()
@@ -258,6 +279,7 @@ public class OrderService {
 
             Optional<Event> eventOpt = eventRepository.findById(eventId);
             if (eventOpt.isEmpty()) {
+                logger.warn("Checkout for user '{}': event '{}' not found — rolling back.", userId, eventId);
                 rollbackSoldSeats(processedEvents, order.getItems());
                 return Result.failure("Event not found: " + eventId);
             }
@@ -265,6 +287,7 @@ public class OrderService {
 
             Optional<ProductionCompany> companyOpt = companyRepository.findById(event.getCompanyId());
             if (companyOpt.isEmpty()) {
+                logger.warn("Checkout for user '{}': company not found for event '{}' — rolling back.", userId, eventId);
                 rollbackSoldSeats(processedEvents, order.getItems());
                 return Result.failure("Company not found for event: " + eventId);
             }
@@ -400,13 +423,17 @@ public class OrderService {
         String userId = authGateway.extractUserId(token);
 
         Optional<ActiveOrder> orderOpt = orderRepository.findActiveByUserId(userId);
-        if (orderOpt.isEmpty()) return Result.failure("No active cart found");
+        if (orderOpt.isEmpty()) {
+            logger.warn("viewCart: no active cart found for user '{}'.", userId);
+            return Result.failure("No active cart found");
+        }
 
         ActiveOrder order = orderOpt.get();
         List<OrderItemDTO> itemDTOs = order.getItems().stream()
                 .map(i -> new OrderItemDTO(i.getEventId(), i.getZoneId(), i.getSeatId(), i.getBasePrice()))
                 .collect(Collectors.toList());
 
+        logger.debug("viewCart: user '{}' retrieved cart '{}' ({} item(s)).", userId, order.getId(), itemDTOs.size());
         return Result.success(new OrderDTO(
                 order.getId(),
                 order.getUserId(),
@@ -427,14 +454,23 @@ public class OrderService {
         String userId = authGateway.extractUserId(token);
 
         Optional<ActiveOrder> orderOpt = orderRepository.findActiveByUserId(userId);
-        if (orderOpt.isEmpty()) return Result.failure("No active cart found");
+        if (orderOpt.isEmpty()) {
+            logger.warn("removeItemFromCart: no active cart found for user '{}'.", userId);
+            return Result.failure("No active cart found");
+        }
 
         ActiveOrder order = orderOpt.get();
         boolean removed = order.removeItemByKey(eventId, zoneId, seatId);
-        if (!removed) return Result.failure("Item not found in cart");
+        if (!removed) {
+            logger.warn("removeItemFromCart: item (event='{}' zone='{}' seat='{}') not found in cart '{}' for user '{}'.",
+                    eventId, zoneId, seatId, order.getId(), userId);
+            return Result.failure("Item not found in cart");
+        }
 
         releaseHold(userId, eventId, zoneId, seatId);
         orderRepository.save(order);
+        logger.info("User '{}' removed item (event='{}' zone='{}' seat='{}') from cart '{}'.",
+                userId, eventId, zoneId, seatId, order.getId());
         return Result.success();
     }
 
@@ -449,7 +485,10 @@ public class OrderService {
         String userId = authGateway.extractUserId(token);
 
         Optional<ActiveOrder> orderOpt = orderRepository.findActiveByUserId(userId);
-        if (orderOpt.isEmpty()) return Result.success();
+        if (orderOpt.isEmpty()) {
+            logger.debug("cancelCart: no active cart to cancel for user '{}'.", userId);
+            return Result.success();
+        }
 
         ActiveOrder order = orderOpt.get();
         for (OrderItem item : order.getItems()) {
@@ -480,13 +519,21 @@ public class OrderService {
     }
 
     private void releaseHold(String userId, String eventId, String zoneId, String seatId) {
-        eventRepository.findById(eventId).ifPresent(event -> {
-            try {
-                event.releaseItem(zoneId, seatId, userId);
-                eventRepository.save(event);
-            } catch (Exception e) {
-                logger.warn("Failed to release hold for user {} seat {} zone {}: {}", userId, seatId, zoneId, e.getMessage());
-            }
-        });
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("releaseHold: event '{}' not found — cannot release hold for user '{}' zone='{}' seat='{}'.",
+                    eventId, userId, zoneId, seatId);
+            return;
+        }
+        Event event = eventOpt.get();
+        try {
+            event.releaseItem(zoneId, seatId, userId);
+            eventRepository.save(event);
+            logger.debug("releaseHold: released hold for user '{}' on event '{}' zone='{}' seat='{}'.",
+                    userId, eventId, zoneId, seatId);
+        } catch (Exception e) {
+            logger.warn("releaseHold: failed for user '{}' event='{}' zone='{}' seat='{}': {}",
+                    userId, eventId, zoneId, seatId, e.getMessage());
+        }
     }
 }
