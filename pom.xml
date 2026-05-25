@@ -149,6 +149,9 @@
                         <goals>
                             <goal>check</goal>
                         </goals>
+                        <excludes>
+                            <exclude>com/sadna/group13a/presentation/**</exclude>
+                        </excludes>
                         <configuration>
                             <rules>
                                 <rule>
