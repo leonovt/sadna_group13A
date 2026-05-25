@@ -1,14 +1,61 @@
 package com.sadna.group13a.presentation.views.home;
 
+import com.sadna.group13a.application.DTO.EventDTO;
+import com.sadna.group13a.application.DTO.UserDTO;
+import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.EventService;
+import com.sadna.group13a.application.Services.UserService;
+import com.sadna.group13a.presentation.notification.NotificationBroadcaster;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class HomePresenter {
 
     private final EventService eventService;
+    private final UserService userService;
+    private final IAuth authGateway;
+    private final NotificationBroadcaster broadcaster;
 
-    public HomePresenter(EventService eventService) {
+    public HomePresenter(EventService eventService, UserService userService,
+                         IAuth authGateway, NotificationBroadcaster broadcaster) {
         this.eventService = eventService;
+        this.userService = userService;
+        this.authGateway = authGateway;
+        this.broadcaster = broadcaster;
+    }
+
+    public Result<List<EventDTO>> loadEvents(String query) {
+        return eventService.searchEvents(query, null, null, null, null, null, null);
+    }
+
+    public Result<UserDTO> loadUserProfile(String token) {
+        return userService.getUserProfile(token);
+    }
+
+    public String getUserId(String token) {
+        return authGateway.extractUserId(token);
+    }
+
+    public void registerForNotifications(String userId, UI ui) {
+        broadcaster.register(userId, ui);
+    }
+
+    public void unregisterFromNotifications(String userId) {
+        broadcaster.unregister(userId);
+    }
+
+    public void handleLogout(String token) {
+        Result<String> result = userService.logout(token);
+        if (result.isSuccess()) {
+            VaadinSession.getCurrent().setAttribute("token", result.getOrThrow());
+        } else {
+            VaadinSession.getCurrent().setAttribute("token", null);
+        }
+        UI.getCurrent().navigate("login");
     }
 }
