@@ -17,8 +17,11 @@ import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
+import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
+import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
+import com.sadna.group13a.domain.Events.UserBannedEvent;
 import com.sadna.group13a.domain.Interfaces.IActiveOrderRepository;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
@@ -110,6 +113,49 @@ class SubscriberNotificationTest {
         // Post-condition: targetUser receives the notification; otherUser receives nothing
         verify(notificationService, times(1)).notifyOrderCompleted(targetUser, receiptId, 50.00);
         verify(notificationService, never()).notifyOrderCompleted(eq(otherUser), anyString(), anyDouble());
+    }
+
+    @Test
+    @DisplayName("Given account deactivated by admin — Then ban notification dispatched to affected user")
+    void GivenAccountDeactivated_ThenBanNotificationDispatched() {
+        String userId  = "user-banned";
+        String adminId = "admin-1";
+        // Pre-condition: no ban notifications sent yet
+        verify(notificationService, never()).notifyUserBanned(anyString(), anyString());
+
+        notificationEventListener.onUserBanned(new UserBannedEvent(userId, adminId));
+
+        // Post-condition: banned user receives the deactivation notification citing the admin
+        verify(notificationService, times(1)).notifyUserBanned(userId, adminId);
+    }
+
+    @Test
+    @DisplayName("Given company closed by admin — Then company-closed notification dispatched")
+    void GivenCompanyClosedByAdmin_ThenCompanyClosedNotificationDispatched() {
+        String companyId = "company-1";
+        String adminId   = "admin-1";
+        // Pre-condition: no company-closed notifications sent yet
+        verify(notificationService, never()).notifyCompanyClosed(anyString(), anyString());
+
+        notificationEventListener.onCompanyClosed(new CompanyClosedByAdminEvent(companyId, adminId));
+
+        // Post-condition: the company receives the closure notification citing the admin
+        verify(notificationService, times(1)).notifyCompanyClosed(companyId, adminId);
+    }
+
+    @Test
+    @DisplayName("Given raffle drawn — Then raffle-result notification dispatched with winner count")
+    void GivenRaffleDrawn_ThenRaffleResultNotificationDispatched() {
+        String raffleId = "raffle-1";
+        String eventId  = "event-1";
+        int winnerCount = 5;
+        // Pre-condition: no raffle-drawn notifications sent yet
+        verify(notificationService, never()).notifyRaffleDrawn(anyString(), anyInt());
+
+        notificationEventListener.onRaffleDrawn(new RaffleDrawnEvent(raffleId, eventId, winnerCount));
+
+        // Post-condition: notification dispatched with correct event ID and winner count
+        verify(notificationService, times(1)).notifyRaffleDrawn(eventId, winnerCount);
     }
 
     @Test
