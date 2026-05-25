@@ -13,6 +13,7 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -149,17 +150,24 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
 
     private HorizontalLayout buildStandingContent(ZoneDTO zone, String token) {
         HorizontalLayout row = new HorizontalLayout();
-        row.setAlignItems(Alignment.BASELINE);
+        row.setAlignItems(FlexComponent.Alignment.BASELINE);
 
         IntegerField qty = new IntegerField("Quantity");
-        qty.setMin(1);
-        qty.setMax(zone.getAvailable());
-        qty.setValue(1);
+        Button addBtn = new Button("Add to Cart");
 
-        Button addBtn = new Button("Add to Cart", e -> {
-            int quantity = qty.getValue() != null ? qty.getValue() : 1;
-            presenter.addStandingTickets(token, eventId, zone.getId(), quantity, this);
-        });
+        if (zone.getAvailable() <= 0) {
+            qty.setEnabled(false);
+            addBtn.setEnabled(false);
+            addBtn.setText("Sold Out");
+        } else {
+            qty.setMin(1);
+            qty.setMax(zone.getAvailable());
+            qty.setValue(1);
+            addBtn.addClickListener(e -> {
+                int quantity = qty.getValue() != null ? qty.getValue() : 1;
+                presenter.addStandingTickets(token, eventId, zone.getId(), quantity, this);
+            });
+        }
 
         row.add(qty, addBtn);
         return row;
