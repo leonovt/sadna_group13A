@@ -9,6 +9,9 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.sadna.group13a.presentation.views.auth.LoginView;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
@@ -17,7 +20,7 @@ import java.util.List;
 
 @Route("admin/users")
 @PageTitle("User Management")
-public class AdminUserManagementView extends VerticalLayout {
+public class AdminUserManagementView extends VerticalLayout implements BeforeEnterObserver {
 
     private final AdminUserManagementPresenter presenter;
 
@@ -28,7 +31,16 @@ public class AdminUserManagementView extends VerticalLayout {
     public AdminUserManagementView(AdminUserManagementPresenter presenter) {
         this.presenter = presenter;
         initView();
-        addAttachListener(e -> presenter.loadPurchaseHistory(this));
+    }
+
+    // Issue #1 & #3 fix: gate access and load data before the view is rendered
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        if (!presenter.hasAdminAccess()) {
+            event.forwardTo(LoginView.class);
+            return;
+        }
+        presenter.loadPurchaseHistory(this);
     }
 
     private void initView() {
