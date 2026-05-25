@@ -149,10 +149,10 @@
                         <goals>
                             <goal>check</goal>
                         </goals>
-                        <excludes>
-                            <exclude>com/sadna/group13a/presentation/**</exclude>
-                        </excludes>
                         <configuration>
+                            <excludes>
+                                <exclude>com/sadna/group13a/presentation/**</exclude>
+                            </excludes>
                             <rules>
                                 <rule>
                                     <element>BUNDLE</element>
