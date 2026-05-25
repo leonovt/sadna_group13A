@@ -67,6 +67,12 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
 
         Result<EventDTO> eventResult = presenter.loadEvent(token, eventId);
+        if (!eventResult.isSuccess() && token != null) {
+            // stale/invalid token blocked anonymous access — clear it and retry
+            VaadinSession.getCurrent().setAttribute("token", null);
+            token = null;
+            eventResult = presenter.loadEvent(null, eventId);
+        }
         if (!eventResult.isSuccess()) {
             showError(eventResult.getErrorMessage());
             return;
@@ -80,7 +86,7 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
             if (venueResult.isSuccess()) {
                 renderVenueMap(venueResult.getOrThrow(), token);
             } else {
-                add(new Paragraph("Venue map not available."));
+                add(new Paragraph("Venue map not available: " + venueResult.getErrorMessage()));
             }
         } else {
             add(new Paragraph("Log in to view seating and purchase tickets."));
