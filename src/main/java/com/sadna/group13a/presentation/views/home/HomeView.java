@@ -42,7 +42,8 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
+        if (token == null || !presenter.isTokenValid(token)) {
+            VaadinSession.getCurrent().setAttribute("token", null);
             event.rerouteTo(LoginView.class);
             return;
         }
