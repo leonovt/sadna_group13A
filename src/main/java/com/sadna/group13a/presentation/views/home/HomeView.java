@@ -133,15 +133,18 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         if (token != null && currentUserId != null) {
             presenter.registerForNotifications(currentUserId, attachEvent.getUI());
             attachEvent.getUI().getPage().executeJs(
-                "window.addEventListener('notification', function(e) {" +
-                "  var n = document.createElement('div');" +
-                "  n.style.cssText = 'position:fixed;top:20px;right:20px;background:#323232;" +
+                "if (!window.__notificationHandler) {" +
+                "  window.__notificationHandler = function(e) {" +
+                "    var n = document.createElement('div');" +
+                "    n.style.cssText = 'position:fixed;top:20px;right:20px;background:#323232;" +
                 "color:white;padding:12px 20px;border-radius:4px;z-index:9999;" +
                 "box-shadow:0 2px 8px rgba(0,0,0,0.3);';" +
-                "  n.textContent = e.detail;" +
-                "  document.body.appendChild(n);" +
-                "  setTimeout(function(){ n.remove(); }, 5000);" +
-                "});"
+                "    n.textContent = e.detail;" +
+                "    document.body.appendChild(n);" +
+                "    setTimeout(function(){ n.remove(); }, 5000);" +
+                "  };" +
+                "  window.addEventListener('notification', window.__notificationHandler);" +
+                "}"
             );
         }
     }
@@ -151,5 +154,11 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         if (currentUserId != null) {
             presenter.unregisterFromNotifications(currentUserId);
         }
+        getUI().ifPresent(ui -> ui.getPage().executeJs(
+            "if (window.__notificationHandler) {" +
+            "  window.removeEventListener('notification', window.__notificationHandler);" +
+            "  window.__notificationHandler = null;" +
+            "}"
+        ));
     }
 }
