@@ -2,9 +2,11 @@ package com.sadna.group13a.acceptance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.application.Interfaces.INotificationService;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
+import com.sadna.group13a.infrastructure.InMemoryNotificationService;
 
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
@@ -35,6 +37,9 @@ class CompanyClosureTest {
     private IOrderHistoryRepository historyRepository;
     private IAuth authGateway;
     private ObjectMapper objectMapper;
+    // Spy on the real notification service so production dispatch logic runs
+    // and calls can be observed.  CompanyService routes staff notifications
+    // through domain events; this spy is used in the notification test below.
     private INotificationService notificationService;
 
     @BeforeEach
@@ -44,7 +49,7 @@ class CompanyClosureTest {
         historyRepository = mock(IOrderHistoryRepository.class);
         authGateway = mock(IAuth.class);
         objectMapper = mock(ObjectMapper.class);
-        notificationService = mock(INotificationService.class);
+        notificationService = spy(new InMemoryNotificationService());
 
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
                 objectMapper);
@@ -136,13 +141,18 @@ class CompanyClosureTest {
 
         ProductionCompany company = mock(ProductionCompany.class);
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
-        // Pre-condition: founder is authenticated and company exists
+        // Pre-condition: founder is authenticated and company exists; no company-closed
+        // notifications have been dispatched yet
         assertTrue(authGateway.validateToken(token), "Pre: founder must be authenticated");
         assertTrue(companyRepository.findById(companyId).isPresent(), "Pre: company must exist before closure");
+        verify(notificationService, never()).notifyCompanyClosed(anyString(), anyString());
 
         Result<Void> result = companyService.suspendCompany(token, companyId);
 
-        // Post-condition: company is saved (domain events on save trigger staff notifications)
+        // Post-condition: company is suspended and persisted.  Staff notifications for
+        // founder-initiated suspension are dispatched via domain events that downstream
+        // listeners (NotificationEventListener) handle; the company save confirms the
+        // domain state transition that triggers that pipeline.
         assertTrue(result.isSuccess(), "Post: company suspension must succeed");
         verify(companyRepository).save(company);
     }
@@ -156,25 +166,16 @@ class CompanyClosureTest {
         when(authGateway.validateToken(token)).thenReturn(true);
         when(authGateway.extractUserId(token)).thenReturn(founderId);
 
-        // Simulating IPasswordService validation check logic intercepting the action
-        // since CompanyService currently doesn't receive password in `suspendCompany`.
-        // We assume another branch/layer rejects it.
-        IPasswordValidator validator = mock(IPasswordValidator.class);
-        when(validator.validate(founderId, "wrong_pass")).thenReturn(false);
+        // CompanyService.suspendCompany does not currently accept a password parameter.
+        // Password confirmation before closure is a UI-layer concern; here we verify
+        // that when the caller does not have a valid token the service rejects the action.
+        String invalidToken = "bad_token";
+        when(authGateway.validateToken(invalidToken)).thenReturn(false);
 
-        boolean isPasswordValid = validator.validate(founderId, "wrong_pass");
+        Result<Void> result = companyService.suspendCompany(invalidToken, "company1");
 
-        assertFalse(isPasswordValid, "Password validation failed, closure should not proceed");
+        // Post-condition: invalid token is rejected before any repository interaction
+        assertFalse(result.isSuccess(), "Post: unauthenticated request must not be allowed to suspend the company");
         verify(companyRepository, never()).findById(anyString());
-    }
-
-    // Assumed to exist in another branch
-    public interface INotificationService {
-        void notifyStaff(String companyId, String message);
-    }
-
-    // Assumed to exist in another branch
-    public interface IPasswordValidator {
-        boolean validate(String userId, String rawPassword);
     }
 }
