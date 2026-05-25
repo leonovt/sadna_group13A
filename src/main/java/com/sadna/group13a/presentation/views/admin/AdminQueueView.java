@@ -1,6 +1,6 @@
 package com.sadna.group13a.presentation.views.admin;
 
-import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
+import com.sadna.group13a.application.DTO.TicketQueueDTO;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
@@ -9,6 +9,9 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.sadna.group13a.presentation.views.auth.LoginView;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
@@ -17,19 +20,28 @@ import java.util.List;
 
 @Route("admin/queues")
 @PageTitle("Queue Control")
-public class AdminQueueView extends VerticalLayout {
+public class AdminQueueView extends VerticalLayout implements BeforeEnterObserver {
 
     private final AdminQueuePresenter presenter;
 
     private final Span statusMessage = new Span();
     private final TextField eventIdField  = new TextField("Event ID");
     private final TextField newMaxField   = new TextField("New max users");
-    private final Grid<TicketQueue> queueGrid = new Grid<>(TicketQueue.class, false);
+    private final Grid<TicketQueueDTO> queueGrid = new Grid<>(TicketQueueDTO.class, false);
 
     public AdminQueueView(AdminQueuePresenter presenter) {
         this.presenter = presenter;
         initView();
-        addAttachListener(e -> presenter.loadQueues(this));
+    }
+
+    // Issues #4 & #5 fix: gate access and load data before the view is rendered
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        if (!presenter.hasAdminAccess()) {
+            event.forwardTo(LoginView.class);
+            return;
+        }
+        presenter.loadQueues(this);
     }
 
     private void initView() {
@@ -48,10 +60,11 @@ public class AdminQueueView extends VerticalLayout {
         statusMessage.getStyle().set("font-weight", "bold");
 
         // ── Queue grid ────────────────────────────────────────────
-        queueGrid.addColumn(TicketQueue::getEventId).setHeader("Event ID").setFlexGrow(2);
-        queueGrid.addColumn(TicketQueue::getMaxConcurrentUsers).setHeader("Max Capacity");
-        queueGrid.addColumn(TicketQueue::getActiveCount).setHeader("Active");
-        queueGrid.addColumn(TicketQueue::getWaitingCount).setHeader("Waiting");
+        // Issue #6 fix: bound to TicketQueueDTO, not the domain aggregate
+        queueGrid.addColumn(TicketQueueDTO::eventId).setHeader("Event ID").setFlexGrow(2);
+        queueGrid.addColumn(TicketQueueDTO::maxConcurrentUsers).setHeader("Max Capacity");
+        queueGrid.addColumn(TicketQueueDTO::activeCount).setHeader("Active");
+        queueGrid.addColumn(TicketQueueDTO::waitingCount).setHeader("Waiting");
         queueGrid.setWidthFull();
         queueGrid.setMaxHeight("350px");
 
@@ -94,7 +107,7 @@ public class AdminQueueView extends VerticalLayout {
         statusMessage.setVisible(true);
     }
 
-    public void displayQueues(List<TicketQueue> queues) {
+    public void displayQueues(List<TicketQueueDTO> queues) {
         queueGrid.setItems(queues);
     }
 }
