@@ -24,6 +24,7 @@ import com.vaadin.flow.server.VaadinSession;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 @Route("")
@@ -65,7 +66,7 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         add(buildSearchBar(token));
         add(buildEventGrid());
 
-        loadEvents(token, null);
+        loadEvents(null);
     }
 
     private HorizontalLayout buildHeader(String token, String displayName, UserRole role) {
@@ -96,9 +97,9 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
     private HorizontalLayout buildSearchBar(String token) {
         searchField.setPlaceholder("Search events...");
         searchField.setWidth("300px");
-        Button searchButton = new Button("Search", e -> loadEvents(token, searchField.getValue().isBlank() ? null : searchField.getValue()));
+        Button searchButton = new Button("Search", e -> loadEvents(searchField.getValue().isBlank() ? null : searchField.getValue()));
         searchField.addValueChangeListener(e -> {
-            if (e.getValue().isBlank()) loadEvents(token, null);
+            if (e.getValue().isBlank()) loadEvents(null);
         });
         HorizontalLayout bar = new HorizontalLayout(searchField, searchButton);
         bar.setAlignItems(Alignment.BASELINE);
@@ -108,7 +109,10 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
     private Grid<EventDTO> buildEventGrid() {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         eventGrid.addColumn(EventDTO::title).setHeader("Event").setSortable(true).setAutoWidth(true);
-        eventGrid.addColumn(e -> e.eventDate() != null ? e.eventDate().format(fmt) : "").setHeader("Date").setSortable(true).setAutoWidth(true);
+        eventGrid.addColumn(e -> e.eventDate() != null ? e.eventDate().format(fmt) : "")
+                .setHeader("Date")
+                .setComparator(Comparator.comparing(EventDTO::eventDate, Comparator.nullsLast(Comparator.naturalOrder())))
+                .setAutoWidth(true);
         eventGrid.addColumn(EventDTO::location).setHeader("Location").setAutoWidth(true);
         eventGrid.addColumn(EventDTO::category).setHeader("Category").setAutoWidth(true);
         eventGrid.addColumn(EventDTO::totalAvailableTickets).setHeader("Available").setAutoWidth(true);
@@ -117,7 +121,7 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         return eventGrid;
     }
 
-    private void loadEvents(String token, String query) {
+    private void loadEvents(String query) {
         Result<List<EventDTO>> result = presenter.loadEvents(query);
         List<EventDTO> events = result.isSuccess() ? result.getOrThrow() : Collections.emptyList();
         eventGrid.setItems(events);
