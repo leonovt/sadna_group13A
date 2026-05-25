@@ -1,6 +1,7 @@
 package com.sadna.group13a.presentation.views.admin;
 
 import com.sadna.group13a.application.DTO.SystemAnalyticsDTO;
+import com.sadna.group13a.presentation.views.auth.LoginView;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
@@ -8,6 +9,8 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
@@ -16,12 +19,12 @@ import java.util.List;
 
 @Route("admin")
 @PageTitle("Admin Dashboard")
-public class AdminDashboardView extends VerticalLayout {
+public class AdminDashboardView extends VerticalLayout implements BeforeEnterObserver {
 
     private final AdminDashboardPresenter presenter;
 
-    private final Span totalUsersValue    = new Span("—");
-    private final Span activeQueuesValue  = new Span("—");
+    private final Span totalUsersValue      = new Span("—");
+    private final Span activeQueuesValue    = new Span("—");
     private final Span activeCompaniesValue = new Span("—");
     private final Span publishedEventsValue = new Span("—");
 
@@ -36,7 +39,16 @@ public class AdminDashboardView extends VerticalLayout {
     public AdminDashboardView(AdminDashboardPresenter presenter) {
         this.presenter = presenter;
         initView();
-        addAttachListener(e -> presenter.loadDashboard(this));
+    }
+
+    // Issue #1 & #4 fix: gate access and load data here instead of addAttachListener
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        if (!presenter.hasAdminAccess()) {
+            event.forwardTo(LoginView.class);
+            return;
+        }
+        presenter.loadDashboard(this);
     }
 
     private void initView() {

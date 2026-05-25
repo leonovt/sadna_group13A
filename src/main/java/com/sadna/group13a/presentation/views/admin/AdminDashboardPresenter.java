@@ -18,10 +18,20 @@ public class AdminDashboardPresenter {
         this.adminService = adminService;
     }
 
+    // Issue #2 fix: guard against null VaadinSession
     private String getToken() {
-        return (String) VaadinSession.getCurrent().getAttribute("token");
+        VaadinSession session = VaadinSession.getCurrent();
+        return session == null ? null : (String) session.getAttribute("token");
     }
 
+    // Issue #1 & #4 fix: used by BeforeEnterObserver to gate access before rendering
+    public boolean hasAdminAccess() {
+        String token = getToken();
+        if (token == null) return false;
+        return adminService.getSystemAnalytics(token).isSuccess();
+    }
+
+    // Issue #4 fix: called from BeforeEnterObserver instead of addAttachListener
     public void loadDashboard(AdminDashboardView view) {
         String token = getToken();
         if (token == null) {
@@ -31,7 +41,11 @@ public class AdminDashboardPresenter {
 
         Result<SystemAnalyticsDTO> analyticsResult = adminService.getSystemAnalytics(token);
         if (analyticsResult.isSuccess()) {
-            view.displayAnalytics(analyticsResult.getData().orElseThrow());
+            // Issue #3 fix: orElse(null) with explicit null guard instead of orElseThrow
+            SystemAnalyticsDTO analytics = analyticsResult.getData().orElse(null);
+            if (analytics != null) {
+                view.displayAnalytics(analytics);
+            }
         } else {
             view.showError(analyticsResult.getErrorMessage());
         }
@@ -99,7 +113,10 @@ public class AdminDashboardPresenter {
     }
 
     public void handleLogout() {
-        VaadinSession.getCurrent().setAttribute("token", null);
+        VaadinSession session = VaadinSession.getCurrent();
+        if (session != null) {
+            session.setAttribute("token", null);
+        }
         UI.getCurrent().navigate("login");
     }
 }
