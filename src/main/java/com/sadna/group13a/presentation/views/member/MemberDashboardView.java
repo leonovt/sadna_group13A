@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.member;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;
@@ -43,6 +45,7 @@ public class MemberDashboardView extends VerticalLayout implements BeforeEnterOb
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setAlignItems(Alignment.CENTER);
 
         infoMessage.getStyle().set("color", "var(--lumo-success-color)");

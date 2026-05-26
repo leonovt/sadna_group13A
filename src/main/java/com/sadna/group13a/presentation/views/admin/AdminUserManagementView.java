@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.admin;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
@@ -44,6 +46,7 @@ public class AdminUserManagementView extends VerticalLayout implements BeforeEnt
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setPadding(true);
         setSpacing(true);
 

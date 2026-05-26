@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.company;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.EventDTO;
 import com.sadna.group13a.application.DTO.ZoneCreationDTO;
 import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
@@ -47,6 +49,7 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         removeAll();
         setPadding(true);
         setSpacing(true);
