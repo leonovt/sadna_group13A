@@ -2,10 +2,12 @@ package com.sadna.group13a.application.Services;
 
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
+import com.sadna.group13a.domain.Events.CartExpiredEvent;
 import com.sadna.group13a.domain.Interfaces.IActiveOrderRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -18,10 +20,14 @@ public class CartCleanupService {
 
     private final IActiveOrderRepository orderRepository;
     private final IEventRepository eventRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public CartCleanupService(IActiveOrderRepository orderRepository, IEventRepository eventRepository) {
+    public CartCleanupService(IActiveOrderRepository orderRepository,
+                              IEventRepository eventRepository,
+                              ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.eventRepository = eventRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Scheduled(fixedDelay = 60_000)
@@ -44,6 +50,7 @@ public class CartCleanupService {
                         releaseHold(order.getUserId(), item.getEventId(), item.getZoneId(), item.getSeatId());
                     }
                     orderRepository.deleteById(order.getId());
+                    eventPublisher.publishEvent(new CartExpiredEvent(order.getUserId(), order.getId()));
                     logger.info("Expired cart '{}' for user '{}' deleted ({} item(s)).",
                             order.getId(), order.getUserId(), order.getItems().size());
                     cleaned++;

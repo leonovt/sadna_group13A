@@ -12,9 +12,11 @@ import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
+import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -49,7 +51,10 @@ class EventSearchTest {
         userRepository = mock(IUserRepository.class);
         extendedSearch = mock(IExtendedEventSearch.class);
 
-        eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository);
+        IOrderHistoryRepository historyRepository = mock(IOrderHistoryRepository.class);
+        ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+        eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository,
+                historyRepository, publisher);
     }
 
     @Test

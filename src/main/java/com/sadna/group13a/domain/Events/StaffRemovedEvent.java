@@ -2,8 +2,8 @@ package com.sadna.group13a.domain.Events;
 
 import java.util.List;
 
-public record CompanyClosedByAdminEvent(
+public record StaffRemovedEvent(
+    List<String> removedUserIds,
     String companyId,
-    String adminId,
-    List<String> staffUserIds
+    String removedByUserId
 ) {}

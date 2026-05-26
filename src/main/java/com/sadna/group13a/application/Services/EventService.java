@@ -23,10 +23,14 @@ import com.sadna.group13a.application.DTO.SeatDTO;
 import com.sadna.group13a.application.DTO.VenueMapDTO;
 import com.sadna.group13a.application.DTO.ZoneDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Events.EventRescheduledEvent;
+import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -37,13 +41,19 @@ public class EventService
     private final ICompanyRepository companyRepository;
     private final IAuth authGateway;
     private final IUserRepository userRepository;
+    private final IOrderHistoryRepository historyRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-
-    public EventService(IEventRepository eventRepository, ICompanyRepository companyRepository, IAuth authGateway, IUserRepository userRepository) {
+    public EventService(IEventRepository eventRepository, ICompanyRepository companyRepository,
+                        IAuth authGateway, IUserRepository userRepository,
+                        IOrderHistoryRepository historyRepository,
+                        ApplicationEventPublisher eventPublisher) {
         this.eventRepository = eventRepository;
         this.companyRepository = companyRepository;
         this.authGateway = authGateway;
         this.userRepository = userRepository;
+        this.historyRepository = historyRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -235,8 +245,21 @@ public class EventService
         try {
             if (title != null) event.setTitle(title);
             if (description != null) event.setDescription(description);
-            if (date != null) event.setEventDate(date);
             if (category != null) event.setCategory(category);
+            if (date != null) {
+                LocalDateTime oldDate = event.getEventDate();
+                event.setEventDate(date);
+                if (!date.equals(oldDate)) {
+                    List<String> buyerIds = historyRepository.findAll().stream()
+                            .filter(h -> h.getItems().stream()
+                                    .anyMatch(i -> i.getEventId().equals(eventId)))
+                            .map(OrderHistory::getUserId)
+                            .distinct()
+                            .collect(Collectors.toList());
+                    eventPublisher.publishEvent(
+                            new EventRescheduledEvent(eventId, event.getTitle(), date, buyerIds));
+                }
+            }
             eventRepository.save(event);
             logger.info("User '{}' updated details for event '{}'.", initiatorId, eventId);
             return Result.success();

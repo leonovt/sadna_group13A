@@ -9,8 +9,13 @@ import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.User;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyStaffMember;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Events.AdminMessageEvent;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
+import com.sadna.group13a.domain.Events.EventCancelledEvent;
 import com.sadna.group13a.domain.Events.UserBannedEvent;
+import com.sadna.group13a.domain.Events.UserReactivatedEvent;
 import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
@@ -114,6 +119,7 @@ public class AdminService {
         User target = targetOpt.get();
         target.activate();
         userRepository.save(target);
+        eventPublisher.publishEvent(new UserReactivatedEvent(target.getId(), adminId));
         systemLogService.logEvent("reactivateUser adminId=" + adminId + " target=" + targetUsername);
         logger.info("Admin '{}' reactivated user '{}'.", adminId, targetUsername);
         return Result.success();
@@ -139,8 +145,15 @@ public class AdminService {
         }
 
         Event event = eventOpt.get();
+        String eventTitle = event.getTitle();
+        List<String> buyerIds = historyRepository.findAll().stream()
+                .filter(h -> h.getItems().stream().anyMatch(i -> i.getEventId().equals(eventId)))
+                .map(OrderHistory::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
         event.unpublish();
         eventRepository.save(event);
+        eventPublisher.publishEvent(new EventCancelledEvent(eventId, eventTitle, buyerIds));
         systemLogService.logEvent("cancelEventGlobally adminId=" + adminId + " eventId=" + eventId);
         logger.warn("Admin '{}' cancelled event '{}'.", adminId, eventId);
         return Result.success();
@@ -166,9 +179,12 @@ public class AdminService {
         }
 
         ProductionCompany company = companyOpt.get();
+        List<String> staffIds = company.getStaff().values().stream()
+                .map(CompanyStaffMember::getUserId)
+                .collect(Collectors.toList());
         company.forceClose();
         companyRepository.save(company);
-        eventPublisher.publishEvent(new CompanyClosedByAdminEvent(companyId, adminId));
+        eventPublisher.publishEvent(new CompanyClosedByAdminEvent(companyId, adminId, staffIds));
         systemLogService.logEvent("closeCompanyGlobally adminId=" + adminId + " companyId=" + companyId);
         logger.warn("Admin '{}' force-closed company '{}'.", adminId, companyId);
         return Result.success();
@@ -324,6 +340,31 @@ public class AdminService {
         List<String> log = systemLogService.getErrorLog();
         logger.info("Admin '{}' retrieved error log ({} entries).", adminId, log.size());
         return Result.success(log);
+    }
+
+    // ── Messaging ─────────────────────────────────────────────────
+
+    public Result<Void> sendMessageToUser(String token, String targetUsername, String message) {
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized sendMessageToUser attempt for target '{}'.", targetUsername);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to send a message to '{}'.", adminId, targetUsername);
+            return Result.failure("Only admins can send system messages.");
+        }
+        if (message == null || message.isBlank()) {
+            return Result.failure("Message cannot be empty.");
+        }
+        Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
+        if (targetOpt.isEmpty()) {
+            logger.warn("sendMessageToUser: target user '{}' not found.", targetUsername);
+            return Result.failure("Target user not found.");
+        }
+        eventPublisher.publishEvent(new AdminMessageEvent(targetOpt.get().getId(), adminId, message));
+        logger.info("Admin '{}' sent message to user '{}'.", adminId, targetUsername);
+        return Result.success();
     }
 
     // ── Private helpers ───────────────────────────────────────────

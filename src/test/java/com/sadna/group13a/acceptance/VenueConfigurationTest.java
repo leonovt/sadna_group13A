@@ -16,6 +16,7 @@ import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,7 +43,8 @@ class VenueConfigurationTest {
         eventRepository = new EventRepositoryImpl();
         authGateway = new AuthImpl();
         
-        eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository);
+        eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository,
+                new OrderHistoryRepositoryImpl(), e -> {});
     }
 
     @Test

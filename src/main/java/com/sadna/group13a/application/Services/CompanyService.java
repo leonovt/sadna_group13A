@@ -1,9 +1,10 @@
 package com.sadna.group13a.application.Services;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.List;
 import java.util.stream.Collectors;
 
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
@@ -14,6 +15,7 @@ import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.sadna.group13a.application.Interfaces.IAuth;
@@ -28,6 +30,11 @@ import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.sadna.group13a.application.DTO.CompanyDTO;
 import com.sadna.group13a.application.DTO.StaffMemberDTO;
+import com.sadna.group13a.domain.Events.CompanyReopenedEvent;
+import com.sadna.group13a.domain.Events.CompanySuspendedEvent;
+import com.sadna.group13a.domain.Events.PermissionsUpdatedEvent;
+import com.sadna.group13a.domain.Events.StaffNominatedEvent;
+import com.sadna.group13a.domain.Events.StaffRemovedEvent;
 
 @Service
 public class CompanyService {
@@ -39,15 +46,18 @@ public class CompanyService {
     private final IOrderHistoryRepository historyRepository;
     private final IAuth authGateway;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CompanyService(ICompanyRepository companyRepository, IUserRepository userRepository,
                           IOrderHistoryRepository historyRepository,
-                          IAuth authGateway, ObjectMapper objectMapper) {
+                          IAuth authGateway, ObjectMapper objectMapper,
+                          ApplicationEventPublisher eventPublisher) {
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.historyRepository = historyRepository;
         this.authGateway = authGateway;
         this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     public Result<Boolean> createCompany(String token, String name, String description) {
@@ -71,7 +81,6 @@ public class CompanyService {
         ProductionCompany company = new ProductionCompany(UUID.randomUUID().toString(), name, description, founderId);
         companyRepository.save(company);
 
-        // Update founder's role registry
         if (founderOpt.get() instanceof Member m) {
             m.addCompanyRole(company.getId(), CompanyRole.FOUNDER, null);
             userRepository.save(m);
@@ -104,6 +113,8 @@ public class CompanyService {
         try {
             company.nominateStaff(initiatorId, targetUserId, CompanyRole.MANAGER, permissions);
             companyRepository.save(company);
+            eventPublisher.publishEvent(
+                    new StaffNominatedEvent(targetUserId, companyId, CompanyRole.MANAGER, initiatorId));
             logger.info("User '{}' nominated '{}' as manager of company '{}'. Awaiting confirmation.",
                     initiatorId, targetUserId, companyId);
             return Result.success();
@@ -151,8 +162,10 @@ public class CompanyService {
         }
         try {
             ProductionCompany company = compOpt.get();
+            List<String> staffIds = staffUserIds(company);
             company.suspendCompany(actingUserId);
             companyRepository.save(company);
+            eventPublisher.publishEvent(new CompanySuspendedEvent(companyId, actingUserId, staffIds));
             logger.warn("User '{}' suspended company '{}'.", actingUserId, companyId);
             return Result.success();
         } catch (Exception e) {
@@ -175,8 +188,10 @@ public class CompanyService {
         }
         try {
             ProductionCompany company = compOpt.get();
+            List<String> staffIds = staffUserIds(company);
             company.reopenCompany(actingUserId);
             companyRepository.save(company);
+            eventPublisher.publishEvent(new CompanyReopenedEvent(companyId, actingUserId, staffIds));
             logger.info("User '{}' reopened company '{}'.", actingUserId, companyId);
             return Result.success();
         } catch (Exception e) {
@@ -233,7 +248,6 @@ public class CompanyService {
             ProductionCompany company = compOpt.get();
             Set<String> subtree = company.getStaffSubTree(targetUserId);
             company.fireStaff(actingUserId, targetUserId);
-            // After firing, sub-appointees are re-parented to actingUserId; cascade-remove them too
             for (String uid : subtree) {
                 if (!uid.equals(targetUserId) && company.getStaff().containsKey(uid)) {
                     company.fireStaff(actingUserId, uid);
@@ -241,6 +255,9 @@ public class CompanyService {
             }
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
+
+            List<String> allRemoved = buildRemovedList(targetUserId, subtree);
+            eventPublisher.publishEvent(new StaffRemovedEvent(allRemoved, companyId, actingUserId));
             logger.warn("User '{}' fired manager '{}' from company '{}' (cascade removed {} subtree member(s)).",
                     actingUserId, targetUserId, companyId, subtree.size() - 1);
             return Result.success();
@@ -288,6 +305,9 @@ public class CompanyService {
             company.fireStaff(actingUserId, targetUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
+
+            List<String> allRemoved = buildRemovedList(targetUserId, subtree);
+            eventPublisher.publishEvent(new StaffRemovedEvent(allRemoved, companyId, actingUserId));
             logger.warn("User '{}' removed owner '{}' from company '{}'.", actingUserId, targetUserId, companyId);
             return Result.success();
         } catch (Exception e) {
@@ -314,6 +334,9 @@ public class CompanyService {
             company.resign(actingUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
+
+            List<String> allRemoved = buildRemovedList(actingUserId, subtree);
+            eventPublisher.publishEvent(new StaffRemovedEvent(allRemoved, companyId, actingUserId));
             logger.info("User '{}' resigned from company '{}'.", actingUserId, companyId);
             return Result.success();
         } catch (Exception e) {
@@ -346,6 +369,8 @@ public class CompanyService {
         try {
             company.nominateStaff(initiatorId, targetUserId, CompanyRole.OWNER, null);
             companyRepository.save(company);
+            eventPublisher.publishEvent(
+                    new StaffNominatedEvent(targetUserId, companyId, CompanyRole.OWNER, initiatorId));
             logger.info("User '{}' nominated '{}' as owner of company '{}'. Awaiting confirmation.",
                     initiatorId, targetUserId, companyId);
             return Result.success();
@@ -507,6 +532,7 @@ public class CompanyService {
             ProductionCompany company = compOpt.get();
             company.updatePermissions(actingUserId, targetManagerId, permissions);
             companyRepository.save(company);
+            eventPublisher.publishEvent(new PermissionsUpdatedEvent(targetManagerId, companyId));
             logger.info("User '{}' updated permissions for '{}' in company '{}': {}.",
                     actingUserId, targetManagerId, companyId, permissions);
             return Result.success();
@@ -529,5 +555,17 @@ public class CompanyService {
             });
         }
     }
-}
 
+    private List<String> staffUserIds(ProductionCompany company) {
+        return company.getStaff().values().stream()
+                .map(CompanyStaffMember::getUserId)
+                .collect(Collectors.toList());
+    }
+
+    private List<String> buildRemovedList(String primaryId, Set<String> subtree) {
+        List<String> all = new ArrayList<>();
+        all.add(primaryId);
+        subtree.stream().filter(uid -> !uid.equals(primaryId)).forEach(all::add);
+        return all;
+    }
+}
