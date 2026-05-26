@@ -302,12 +302,7 @@ class TicketReservationTest {
         setupData("e1", "c1", "z1", "s1", EventSaleMode.RAFFLE);
 
         ProductionCompany comp = companyRepository.findById("c1").get();
-        comp.addPurchasePolicy(new PurchasePolicy() {
-            @Override
-            public boolean isSatisfied() {
-                return false; // Force fail to simulate max 4 limit exceeded
-            }
-        });
+        comp.setPurchasePolicy(ctx -> false);
         companyRepository.save(comp);
 
         // Intentionally passing simulated test context
