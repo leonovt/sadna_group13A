@@ -99,11 +99,11 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
             header.add(new RouterLink("My Orders", OrderHistoryView.class));
             header.add(new RouterLink("My Profile", ProfileView.class));
             header.add(new RouterLink("My Raffles", RaffleView.class));
-            header.add(new RouterLink("Cart", CartView.class));
         }
         if (role == UserRole.ADMIN) {
             header.add(new RouterLink("Admin", AdminDashboardView.class));
         }
+        header.add(new RouterLink("Cart", CartView.class));
 
         header.add(new Button("Logout", e -> presenter.handleLogout(token)));
         return header;
