@@ -41,8 +41,8 @@ public class SalesReportView extends VerticalLayout implements BeforeEnterObserv
     }
 
     private void initView() {
-        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         removeAll();
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setPadding(true);
         setSpacing(true);
 
