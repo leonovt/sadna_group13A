@@ -9,6 +9,8 @@ import java.util.stream.Collectors;
 
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.DTO.SalesReportDTO;
+import com.sadna.group13a.domain.shared.DiscountPolicy;
+import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyStaffMember;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
@@ -539,6 +541,70 @@ public class CompanyService {
         } catch (Exception e) {
             logger.warn("updatePermissions failed for actor '{}' targeting '{}' in company '{}': {}",
                     actingUserId, targetManagerId, companyId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
+    // ── Policy Management (11.6-related) ─────────────────────────
+
+    /**
+     * Replaces the purchase policy root for a company.
+     * Caller must be a Founder or Owner of the company.
+     */
+    public Result<Void> setPurchasePolicy(String token, String companyId, PurchasePolicy policy) {
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized setPurchasePolicy attempt for company '{}'.", companyId);
+            return Result.failure("User not authenticated.");
+        }
+        String actingUserId = authGateway.extractUserId(token);
+        Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
+        if (compOpt.isEmpty()) {
+            logger.warn("setPurchasePolicy failed: company '{}' not found.", companyId);
+            return Result.failure("Company not found.");
+        }
+        ProductionCompany company = compOpt.get();
+        if (!company.isOwner(actingUserId)) {
+            logger.warn("setPurchasePolicy denied: user '{}' is not an owner of company '{}'.", actingUserId, companyId);
+            return Result.failure("Only founders and owners can change the purchase policy.");
+        }
+        try {
+            company.setPurchasePolicy(policy);
+            companyRepository.save(company);
+            logger.info("User '{}' updated purchase policy for company '{}'.", actingUserId, companyId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("setPurchasePolicy failed for company '{}': {}", companyId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * Replaces the discount policy root for a company.
+     * Caller must be a Founder or Owner of the company.
+     */
+    public Result<Void> setDiscountPolicy(String token, String companyId, DiscountPolicy policy) {
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized setDiscountPolicy attempt for company '{}'.", companyId);
+            return Result.failure("User not authenticated.");
+        }
+        String actingUserId = authGateway.extractUserId(token);
+        Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
+        if (compOpt.isEmpty()) {
+            logger.warn("setDiscountPolicy failed: company '{}' not found.", companyId);
+            return Result.failure("Company not found.");
+        }
+        ProductionCompany company = compOpt.get();
+        if (!company.isOwner(actingUserId)) {
+            logger.warn("setDiscountPolicy denied: user '{}' is not an owner of company '{}'.", actingUserId, companyId);
+            return Result.failure("Only founders and owners can change the discount policy.");
+        }
+        try {
+            company.setDiscountPolicy(policy);
+            companyRepository.save(company);
+            logger.info("User '{}' updated discount policy for company '{}'.", actingUserId, companyId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("setDiscountPolicy failed for company '{}': {}", companyId, e.getMessage());
             return Result.failure(e.getMessage());
         }
     }
