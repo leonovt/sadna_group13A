@@ -44,7 +44,15 @@ public class ProfilePresenter {
             return;
         }
 
-        Result<UserDTO> result = userService.updateProfile(token, newUsername.trim());
+        String trimmed = newUsername.trim();
+        // Saving the unchanged username would have the service reject it as "already
+        // taken" (the name belongs to this very user), so skip the call entirely.
+        if (trimmed.equals(view.getLoadedUsername())) {
+            view.showInfo("No changes to save.");
+            return;
+        }
+
+        Result<UserDTO> result = userService.updateProfile(token, trimmed);
         if (result.isSuccess()) {
             view.showProfile(result.getOrThrow());
             view.showInfo("Profile updated.");

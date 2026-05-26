@@ -5,11 +5,9 @@ import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.router.BeforeEnterEvent;
-import com.vaadin.flow.router.BeforeEnterObserver;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
@@ -25,7 +23,7 @@ public class OrderHistoryView extends VerticalLayout implements BeforeEnterObser
 
     private final OrderHistoryPresenter presenter;
 
-    private final VerticalLayout ordersContainer = new VerticalLayout();
+    private final Grid<OrderHistoryDTO> ordersGrid = new Grid<>();
     private final Span emptyMessage = new Span("You have no past orders.");
     private final Span errorMessage = new Span();
 
@@ -51,56 +49,65 @@ public class OrderHistoryView extends VerticalLayout implements BeforeEnterObser
         errorMessage.getStyle().set("color", "var(--lumo-error-color)");
         errorMessage.setVisible(false);
         emptyMessage.setVisible(false);
-        ordersContainer.setPadding(false);
 
-        add(new H2("Order History"), emptyMessage, errorMessage, ordersContainer);
+        // A single virtualized Grid (only visible rows are in the DOM) lists every
+        // receipt; clicking a row expands a lightweight detail panel with its line
+        // items, so large histories no longer create one Grid component per order.
+        ordersGrid.addColumn(OrderHistoryDTO::receiptId).setHeader("Receipt").setAutoWidth(true);
+        ordersGrid.addColumn(o -> o.purchaseDate() == null ? "—" : o.purchaseDate().format(DATE_FORMAT))
+                .setHeader("Purchased").setAutoWidth(true);
+        ordersGrid.addColumn(o -> o.items() == null ? 0 : o.items().size())
+                .setHeader("Items").setAutoWidth(true);
+        ordersGrid.addColumn(o -> String.format("$%.2f", o.totalPaid()))
+                .setHeader("Total paid").setAutoWidth(true);
+        ordersGrid.setItemDetailsRenderer(new ComponentRenderer<>(this::buildOrderDetails));
+        ordersGrid.setSizeFull();
+        ordersGrid.setVisible(false);
+
+        add(new H2("Order History"), emptyMessage, errorMessage, ordersGrid);
     }
 
     public void showOrders(List<OrderHistoryDTO> orders) {
         errorMessage.setVisible(false);
-        ordersContainer.removeAll();
 
         if (orders.isEmpty()) {
+            ordersGrid.setVisible(false);
             emptyMessage.setVisible(true);
             return;
         }
 
         emptyMessage.setVisible(false);
-        for (OrderHistoryDTO order : orders) {
-            ordersContainer.add(buildOrderCard(order));
-        }
+        ordersGrid.setItems(orders);
+        ordersGrid.setVisible(true);
     }
 
-    private Component buildOrderCard(OrderHistoryDTO order) {
-        VerticalLayout card = new VerticalLayout();
-        card.setPadding(true);
-        card.setSpacing(false);
-        card.getStyle()
-            .set("border", "1px solid var(--lumo-contrast-20pct)")
-            .set("border-radius", "var(--lumo-border-radius-m)")
-            .set("margin-bottom", "var(--lumo-space-m)");
+    /**
+     * Renders one expanded receipt's line items as a compact list of labels.
+     * Built lazily by the Grid only for rows the user actually expands, so it
+     * adds no weight for collapsed orders.
+     */
+    private Component buildOrderDetails(OrderHistoryDTO order) {
+        VerticalLayout details = new VerticalLayout();
+        details.setPadding(true);
+        details.setSpacing(false);
 
-        H4 header = new H4("Receipt " + order.receiptId());
-        Span meta = new Span(String.format("Purchased %s • Total paid: $%.2f",
-            order.purchaseDate() == null ? "—" : order.purchaseDate().format(DATE_FORMAT),
-            order.totalPaid()));
+        List<OrderHistoryItemDTO> items = order.items() == null ? List.of() : order.items();
+        if (items.isEmpty()) {
+            details.add(new Span("No line items for this receipt."));
+            return details;
+        }
 
-        Grid<OrderHistoryItemDTO> itemsGrid = new Grid<>();
-        itemsGrid.addColumn(OrderHistoryItemDTO::eventTitle).setHeader("Event");
-        itemsGrid.addColumn(i -> i.eventDate() == null ? "" : i.eventDate().format(DATE_FORMAT)).setHeader("Event date");
-        itemsGrid.addColumn(OrderHistoryItemDTO::companyName).setHeader("Company");
-        itemsGrid.addColumn(OrderHistoryItemDTO::zoneName).setHeader("Zone");
-        itemsGrid.addColumn(OrderHistoryItemDTO::seatLabel).setHeader("Seat");
-        itemsGrid.addColumn(i -> String.format("$%.2f", i.pricePaid())).setHeader("Price");
-        itemsGrid.setItems(order.items() == null ? List.of() : order.items());
-        itemsGrid.setAllRowsVisible(true);
-
-        card.add(header, meta, itemsGrid);
-        return card;
+        for (OrderHistoryItemDTO item : items) {
+            String eventDate = item.eventDate() == null ? "" : " (" + item.eventDate().format(DATE_FORMAT) + ")";
+            details.add(new Span(String.format("%s%s — %s · zone %s · seat %s — $%.2f",
+                    item.eventTitle(), eventDate, item.companyName(),
+                    item.zoneName(), item.seatLabel(), item.pricePaid())));
+        }
+        return details;
     }
 
     public void showError(String message) {
-        ordersContainer.removeAll();
+        ordersGrid.setVisible(false);
         emptyMessage.setVisible(false);
         errorMessage.setText(message);
         errorMessage.setVisible(true);
