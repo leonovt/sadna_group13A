@@ -2,6 +2,7 @@ package com.sadna.group13a.application.Services;
 
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
+import com.sadna.group13a.application.DTO.SuspensionDTO;
 import com.sadna.group13a.application.DTO.SystemAnalyticsDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
@@ -27,6 +28,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -123,6 +126,109 @@ public class AdminService {
         systemLogService.logEvent("reactivateUser adminId=" + adminId + " target=" + targetUsername);
         logger.info("Admin '{}' reactivated user '{}'.", adminId, targetUsername);
         return Result.success();
+    }
+
+    // ── Suspension (11.6.7 / 11.6.8 / 11.6.9) ────────────────────
+
+    /**
+     * 11.6.7 — Suspend a user for a fixed number of days, or permanently when durationDays is null.
+     * Suspended users keep read-only access (canPurchase returns false, browsing is unaffected).
+     */
+    public Result<Void> suspendUser(String token, String targetUsername, Long durationDays) {
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized suspendUser attempt for target '{}'.", targetUsername);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to suspend user '{}'.", adminId, targetUsername);
+            return Result.failure("Only admins can suspend users.");
+        }
+
+        Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
+        if (targetOpt.isEmpty()) {
+            logger.warn("Admin '{}' tried to suspend non-existent user '{}'.", adminId, targetUsername);
+            return Result.failure("Target user not found.");
+        }
+
+        User target = targetOpt.get();
+        if (adminRepository.findByUserId(target.getId()).isPresent()) {
+            logger.warn("Admin '{}' attempted to suspend another admin '{}'.", adminId, targetUsername);
+            return Result.failure("Cannot suspend another admin.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime until = (durationDays != null) ? now.plusDays(durationDays) : null;
+        target.suspend(now, until);
+        userRepository.save(target);
+        eventPublisher.publishEvent(new UserBannedEvent(target.getId(), adminId));
+
+        String durationDesc = (durationDays != null) ? durationDays + " day(s)" : "permanently";
+        systemLogService.logEvent("suspendUser adminId=" + adminId + " target=" + targetUsername + " duration=" + durationDesc);
+        logger.warn("Admin '{}' suspended user '{}' ({}).", adminId, targetUsername, durationDesc);
+        return Result.success();
+    }
+
+    /**
+     * 11.6.8 — Lift an active suspension (works for both temporary and permanent).
+     */
+    public Result<Void> liftSuspension(String token, String targetUsername) {
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized liftSuspension attempt for target '{}'.", targetUsername);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to lift suspension for user '{}'.", adminId, targetUsername);
+            return Result.failure("Only admins can lift suspensions.");
+        }
+
+        Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
+        if (targetOpt.isEmpty()) {
+            logger.warn("Admin '{}' tried to lift suspension for non-existent user '{}'.", adminId, targetUsername);
+            return Result.failure("Target user not found.");
+        }
+
+        User target = targetOpt.get();
+        if (!target.isSuspended()) {
+            return Result.failure("User '" + targetUsername + "' is not currently suspended.");
+        }
+
+        target.activate();
+        userRepository.save(target);
+        eventPublisher.publishEvent(new UserReactivatedEvent(target.getId(), adminId));
+        systemLogService.logEvent("liftSuspension adminId=" + adminId + " target=" + targetUsername);
+        logger.info("Admin '{}' lifted suspension for user '{}'.", adminId, targetUsername);
+        return Result.success();
+    }
+
+    /**
+     * 11.6.9 — Return suspension records for all currently suspended users,
+     * including start date, duration, and end date.
+     */
+    public Result<List<SuspensionDTO>> viewSuspensions(String token) {
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized viewSuspensions attempt.");
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String adminId = authGateway.extractUserId(token);
+        if (!isAdmin(token)) {
+            logger.warn("Non-admin user '{}' attempted to view suspensions.", adminId);
+            return Result.failure("Only admins can view suspensions.");
+        }
+
+        List<SuspensionDTO> suspensions = userRepository.findAll().stream()
+                .filter(User::isSuspended)
+                .map(u -> {
+                    LocalDateTime start = u.getSuspendedAt();
+                    LocalDateTime end = u.getSuspendedUntil();
+                    Duration duration = (end != null) ? Duration.between(start, end) : null;
+                    return new SuspensionDTO(u.getUsername(), start, duration, end);
+                })
+                .collect(Collectors.toList());
+
+        logger.info("Admin '{}' retrieved suspension list ({} suspended users).", adminId, suspensions.size());
+        return Result.success(suspensions);
     }
 
     // ── Event Management ──────────────────────────────────────────
