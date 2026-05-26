@@ -138,12 +138,12 @@ class SubscriberNotificationTest {
         String companyId = "company-1";
         String adminId   = "admin-1";
         // Pre-condition: no company-closed notifications sent yet
-        verify(notificationService, never()).notifyCompanyClosed(anyString(), anyString());
+        verify(notificationService, never()).notifyCompanyClosed(anyList(), anyString(), anyString());
 
-        notificationEventListener.onCompanyClosed(new CompanyClosedByAdminEvent(companyId, adminId));
+        notificationEventListener.onCompanyClosed(new CompanyClosedByAdminEvent(companyId, adminId, List.of()));
 
         // Post-condition: the company receives the closure notification citing the admin
-        verify(notificationService, times(1)).notifyCompanyClosed(companyId, adminId);
+        verify(notificationService, times(1)).notifyCompanyClosed(anyList(), eq(companyId), eq(adminId));
     }
 
     @Test

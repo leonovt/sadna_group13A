@@ -7,6 +7,7 @@ import com.sadna.group13a.domain.Interfaces.IActiveOrderRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,7 +29,7 @@ class CartCleanupServiceTest {
     void setUp() {
         orderRepository = mock(IActiveOrderRepository.class);
         eventRepository = mock(IEventRepository.class);
-        service = new CartCleanupService(orderRepository, eventRepository);
+        service = new CartCleanupService(orderRepository, eventRepository, mock(ApplicationEventPublisher.class));
     }
 
     @Test
