@@ -18,6 +18,7 @@ import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
+import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
@@ -335,7 +336,8 @@ public class OrderService {
             // Build checkout contexts — userAge defaults to 0 until user age storage is added.
             // optionalAuthCode doubles as coupon code for non-raffle events.
             int ticketCount = eventItems.size();
-            PurchaseContext purchaseCtx = new PurchaseContext(userId, ticketCount, 0, optionalAuthCode);
+            int userAge = (checkoutUserOpt.get() instanceof Member m) ? m.getAge() : 0;
+            PurchaseContext purchaseCtx = new PurchaseContext(userId, ticketCount, userAge, optionalAuthCode);
             DiscountContext  discountCtx = new DiscountContext(userId, ticketCount, optionalAuthCode);
 
             // Seat-level synchronization (on Seat and StandingZone methods) ensures
@@ -383,6 +385,7 @@ public class OrderService {
             logger.error("Failed to persist seat map after payment: {}", e.getMessage());
             paymentGateway.refundPayment(transactionId);
             rollbackSoldSeats(processedEvents, order.getItems());
+            orderRepository.deleteById(activeOrderId);
             eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Concurrent modification detected — payment refunded. Please retry."));
             return Result.failure("Concurrent modification detected — payment refunded. Please retry.");
         }
@@ -409,6 +412,7 @@ public class OrderService {
             logger.error("Ticket issuance failed for receipt {}: {}", history.getReceiptId(), ticketResult.getErrorMessage());
             paymentGateway.refundPayment(transactionId);
             rollbackSoldSeats(processedEvents, order.getItems());
+            orderRepository.deleteById(activeOrderId);
             eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Ticket issuance failed — payment refunded."));
             return Result.failure("Ticket issuance failed — payment refunded.");
         }
@@ -546,6 +550,13 @@ public class OrderService {
                 event.unsellItem(item.getZoneId(), item.getSeatId());
             } catch (Exception e) {
                 logger.warn("Rollback failed for seat {} zone {}: {}", item.getSeatId(), item.getZoneId(), e.getMessage());
+            }
+        }
+        for (Event event : processedEvents.values()) {
+            try {
+                eventRepository.save(event);
+            } catch (Exception e) {
+                logger.warn("Rollback save failed for event {}: {}", event.getId(), e.getMessage());
             }
         }
     }
