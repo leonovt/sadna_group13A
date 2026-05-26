@@ -1,14 +1,41 @@
 package com.sadna.group13a.presentation.views.member;
 
-import com.sadna.group13a.application.Services.OrderService;
+import com.sadna.group13a.application.DTO.OrderHistoryDTO;
+import com.sadna.group13a.application.Result;
+import com.sadna.group13a.application.Services.UserService;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class OrderHistoryPresenter {
 
-    private final OrderService orderService;
+    private final UserService userService;
 
-    public OrderHistoryPresenter(OrderService orderService) {
-        this.orderService = orderService;
+    public OrderHistoryPresenter(UserService userService) {
+        this.userService = userService;
+    }
+
+    /** Loads the signed-in member's completed purchases (UC 2.11). */
+    public void loadOrders(OrderHistoryView view) {
+        String token = currentToken();
+        if (token == null) {
+            UI.getCurrent().navigate("login");
+            return;
+        }
+
+        Result<List<OrderHistoryDTO>> result = userService.viewOrderHistory(token);
+        if (result.isSuccess()) {
+            view.showOrders(result.getOrThrow());
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
+    private String currentToken() {
+        Object token = VaadinSession.getCurrent().getAttribute("token");
+        return token == null ? null : (String) token;
     }
 }

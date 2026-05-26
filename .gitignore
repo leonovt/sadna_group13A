@@ -54,3 +54,15 @@ Desktop.ini
 # Claude Code
 .claude/
 target/
+
+# Vaadin generated files
+node_modules/
+frontend/generated/
+src/main/frontend/generated/
+.vaadin/
+vite.generated.ts
+tsconfig.json
+types.d.ts
+package.json
+package-lock.json
+pnpm-lock.yaml

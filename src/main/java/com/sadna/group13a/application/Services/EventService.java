@@ -322,6 +322,32 @@ public class EventService
                 zone.getMaxCapacity(), zone.getAvailableSeatCount(), null);
     }
 
+    public Result<List<EventDTO>> getCompanyEvents(String tokenString, String companyId) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized getCompanyEvents attempt for company '{}'.", companyId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String callerId = authGateway.extractUserId(tokenString);
+        Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
+        if (compOpt.isEmpty()) {
+            logger.warn("getCompanyEvents: company '{}' not found (caller='{}').", companyId, callerId);
+            return Result.failure("Company not found");
+        }
+        if (!compOpt.get().hasPermission(callerId, CompanyPermission.MANAGE_EVENTS)
+                && !compOpt.get().isOwner(callerId)) {
+            logger.warn("getCompanyEvents: user '{}' lacks permission on company '{}'.", callerId, companyId);
+            return Result.failure("User lacks permission to view company events");
+        }
+        List<EventDTO> dtos = eventRepository.findByCompanyId(companyId).stream()
+                .map(e -> new EventDTO(
+                        e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
+                        e.getEventDate(), e.getCategory(), e.getLocation(),
+                        e.isPublished(), e.isPublished() ? e.getTotalAvailable() : 0))
+                .collect(Collectors.toList());
+        logger.debug("getCompanyEvents: {} event(s) retrieved for company '{}' by '{}'.", dtos.size(), companyId, callerId);
+        return Result.success(dtos);
+    }
+
     public Result<List<EventDTO>> searchEvents(String query, String category,
                                                LocalDateTime fromDate, LocalDateTime toDate,
                                                Double minPrice, Double maxPrice,
