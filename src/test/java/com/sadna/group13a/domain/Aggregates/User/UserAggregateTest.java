@@ -1,5 +1,6 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
+import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -91,5 +92,96 @@ class UserAggregateTest {
         member.setUsername("new_name");
 
         assertEquals("new_name", member.getUsername());
+    }
+
+    // ── Member: password ──────────────────────────────────────────
+
+    @Test
+    void givenMember_whenGetHashedPassword_thenReturnsConstructorHash() {
+        Member member = new Member(UUID.randomUUID().toString(), "alice", "my_hash");
+
+        assertEquals("my_hash", member.getHashedPassword());
+    }
+
+    @Test
+    void givenMember_whenSetPasswordHash_thenHashUpdatesAndVersionIncrements() {
+        Member member = new Member(UUID.randomUUID().toString(), "alice", "old_hash");
+        int vBefore = member.getVersion();
+
+        member.setPasswordHash("new_hash");
+
+        assertEquals("new_hash", member.getHashedPassword());
+        assertTrue(member.getVersion() > vBefore);
+    }
+
+    // ── Member: company roles ─────────────────────────────────────
+
+    @Test
+    void givenMember_whenAddCompanyRole_thenRoleAndAppointedByAreStored() {
+        Member member = new Member(UUID.randomUUID().toString(), "alice", "pw");
+
+        member.addCompanyRole("co-1", CompanyRole.MANAGER, "founder-1");
+
+        assertEquals(CompanyRole.MANAGER, member.getRoleInCompany("co-1"));
+        assertEquals("founder-1", member.getAppointedByInCompany("co-1"));
+        assertTrue(member.getCompanyRoles().containsKey("co-1"));
+    }
+
+    @Test
+    void givenMemberWithRole_whenRemoveCompanyRole_thenRoleIsGone() {
+        Member member = new Member(UUID.randomUUID().toString(), "alice", "pw");
+        member.addCompanyRole("co-1", CompanyRole.OWNER, null);
+
+        member.removeCompanyRole("co-1");
+
+        assertNull(member.getRoleInCompany("co-1"));
+        assertFalse(member.getCompanyRoles().containsKey("co-1"));
+    }
+
+    // ── Invariants: type state is independent of active/inactive ──
+
+    @Test
+    void givenActiveMember_whenDeactivated_thenRoleIsStillMemberAndPasswordStillAccessible() {
+        Member member = new Member(UUID.randomUUID().toString(), "alice", "pw");
+
+        member.deactivate();
+
+        assertEquals(UserRole.MEMBER, member.getRole());
+        assertEquals("pw", member.getHashedPassword());
+        assertFalse(member.isActive());
+        assertFalse(member.canPurchase());
+    }
+
+    @Test
+    void givenGuest_whenDeactivated_thenRoleIsStillGuestAndCannotPurchase() {
+        Guest guest = new Guest(UUID.randomUUID().toString(), "guest-1");
+
+        guest.deactivate();
+
+        assertEquals(UserRole.GUEST, guest.getRole());
+        assertNull(guest.getHashedPassword());
+        assertFalse(guest.canPurchase());
+        assertFalse(guest.canManageSystem());
+    }
+
+    // ── Invariants: version tracks every mutation ─────────────────
+
+    @Test
+    void givenMember_whenMutatedMultipleTimes_thenVersionIncrementsEachTime() {
+        Member member = new Member(UUID.randomUUID().toString(), "alice", "pw");
+        int v0 = member.getVersion();
+
+        member.setUsername("bob");
+        int v1 = member.getVersion();
+
+        member.deactivate();
+        int v2 = member.getVersion();
+
+        member.setActiveOrderId("order-1");
+        int v3 = member.getVersion();
+
+        assertTrue(v1 > v0);
+        assertTrue(v2 > v1);
+        assertTrue(v3 > v2);
     }
 }
