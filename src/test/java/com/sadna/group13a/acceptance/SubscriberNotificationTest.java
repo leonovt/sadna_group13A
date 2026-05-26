@@ -36,6 +36,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
+import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -201,12 +204,18 @@ class SubscriberNotificationTest {
         when(event.getId()).thenReturn(eventId);
         when(event.getCompanyId()).thenReturn(companyId);
         when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+        when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+        when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-        when(companyRepository.findById(companyId)).thenReturn(Optional.of(mock(ProductionCompany.class)));
+
+        ProductionCompany notifCompany = mock(ProductionCompany.class);
+        when(notifCompany.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+        when(notifCompany.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
+        when(companyRepository.findById(companyId)).thenReturn(Optional.of(notifCompany));
 
         OrderHistoryItem item = new OrderHistoryItem(
                 eventId, "Title", LocalDateTime.now(), companyId, "Co", "Zone1", "Seat1", 100.0);
-        when(checkoutService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+        when(checkoutService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of(item));
         when(paymentGateway.processPayment(100.0, "cc_good")).thenReturn(Result.success("txn_1"));
         when(ticketSupplier.issueTickets(any(), anyInt())).thenReturn(Result.success(List.of("ticket-1")));

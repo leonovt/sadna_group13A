@@ -5,6 +5,7 @@ import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.INotificationService;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.infrastructure.InMemoryNotificationService;
 
@@ -51,8 +52,9 @@ class CompanyClosureTest {
         objectMapper = mock(ObjectMapper.class);
         notificationService = spy(new InMemoryNotificationService());
 
+        ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
-                objectMapper);
+                objectMapper, publisher);
     }
 
     @Test
@@ -147,7 +149,7 @@ class CompanyClosureTest {
         // notifications have been dispatched yet
         assertTrue(authGateway.validateToken(token), "Pre: founder must be authenticated");
         assertTrue(companyRepository.findById(companyId).isPresent(), "Pre: company must exist before closure");
-        verify(notificationService, never()).notifyCompanyClosed(anyString(), anyString());
+        verify(notificationService, never()).notifyCompanyClosed(anyList(), anyString(), anyString());
 
         Result<Void> result = companyService.suspendCompany(token, companyId);
 

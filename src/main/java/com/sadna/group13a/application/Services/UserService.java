@@ -43,12 +43,12 @@ public class UserService
     }
 
     /**
-     * Creates a Guest session: persists a Guest aggregate so the rest of the system
-     * can look it up by id, then returns a signed token for that guest.
+     * Creates a Guest session: generates a token only — no record is saved to the repository.
+     * Any service that calls userRepository.findById() with this token's userId will get
+     * empty, which is how the system recognises guest-level permissions.
      */
     public Result<String> enterAsGuest() {
         String guestId = "guest-" + UUID.randomUUID();
-        userRepository.save(new Guest(guestId, guestId));
         String token = authGateway.generateToken(guestId);
         logger.info("Guest session started: {}.", guestId);
         return Result.success(token);

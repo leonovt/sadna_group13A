@@ -23,10 +23,16 @@ import com.sadna.group13a.application.DTO.SeatDTO;
 import com.sadna.group13a.application.DTO.VenueMapDTO;
 import com.sadna.group13a.application.DTO.ZoneDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Events.EventRescheduledEvent;
+import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.domain.shared.DiscountPolicy;
+import com.sadna.group13a.domain.shared.PurchasePolicy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -37,13 +43,19 @@ public class EventService
     private final ICompanyRepository companyRepository;
     private final IAuth authGateway;
     private final IUserRepository userRepository;
+    private final IOrderHistoryRepository historyRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-
-    public EventService(IEventRepository eventRepository, ICompanyRepository companyRepository, IAuth authGateway, IUserRepository userRepository) {
+    public EventService(IEventRepository eventRepository, ICompanyRepository companyRepository,
+                        IAuth authGateway, IUserRepository userRepository,
+                        IOrderHistoryRepository historyRepository,
+                        ApplicationEventPublisher eventPublisher) {
         this.eventRepository = eventRepository;
         this.companyRepository = companyRepository;
         this.authGateway = authGateway;
         this.userRepository = userRepository;
+        this.historyRepository = historyRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -235,8 +247,21 @@ public class EventService
         try {
             if (title != null) event.setTitle(title);
             if (description != null) event.setDescription(description);
-            if (date != null) event.setEventDate(date);
             if (category != null) event.setCategory(category);
+            if (date != null) {
+                LocalDateTime oldDate = event.getEventDate();
+                event.setEventDate(date);
+                if (!date.equals(oldDate)) {
+                    List<String> buyerIds = historyRepository.findAll().stream()
+                            .filter(h -> h.getItems().stream()
+                                    .anyMatch(i -> i.getEventId().equals(eventId)))
+                            .map(OrderHistory::getUserId)
+                            .distinct()
+                            .collect(Collectors.toList());
+                    eventPublisher.publishEvent(
+                            new EventRescheduledEvent(eventId, event.getTitle(), date, buyerIds));
+                }
+            }
             eventRepository.save(event);
             logger.info("User '{}' updated details for event '{}'.", initiatorId, eventId);
             return Result.success();
@@ -307,6 +332,72 @@ public class EventService
         return Result.success(new VenueMapDTO(map.getId(), map.getVenueName(), zoneDTOs));
     }
 
+    public Result<Void> setPurchasePolicy(String tokenString, String eventId, PurchasePolicy policy) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized setPurchasePolicy attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String initiatorId = authGateway.extractUserId(tokenString);
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set purchase policy on non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
+        Event event = eventOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
+        if (compOpt.isEmpty()) {
+            return Result.failure("Company not found");
+        }
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_POLICIES)) {
+            logger.warn("User '{}' lacks MANAGE_POLICIES permission — setPurchasePolicy for event '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage policies");
+        }
+
+        try {
+            event.setPurchasePolicy(policy);
+            eventRepository.save(event);
+            logger.info("User '{}' updated purchase policy for event '{}'.", initiatorId, eventId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("User '{}' failed to set purchase policy for event '{}': {}", initiatorId, eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
+    public Result<Void> setDiscountPolicy(String tokenString, String eventId, DiscountPolicy policy) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized setDiscountPolicy attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String initiatorId = authGateway.extractUserId(tokenString);
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set discount policy on non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
+        Event event = eventOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
+        if (compOpt.isEmpty()) {
+            return Result.failure("Company not found");
+        }
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_DISCOUNTS)) {
+            logger.warn("User '{}' lacks MANAGE_DISCOUNTS permission — setDiscountPolicy for event '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage discounts");
+        }
+
+        try {
+            event.setDiscountPolicy(policy);
+            eventRepository.save(event);
+            logger.info("User '{}' updated discount policy for event '{}'.", initiatorId, eventId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("User '{}' failed to set discount policy for event '{}': {}", initiatorId, eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
     private ZoneDTO toZoneDTO(Zone zone) {
         if (zone instanceof SeatedZone sz) {
             List<SeatDTO> seatDTOs = sz.getSeats().stream()
@@ -320,6 +411,32 @@ public class EventService
         }
         return new ZoneDTO(zone.getId(), zone.getName(), zone.getType(), zone.getBasePrice(),
                 zone.getMaxCapacity(), zone.getAvailableSeatCount(), null);
+    }
+
+    public Result<List<EventDTO>> getCompanyEvents(String tokenString, String companyId) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized getCompanyEvents attempt for company '{}'.", companyId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String callerId = authGateway.extractUserId(tokenString);
+        Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
+        if (compOpt.isEmpty()) {
+            logger.warn("getCompanyEvents: company '{}' not found (caller='{}').", companyId, callerId);
+            return Result.failure("Company not found");
+        }
+        if (!compOpt.get().hasPermission(callerId, CompanyPermission.MANAGE_EVENTS)
+                && !compOpt.get().isOwner(callerId)) {
+            logger.warn("getCompanyEvents: user '{}' lacks permission on company '{}'.", callerId, companyId);
+            return Result.failure("User lacks permission to view company events");
+        }
+        List<EventDTO> dtos = eventRepository.findByCompanyId(companyId).stream()
+                .map(e -> new EventDTO(
+                        e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
+                        e.getEventDate(), e.getCategory(), e.getLocation(),
+                        e.isPublished(), e.isPublished() ? e.getTotalAvailable() : 0))
+                .collect(Collectors.toList());
+        logger.debug("getCompanyEvents: {} event(s) retrieved for company '{}' by '{}'.", dtos.size(), companyId, callerId);
+        return Result.success(dtos);
     }
 
     public Result<List<EventDTO>> searchEvents(String query, String category,

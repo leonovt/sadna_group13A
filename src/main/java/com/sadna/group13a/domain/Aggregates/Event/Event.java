@@ -1,13 +1,12 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -16,8 +15,8 @@ import java.util.UUID;
  *
  * An Event represents a scheduled occurrence managed by a ProductionCompany.
  * It owns a VenueMap that defines the venue layout and seat/standing capacity.
- * Both Event and Company may carry PurchasePolicy and DiscountPolicy lists that are
- * evaluated during checkout.
+ * Both Event and Company carry a single PurchasePolicy and DiscountPolicy root
+ * (Composite pattern) that are evaluated during checkout.
  *
  * The {@code version} field is incremented on every mutation and is used for
  * optimistic-locking conflict detection (analogous to JPA {@code @Version}).
@@ -37,8 +36,9 @@ public class Event {
 
     private volatile long version = 0L;
 
-    private final List<PurchasePolicy> purchasePolicies;
-    private final List<DiscountPolicy> discountPolicies;
+    // Single composite-pattern root nodes — defaults are AllowAll / NoDiscount
+    private PurchasePolicy purchasePolicy;
+    private DiscountPolicy discountPolicy;
 
     public Event(String id, String title, String description,
                  String companyId, LocalDateTime eventDate, String category) {
@@ -64,8 +64,8 @@ public class Event {
         this.venueMap = null;
         this.published = false;
         this.saleMode = EventSaleMode.REGULAR;
-        this.purchasePolicies = Collections.synchronizedList(new ArrayList<>());
-        this.discountPolicies = Collections.synchronizedList(new ArrayList<>());
+        this.purchasePolicy = new AllowAllPolicy();
+        this.discountPolicy = new NoDiscountPolicy();
     }
 
     public Event(String title, String description,
@@ -178,23 +178,25 @@ public class Event {
 
     // ── Policies ──────────────────────────────────────────────────
 
-    public List<PurchasePolicy> getPurchasePolicies() {
-        return Collections.unmodifiableList(purchasePolicies);
+    public PurchasePolicy getPurchasePolicy() {
+        return purchasePolicy;
     }
 
-    public void addPurchasePolicy(PurchasePolicy policy) {
-        if (policy == null) throw new IllegalArgumentException("Policy cannot be null");
-        purchasePolicies.add(policy);
+    /** Replaces the event-level purchase policy root. Pass AllowAllPolicy to remove restrictions. */
+    public void setPurchasePolicy(PurchasePolicy policy) {
+        if (policy == null) throw new IllegalArgumentException("Purchase policy cannot be null");
+        this.purchasePolicy = policy;
         version++;
     }
 
-    public List<DiscountPolicy> getDiscountPolicies() {
-        return Collections.unmodifiableList(discountPolicies);
+    public DiscountPolicy getDiscountPolicy() {
+        return discountPolicy;
     }
 
-    public void addDiscountPolicy(DiscountPolicy policy) {
-        if (policy == null) throw new IllegalArgumentException("Policy cannot be null");
-        discountPolicies.add(policy);
+    /** Replaces the event-level discount policy root. Pass NoDiscountPolicy to remove discounts. */
+    public void setDiscountPolicy(DiscountPolicy policy) {
+        if (policy == null) throw new IllegalArgumentException("Discount policy cannot be null");
+        this.discountPolicy = policy;
         version++;
     }
 

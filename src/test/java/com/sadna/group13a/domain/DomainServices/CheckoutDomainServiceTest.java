@@ -10,8 +10,14 @@ import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.policies.discount.AdditiveDiscountPolicy;
+import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
+import com.sadna.group13a.domain.policies.purchase.AndPolicy;
+import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
+import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,9 +68,11 @@ class CheckoutDomainServiceTest {
         order = new ActiveOrder(UUID.randomUUID().toString(), USER_ID);
     }
 
-    // helper to invoke the service with empty policy lists
     private List<OrderHistoryItem> checkout(List<OrderItem> items) {
-        return service.checkoutItemsForEvent(items, order, event, company, List.of(), List.of());
+        PurchaseContext pCtx = new PurchaseContext(USER_ID, items.size(), 0, null);
+        DiscountContext dCtx = new DiscountContext(USER_ID, items.size(), null);
+        return service.checkoutItemsForEvent(items, order, event, company,
+                new AllowAllPolicy(), new NoDiscountPolicy(), pCtx, dCtx);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -120,8 +128,11 @@ class CheckoutDomainServiceTest {
                     new OrderItem(EVENT_ID, "zone-2", seat2.getId(), 80.0)
             );
 
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, items.size(), 0, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, items.size(), null);
             assertThrows(SeatUnavailableException.class,
-                    () -> service.checkoutItemsForEvent(items, order, event, company, List.of(), List.of()));
+                    () -> service.checkoutItemsForEvent(items, order, event, company,
+                            new AllowAllPolicy(), new NoDiscountPolicy(), pCtx, dCtx));
 
             // seat 1 must have been rolled back to AVAILABLE
             assertEquals(SeatStatus.AVAILABLE, seat.getEffectiveStatus());
@@ -186,9 +197,12 @@ class CheckoutDomainServiceTest {
             seat.hold(USER_ID);
             order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
 
-            DiscountPolicy twentyPercentOff = basePrice -> basePrice * 0.20;
+            DiscountPolicy twentyPercentOff = (basePrice, ctx) -> basePrice * 0.20;
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 0, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
             List<OrderHistoryItem> items = service.checkoutItemsForEvent(
-                    order.getItems(), order, event, company, List.of(), List.of(twentyPercentOff));
+                    order.getItems(), order, event, company,
+                    new AllowAllPolicy(), twentyPercentOff, pCtx, dCtx);
 
             assertEquals(80.0, items.get(0).getPricePaid(), 0.001);
         }
@@ -198,9 +212,12 @@ class CheckoutDomainServiceTest {
             seat.hold(USER_ID);
             order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
 
-            DiscountPolicy overkill = basePrice -> basePrice * 2;
+            DiscountPolicy overkill = (basePrice, ctx) -> basePrice * 2;
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 0, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
             List<OrderHistoryItem> items = service.checkoutItemsForEvent(
-                    order.getItems(), order, event, company, List.of(), List.of(overkill));
+                    order.getItems(), order, event, company,
+                    new AllowAllPolicy(), overkill, pCtx, dCtx);
 
             assertEquals(0.0, items.get(0).getPricePaid(), 0.001);
         }
@@ -220,11 +237,15 @@ class CheckoutDomainServiceTest {
             seat.hold(USER_ID);
             order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
 
-            // 10% off from event policy + 5% off from company policy = 15 off → 85
-            DiscountPolicy ten  = base -> base * 0.10;
-            DiscountPolicy five = base -> base * 0.05;
+            // 10% off + 5% off = 15 off → 85
+            DiscountPolicy ten  = (base, ctx) -> base * 0.10;
+            DiscountPolicy five = (base, ctx) -> base * 0.05;
+            DiscountPolicy combined = new AdditiveDiscountPolicy(List.of(ten, five));
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 0, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
             List<OrderHistoryItem> items = service.checkoutItemsForEvent(
-                    order.getItems(), order, event, company, List.of(), List.of(ten, five));
+                    order.getItems(), order, event, company,
+                    new AllowAllPolicy(), combined, pCtx, dCtx);
 
             assertEquals(85.0, items.get(0).getPricePaid(), 0.001);
         }
@@ -242,9 +263,12 @@ class CheckoutDomainServiceTest {
             seat.hold(USER_ID);
             order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
 
-            PurchasePolicy allowed = () -> true;
+            PurchasePolicy allowed = ctx -> true;
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 0, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
             assertDoesNotThrow(() -> service.checkoutItemsForEvent(
-                    order.getItems(), order, event, company, List.of(allowed), List.of()));
+                    order.getItems(), order, event, company,
+                    allowed, new NoDiscountPolicy(), pCtx, dCtx));
         }
 
         @Test
@@ -252,10 +276,13 @@ class CheckoutDomainServiceTest {
             seat.hold(USER_ID);
             order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
 
-            PurchasePolicy blocked = () -> false;
+            PurchasePolicy blocked = ctx -> false;
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 0, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
             assertThrows(DomainException.class,
                     () -> service.checkoutItemsForEvent(
-                            order.getItems(), order, event, company, List.of(blocked), List.of()));
+                            order.getItems(), order, event, company,
+                            blocked, new NoDiscountPolicy(), pCtx, dCtx));
         }
 
         @Test
@@ -263,9 +290,12 @@ class CheckoutDomainServiceTest {
             seat.hold(USER_ID);
             order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
 
+            PurchasePolicy combined = new AndPolicy(ctx -> true, ctx -> true);
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 0, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
             assertDoesNotThrow(() -> service.checkoutItemsForEvent(
                     order.getItems(), order, event, company,
-                    List.of(() -> true, () -> true), List.of()));
+                    combined, new NoDiscountPolicy(), pCtx, dCtx));
         }
 
         @Test
@@ -273,10 +303,13 @@ class CheckoutDomainServiceTest {
             seat.hold(USER_ID);
             order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
 
+            PurchasePolicy combined = new AndPolicy(ctx -> true, ctx -> false);
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 0, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
             assertThrows(DomainException.class,
                     () -> service.checkoutItemsForEvent(
                             order.getItems(), order, event, company,
-                            List.of(() -> true, () -> false), List.of()));
+                            combined, new NoDiscountPolicy(), pCtx, dCtx));
         }
     }
 

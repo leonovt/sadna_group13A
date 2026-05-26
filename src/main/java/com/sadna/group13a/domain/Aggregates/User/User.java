@@ -1,26 +1,36 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 
-public abstract class User {
+public class User {
 
     private final String id;
     private String username;
     private UserState state;
-    private String activeOrderId; // pointer to current cart (from UML)
+    private UserTypeState typeState;
+    private String activeOrderId;
+    private LocalDateTime suspendedAt;
+    private LocalDateTime suspendedUntil; // null = permanent suspension
 
     private int version = 0;
 
-    protected User(String id, String username) {
+    protected User(String id, String username, UserTypeState initialState) {
         this.id = id;
         this.username = username;
         this.state = UserState.ACTIVE;
+        this.typeState = initialState;
         this.activeOrderId = null;
     }
 
+    // Convenience constructors — default to Guest
+    protected User(String id, String username) {
+        this(id, username, new GuestState());
+    }
+
     protected User(String username) {
-        this(UUID.randomUUID().toString(), username);
+        this(UUID.randomUUID().toString(), username, new GuestState());
     }
 
     // ── Identity & State ──────────────────────────────────────────
@@ -33,8 +43,7 @@ public abstract class User {
         return username;
     }
 
-    public void setUsername(String username)
-    {
+    public void setUsername(String username) {
         this.username = username;
         incrementVersion();
     }
@@ -49,12 +58,38 @@ public abstract class User {
 
     public void activate() {
         this.state = UserState.ACTIVE;
+        this.suspendedAt = null;
+        this.suspendedUntil = null;
         incrementVersion();
     }
 
     public void deactivate() {
         this.state = UserState.INACTIVE;
         incrementVersion();
+    }
+
+    // ── Suspension ────────────────────────────────────────────────
+
+    /**
+     * Suspends the user. Pass null for suspendedUntil to make the suspension permanent.
+     */
+    public void suspend(LocalDateTime suspendedAt, LocalDateTime suspendedUntil) {
+        this.state = UserState.INACTIVE;
+        this.suspendedAt = suspendedAt;
+        this.suspendedUntil = suspendedUntil;
+        incrementVersion();
+    }
+
+    public boolean isSuspended() {
+        return state == UserState.INACTIVE && suspendedAt != null;
+    }
+
+    public LocalDateTime getSuspendedAt() {
+        return suspendedAt;
+    }
+
+    public LocalDateTime getSuspendedUntil() {
+        return suspendedUntil;
     }
 
     // ── Active Order Pointer ──────────────────────────────────────
@@ -72,42 +107,42 @@ public abstract class User {
         return activeOrderId != null;
     }
 
-    // ── Role (subclass identity) ──────────────────────────────────
+    // ── Role & Type (delegated to current state) ──────────────────
 
-    /**
-     * Returns the role of this user. Each subclass provides its own value.
-     */
-    public abstract UserRole getRole();
+    public UserRole getRole() {
+        return typeState.getRole();
+    }
 
-    /**
-     * Returns the stored password hash. Guest users have no password and return null.
-     */
-    public abstract String getHashedPassword();
+    public String getHashedPassword() {
+        return typeState.getHashedPassword();
+    }
 
-    // ── Domain-level authorization ────────────────────────────────
-
-    /**
-     * Whether this user can purchase tickets.
-     * Overridden by subclasses that support purchasing.
-     */
     public boolean canPurchase() {
-        return false;
+        return typeState.canPurchase(isActive());
     }
 
-    /**
-     * Whether this user can manage companies and events.
-     * Only Admin overrides this to return true.
-     */
     public boolean canManageSystem() {
-        return false;
+        return typeState.canManageSystem();
     }
 
-    public int getVersion()
-    {
+    // ── Version ───────────────────────────────────────────────────
+
+    public int getVersion() {
         return version;
     }
 
     protected void incrementVersion() {
         this.version++;
+    }
+
+    // ── Type state access (for subclasses) ────────────────────────
+
+    protected UserTypeState getTypeState() {
+        return typeState;
+    }
+
+    protected void setTypeState(UserTypeState newState) {
+        this.typeState = newState;
+        incrementVersion();
     }
 }

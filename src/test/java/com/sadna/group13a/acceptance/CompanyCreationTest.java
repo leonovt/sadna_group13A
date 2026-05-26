@@ -5,6 +5,7 @@ import com.sadna.group13a.application.DTO.CompanyDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.User.Member;
@@ -47,8 +48,9 @@ class CompanyCreationTest {
         authGateway = mock(IAuth.class);
         objectMapper = mock(ObjectMapper.class);
 
+        ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
-                objectMapper);
+                objectMapper, publisher);
     }
 
     @Nested

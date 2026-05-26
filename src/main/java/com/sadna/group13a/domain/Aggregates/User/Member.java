@@ -4,84 +4,52 @@ import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
-/**
- * Registered member — authenticated user who can purchase tickets and hold company roles.
- * Owns a password hash for JWT-based authentication.
- * Tracks company affiliations (role + appointer) so the user knows its own roles
- * without always querying through ProductionCompany.
- */
 public class Member extends User {
 
-    private String passwordHash;
-
-    // companyId → role the member holds in that company
-    private final Map<String, CompanyRole> companyRoles = new ConcurrentHashMap<>();
-    // companyId → userId of whoever appointed this member (null for founders)
-    private final Map<String, String> appointedBy = new ConcurrentHashMap<>();
-
     public Member(String id, String username, String passwordHash) {
-        super(id, username);
-        this.passwordHash = passwordHash;
+        super(id, username, new MemberState(passwordHash));
     }
 
     public Member(String username, String passwordHash) {
-        super(username);
-        this.passwordHash = passwordHash;
-    }
-
-    // ── Role ──────────────────────────────────────────────────────
-
-    @Override
-    public UserRole getRole() {
-        return UserRole.MEMBER;
+        super(UUID.randomUUID().toString(), username, new MemberState(passwordHash));
     }
 
     // ── Authentication ────────────────────────────────────────────
 
-    @Override
-    public String getHashedPassword() {
-        return passwordHash;
-    }
-
     public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+        memberState().setPasswordHash(passwordHash);
         incrementVersion();
-    }
-
-    // ── Permissions ───────────────────────────────────────────────
-
-    @Override
-    public boolean canPurchase() {
-        return isActive();
     }
 
     // ── Company role registry ─────────────────────────────────────
 
     public void addCompanyRole(String companyId, CompanyRole role, String appointedByUserId) {
-        companyRoles.put(companyId, role);
-        if (appointedByUserId != null) {
-            appointedBy.put(companyId, appointedByUserId);
-        }
+        memberState().addCompanyRole(companyId, role, appointedByUserId);
         incrementVersion();
     }
 
     public void removeCompanyRole(String companyId) {
-        companyRoles.remove(companyId);
-        appointedBy.remove(companyId);
+        memberState().removeCompanyRole(companyId);
         incrementVersion();
     }
 
     public Map<String, CompanyRole> getCompanyRoles() {
-        return Collections.unmodifiableMap(companyRoles);
+        return Collections.unmodifiableMap(memberState().getCompanyRoles());
     }
 
     public CompanyRole getRoleInCompany(String companyId) {
-        return companyRoles.get(companyId);
+        return memberState().getRoleInCompany(companyId);
     }
 
     public String getAppointedByInCompany(String companyId) {
-        return appointedBy.get(companyId);
+        return memberState().getAppointedByInCompany(companyId);
+    }
+
+    // ── Internal ──────────────────────────────────────────────────
+
+    private MemberState memberState() {
+        return (MemberState) getTypeState();
     }
 }

@@ -6,6 +6,7 @@ import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
@@ -45,7 +46,7 @@ class SalesReportTest {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
         objectMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway, objectMapper);
+        companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway, objectMapper, e -> {});
         paymentGateway = new StubPaymentGateway();
     }
 

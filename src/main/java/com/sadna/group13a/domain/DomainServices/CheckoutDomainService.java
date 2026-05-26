@@ -5,8 +5,10 @@ import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
+import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 
 import org.slf4j.Logger;
@@ -17,9 +19,9 @@ import java.util.List;
 
 /**
  * Domain Service — pure Java, no Spring annotations.
- * Finalizes checkout for a single event's items: validates policies, transitions seat
- * states from HELD to SOLD, calculates discounted price, and returns immutable receipt
- * line items.
+ * Finalizes checkout for a single event's items: validates the purchase policy,
+ * transitions seat states from HELD to SOLD, calculates the discounted price,
+ * and returns immutable receipt line items.
  *
  * If any seat transition fails mid-way, already-sold seats within this call are
  * automatically rolled back so callers always get all-or-nothing atomicity per event.
@@ -31,14 +33,16 @@ public class CheckoutDomainService {
     /**
      * Processes a set of cart items belonging to one event.
      *
-     * @param items             the cart items to check out (all must belong to {@code event})
-     * @param order             the parent cart — used for expiry check and buyer identity
-     * @param event             the event whose seat map will be mutated (HELD → SOLD)
-     * @param company           the owning company — used for denormalized receipt data
-     * @param purchasePolicies  combined event + company purchase policies; all must be satisfied
-     * @param discountPolicies  combined event + company discount policies; discounts are summed
+     * @param items           the cart items to check out (all must belong to {@code event})
+     * @param order           the parent cart — used for expiry check and buyer identity
+     * @param event           the event whose seat map will be mutated (HELD → SOLD)
+     * @param company         the owning company — used for denormalized receipt data
+     * @param purchasePolicy  combined (AND) event + company purchase policy root
+     * @param discountPolicy  combined (Additive/Max) event + company discount policy root
+     * @param purchaseCtx     buyer context passed to every purchase policy evaluation
+     * @param discountCtx     buyer context passed to every discount calculation
      * @return receipt line items for the successfully checked-out seats
-     * @throws DomainException            if the order expired or a purchase policy blocks the sale
+     * @throws DomainException           if the order expired or the purchase policy blocks the sale
      * @throws com.sadna.group13a.domain.shared.SeatUnavailableException
      *         if a seat hold has expired or was taken by another user
      */
@@ -47,24 +51,24 @@ public class CheckoutDomainService {
             ActiveOrder order,
             Event event,
             ProductionCompany company,
-            List<PurchasePolicy> purchasePolicies,
-            List<DiscountPolicy> discountPolicies) {
+            PurchasePolicy purchasePolicy,
+            DiscountPolicy discountPolicy,
+            PurchaseContext purchaseCtx,
+            DiscountContext discountCtx) {
 
         if (order.isExpired()) {
             logger.warn("Checkout rejected for order '{}' (user '{}'): order has expired.", order.getId(), order.getUserId());
             throw new DomainException("Order has expired and can no longer be checked out");
         }
 
-        for (PurchasePolicy pp : purchasePolicies) {
-            if (!pp.isSatisfied()) {
-                logger.warn("Checkout blocked for order '{}' (user '{}', event '{}'): purchase policy not satisfied.",
-                        order.getId(), order.getUserId(), event.getId());
-                throw new DomainException("Purchase is not permitted by the current purchase policy");
-            }
+        if (!purchasePolicy.isSatisfied(purchaseCtx)) {
+            logger.warn("Checkout blocked for order '{}' (user '{}', event '{}'): purchase policy not satisfied.",
+                    order.getId(), order.getUserId(), event.getId());
+            throw new DomainException("Purchase is not permitted by the current purchase policy");
         }
 
-        List<OrderHistoryItem> historyItems = new ArrayList<>();
-        List<Runnable> rollbackActions = new ArrayList<>();
+        List<OrderHistoryItem> historyItems  = new ArrayList<>();
+        List<Runnable>         rollbackActions = new ArrayList<>();
 
         try {
             for (OrderItem item : items) {
@@ -74,11 +78,9 @@ public class CheckoutDomainService {
                 String seatLabel = event.sellItem(zoneId, seatId, order.getUserId());
                 rollbackActions.add(() -> event.unsellItem(zoneId, seatId));
 
-                double basePrice = event.getZoneBasePrice(zoneId);
-                double totalDiscount = discountPolicies.stream()
-                        .mapToDouble(dp -> dp.calculateDiscount(basePrice))
-                        .sum();
-                double finalPrice = Math.max(0.0, basePrice - totalDiscount);
+                double basePrice    = event.getZoneBasePrice(zoneId);
+                double discount     = discountPolicy.calculateDiscount(basePrice, discountCtx);
+                double finalPrice   = Math.max(0.0, basePrice - discount);
 
                 historyItems.add(new OrderHistoryItem(
                         item.getEventId(),
