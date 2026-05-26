@@ -8,6 +8,7 @@ import com.sadna.group13a.application.Interfaces.IPasswordEncoder;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.Aggregates.User.Guest;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import com.sadna.group13a.domain.Aggregates.User.UserRole;
@@ -155,8 +156,8 @@ class UserServiceTest {
         Result<String> result = userService.logout(TOKEN);
 
         assertTrue(result.isSuccess());
-        assertNotNull(result.getOrThrow());
-        verify(userRepository).save(argThat(u -> u.getRole().name().equals("GUEST")));
+        assertEquals("guest-token", result.getOrThrow());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -207,6 +208,20 @@ class UserServiceTest {
         verify(userRepository).save(user);
     }
 
+    // ── updateProfile: guest blocked ──────────────────────────────
+
+    @Test
+    void givenGuestToken_whenUpdateProfile_thenFailsAndNothingSaved() {
+        when(authGateway.validateToken(TOKEN)).thenReturn(true);
+        when(authGateway.extractUserId(TOKEN)).thenReturn("guest-123");
+        when(userRepository.findById("guest-123")).thenReturn(Optional.empty());
+
+        Result<UserDTO> result = userService.updateProfile(TOKEN, "newname");
+
+        assertFalse(result.isSuccess());
+        verify(userRepository, never()).save(any());
+    }
+
     // ── viewOrderHistory ──────────────────────────────────────────
 
     @Test
@@ -214,6 +229,19 @@ class UserServiceTest {
         when(authGateway.validateToken("bad")).thenReturn(false);
 
         assertFalse(userService.viewOrderHistory("bad").isSuccess());
+    }
+
+    @Test
+    void givenGuestToken_whenViewOrderHistory_thenFailsWithMembersOnlyMessage() {
+        when(authGateway.validateToken(TOKEN)).thenReturn(true);
+        when(authGateway.extractUserId(TOKEN)).thenReturn("guest-123");
+        when(userRepository.findById("guest-123")).thenReturn(Optional.empty());
+
+        Result<List<OrderHistoryDTO>> result = userService.viewOrderHistory(TOKEN);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getErrorMessage().contains("registered members"));
+        verify(historyRepository, never()).findByUserId(any());
     }
 
     @Test

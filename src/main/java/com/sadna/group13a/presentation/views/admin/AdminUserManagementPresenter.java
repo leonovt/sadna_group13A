@@ -18,10 +18,20 @@ public class AdminUserManagementPresenter {
         this.adminService = adminService;
     }
 
+    // Issue #2 fix: guard against null VaadinSession
     private String getToken() {
-        return (String) VaadinSession.getCurrent().getAttribute("token");
+        VaadinSession session = VaadinSession.getCurrent();
+        return session == null ? null : (String) session.getAttribute("token");
     }
 
+    // Issue #1 & #3 fix: used by BeforeEnterObserver to gate access before rendering
+    public boolean hasAdminAccess() {
+        String token = getToken();
+        if (token == null) return false;
+        return adminService.viewGlobalPurchaseHistory(token).isSuccess();
+    }
+
+    // Issue #3 fix: called from BeforeEnterObserver instead of addAttachListener
     public void loadPurchaseHistory(AdminUserManagementView view) {
         String token = getToken();
         if (token == null) {

@@ -120,10 +120,14 @@ class AdminCompanyClosureTest {
         when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
         
         adminService.closeCompanyGlobally(token, companyId);
-        
-        // This implies the domain model correctly revoked access upon forceClose
+
+        // Post-condition: forceClose() is called, and the event carrying the company ID is published
+        // so downstream listeners (e.g. CompanyEventListener) revoke all staff access
         verify(company).forceClose();
-        verify(eventPublisher).publishEvent(any(CompanyClosedByAdminEvent.class));
+        ArgumentCaptor<CompanyClosedByAdminEvent> staffCaptor = ArgumentCaptor.forClass(CompanyClosedByAdminEvent.class);
+        verify(eventPublisher).publishEvent(staffCaptor.capture());
+        assertEquals(companyId, staffCaptor.getValue().companyId(),
+                "Post: event must carry the company ID to trigger staff access revocation in all downstream listeners");
     }
 
     @Test

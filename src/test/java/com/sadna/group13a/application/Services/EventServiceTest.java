@@ -11,8 +11,10 @@ import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
+import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -34,6 +36,8 @@ class EventServiceTest {
     @Mock private ICompanyRepository companyRepository;
     @Mock private IAuth authGateway;
     @Mock private IUserRepository userRepository;
+    @Mock private IOrderHistoryRepository historyRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private EventService eventService;

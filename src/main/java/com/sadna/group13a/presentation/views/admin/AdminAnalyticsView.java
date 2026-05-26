@@ -8,6 +8,9 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.sadna.group13a.presentation.views.auth.LoginView;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
@@ -16,7 +19,7 @@ import java.util.List;
 
 @Route("admin/analytics")
 @PageTitle("Analytics")
-public class AdminAnalyticsView extends VerticalLayout {
+public class AdminAnalyticsView extends VerticalLayout implements BeforeEnterObserver {
 
     private final AdminAnalyticsPresenter presenter;
 
@@ -39,7 +42,16 @@ public class AdminAnalyticsView extends VerticalLayout {
     public AdminAnalyticsView(AdminAnalyticsPresenter presenter) {
         this.presenter = presenter;
         initView();
-        addAttachListener(e -> presenter.loadAnalytics(this));
+    }
+
+    // Issues #5 & #6 fix: gate access and load data before the view is rendered
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        if (!presenter.hasAdminAccess()) {
+            event.forwardTo(LoginView.class);
+            return;
+        }
+        presenter.loadAnalytics(this);
     }
 
     private void initView() {

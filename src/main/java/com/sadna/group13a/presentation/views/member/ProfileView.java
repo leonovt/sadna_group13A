@@ -8,12 +8,14 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 @Route("member/profile")
 @PageTitle("Profile")
-public class ProfileView extends VerticalLayout {
+public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
 
     private final ProfilePresenter presenter;
 
@@ -22,9 +24,22 @@ public class ProfileView extends VerticalLayout {
     private final Span infoMessage = new Span();
     private final Span errorMessage = new Span();
 
+    /** The username last loaded from the server, used to detect unsaved edits. */
+    private String loadedUsername = "";
+
     public ProfileView(ProfilePresenter presenter) {
         this.presenter = presenter;
         initView();
+    }
+
+    /**
+     * Loads the profile on navigation rather than from the constructor: at
+     * construction time the component is not yet attached and
+     * {@code VaadinSession.getCurrent()} may be unavailable. {@code beforeEnter}
+     * runs in the UI request thread with the session initialized.
+     */
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
         presenter.loadProfile(this);
     }
 
@@ -46,8 +61,14 @@ public class ProfileView extends VerticalLayout {
     }
 
     public void showProfile(UserDTO user) {
-        usernameField.setValue(user.username() == null ? "" : user.username());
+        loadedUsername = user.username() == null ? "" : user.username();
+        usernameField.setValue(loadedUsername);
         roleLabel.setText("Role: " + user.role());
+    }
+
+    /** The username currently loaded in the form (before any unsaved edit). */
+    public String getLoadedUsername() {
+        return loadedUsername;
     }
 
     public void showInfo(String message) {

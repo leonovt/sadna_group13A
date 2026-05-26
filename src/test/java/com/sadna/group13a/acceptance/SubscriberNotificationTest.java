@@ -17,8 +17,11 @@ import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
+import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
+import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
+import com.sadna.group13a.domain.Events.UserBannedEvent;
 import com.sadna.group13a.domain.Interfaces.IActiveOrderRepository;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
@@ -32,6 +35,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
+
+import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -113,6 +119,49 @@ class SubscriberNotificationTest {
     }
 
     @Test
+    @DisplayName("Given account deactivated by admin — Then ban notification dispatched to affected user")
+    void GivenAccountDeactivated_ThenBanNotificationDispatched() {
+        String userId  = "user-banned";
+        String adminId = "admin-1";
+        // Pre-condition: no ban notifications sent yet
+        verify(notificationService, never()).notifyUserBanned(anyString(), anyString());
+
+        notificationEventListener.onUserBanned(new UserBannedEvent(userId, adminId));
+
+        // Post-condition: banned user receives the deactivation notification citing the admin
+        verify(notificationService, times(1)).notifyUserBanned(userId, adminId);
+    }
+
+    @Test
+    @DisplayName("Given company closed by admin — Then company-closed notification dispatched")
+    void GivenCompanyClosedByAdmin_ThenCompanyClosedNotificationDispatched() {
+        String companyId = "company-1";
+        String adminId   = "admin-1";
+        // Pre-condition: no company-closed notifications sent yet
+        verify(notificationService, never()).notifyCompanyClosed(anyList(), anyString(), anyString());
+
+        notificationEventListener.onCompanyClosed(new CompanyClosedByAdminEvent(companyId, adminId, List.of()));
+
+        // Post-condition: the company receives the closure notification citing the admin
+        verify(notificationService, times(1)).notifyCompanyClosed(anyList(), eq(companyId), eq(adminId));
+    }
+
+    @Test
+    @DisplayName("Given raffle drawn — Then raffle-result notification dispatched with winner count")
+    void GivenRaffleDrawn_ThenRaffleResultNotificationDispatched() {
+        String raffleId = "raffle-1";
+        String eventId  = "event-1";
+        int winnerCount = 5;
+        // Pre-condition: no raffle-drawn notifications sent yet
+        verify(notificationService, never()).notifyRaffleDrawn(anyString(), anyInt());
+
+        notificationEventListener.onRaffleDrawn(new RaffleDrawnEvent(raffleId, eventId, winnerCount));
+
+        // Post-condition: notification dispatched with correct event ID and winner count
+        verify(notificationService, times(1)).notifyRaffleDrawn(eventId, winnerCount);
+    }
+
+    @Test
     @DisplayName("Given checkout succeeds — Then OrderCompletedEvent is published carrying the subscriber's ID and receipt")
     void GivenCheckoutSucceeds_ThenOrderCompletedEventPublishedWithCorrectSubscriberData() throws Exception {
         // Build a minimal OrderService with all infrastructure mocked and a
@@ -155,12 +204,18 @@ class SubscriberNotificationTest {
         when(event.getId()).thenReturn(eventId);
         when(event.getCompanyId()).thenReturn(companyId);
         when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+        when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+        when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-        when(companyRepository.findById(companyId)).thenReturn(Optional.of(mock(ProductionCompany.class)));
+
+        ProductionCompany notifCompany = mock(ProductionCompany.class);
+        when(notifCompany.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+        when(notifCompany.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
+        when(companyRepository.findById(companyId)).thenReturn(Optional.of(notifCompany));
 
         OrderHistoryItem item = new OrderHistoryItem(
                 eventId, "Title", LocalDateTime.now(), companyId, "Co", "Zone1", "Seat1", 100.0);
-        when(checkoutService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+        when(checkoutService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of(item));
         when(paymentGateway.processPayment(100.0, "cc_good")).thenReturn(Result.success("txn_1"));
         when(ticketSupplier.issueTickets(any(), anyInt())).thenReturn(Result.success(List.of("ticket-1")));

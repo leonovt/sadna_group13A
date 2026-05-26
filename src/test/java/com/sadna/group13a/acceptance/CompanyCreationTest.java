@@ -5,6 +5,7 @@ import com.sadna.group13a.application.DTO.CompanyDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.User.Member;
@@ -47,8 +48,9 @@ class CompanyCreationTest {
         authGateway = mock(IAuth.class);
         objectMapper = mock(ObjectMapper.class);
 
+        ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
-                objectMapper);
+                objectMapper, publisher);
     }
 
     @Nested
@@ -105,8 +107,10 @@ class CompanyCreationTest {
 
             ProductionCompany savedCompany = companyCaptor.getValue();
 
-            // Post-condition: company is created (default policies implied by non-null saved company)
-            assertNotNull(savedCompany, "Post: company must be created with implicit default policies initialized.");
+            // Post-condition: company is saved with correct name and founding user in staff
+            assertNotNull(savedCompany, "Post: company must be saved");
+            assertEquals("Awesome Policies Inc", savedCompany.getName(), "Post: company must have the correct name");
+            assertTrue(savedCompany.getStaff().containsKey(userId), "Post: founding user must be in company staff after creation");
         }
 
         @Test

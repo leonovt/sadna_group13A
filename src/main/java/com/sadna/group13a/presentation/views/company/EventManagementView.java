@@ -69,6 +69,10 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         eventsGrid.addColumn(e -> e.isPublished() ? String.valueOf(e.totalAvailableTickets()) : "—")
                 .setHeader("Available Tickets");
         eventsGrid.addComponentColumn(event -> {
+            Button editBtn = new Button("Edit", click -> {
+                statusMessage.setVisible(false);
+                openEditDialog(event);
+            });
             Button toggleBtn = event.isPublished()
                     ? new Button("Unpublish", click -> {
                         statusMessage.setVisible(false);
@@ -78,7 +82,9 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
                         statusMessage.setVisible(false);
                         presenter.handlePublishEvent(this, companyId, event.id());
                     });
-            return toggleBtn;
+            HorizontalLayout actions = new HorizontalLayout(editBtn, toggleBtn);
+            actions.setSpacing(true);
+            return actions;
         }).setHeader("Actions");
         eventsGrid.setWidthFull();
         eventsGrid.setMaxHeight("400px");
@@ -128,6 +134,46 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
 
         dialog.add(form);
         dialog.getFooter().add(cancelBtn, confirmBtn);
+        dialog.open();
+    }
+
+    private void openEditDialog(EventDTO event) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Edit Event");
+
+        TextField titleField     = new TextField("Title");
+        TextArea  descField      = new TextArea("Description");
+        DateTimePicker dateField = new DateTimePicker("Date & Time");
+        TextField categoryField  = new TextField("Category");
+
+        titleField.setValue(event.title() != null ? event.title() : "");
+        descField.setValue(event.description() != null ? event.description() : "");
+        dateField.setValue(event.eventDate());
+        categoryField.setValue(event.category() != null ? event.category() : "");
+
+        titleField.setWidthFull();
+        descField.setWidthFull();
+        dateField.setWidthFull();
+
+        VerticalLayout form = new VerticalLayout(titleField, descField, dateField, categoryField);
+        form.setPadding(false);
+        form.setSpacing(true);
+
+        Button saveBtn   = new Button("Save", click -> {
+            statusMessage.setVisible(false);
+            presenter.handleUpdateEvent(
+                    this, companyId, event.id(),
+                    titleField.getValue(),
+                    descField.getValue(),
+                    dateField.getValue(),
+                    categoryField.getValue()
+            );
+            dialog.close();
+        });
+        Button cancelBtn = new Button("Cancel", click -> dialog.close());
+
+        dialog.add(form);
+        dialog.getFooter().add(cancelBtn, saveBtn);
         dialog.open();
     }
 

@@ -44,7 +44,15 @@ public class ProfilePresenter {
             return;
         }
 
-        Result<UserDTO> result = userService.updateProfile(token, newUsername.trim());
+        String trimmed = newUsername.trim();
+        // Saving the unchanged username would have the service reject it as "already
+        // taken" (the name belongs to this very user), so skip the call entirely.
+        if (trimmed.equals(view.getLoadedUsername())) {
+            view.showInfo("No changes to save.");
+            return;
+        }
+
+        Result<UserDTO> result = userService.updateProfile(token, trimmed);
         if (result.isSuccess()) {
             view.showProfile(result.getOrThrow());
             view.showInfo("Profile updated.");
@@ -54,7 +62,13 @@ public class ProfilePresenter {
     }
 
     private String currentToken() {
-        Object token = VaadinSession.getCurrent().getAttribute("token");
+        // VaadinSession.getCurrent() can be null when called outside a Vaadin
+        // request thread, so it must be guarded before dereferencing.
+        VaadinSession session = VaadinSession.getCurrent();
+        if (session == null) {
+            return null;
+        }
+        Object token = session.getAttribute("token");
         return token == null ? null : (String) token;
     }
 }

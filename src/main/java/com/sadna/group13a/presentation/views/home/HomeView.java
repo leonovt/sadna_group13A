@@ -1,16 +1,25 @@
 package com.sadna.group13a.presentation.views.home;
 
+import com.sadna.group13a.application.DTO.CompanyDTO;
 import com.sadna.group13a.application.DTO.EventDTO;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.User.UserRole;
+import com.sadna.group13a.presentation.views.admin.AdminDashboardView;
 import com.sadna.group13a.presentation.views.auth.LoginView;
+import com.sadna.group13a.presentation.views.cart.CartView;
+import com.sadna.group13a.presentation.views.company.CompanyDashboardView;
+import com.sadna.group13a.presentation.views.member.MemberDashboardView;
+import com.sadna.group13a.presentation.views.member.OrderHistoryView;
+import com.sadna.group13a.presentation.views.member.ProfileView;
+import com.sadna.group13a.presentation.views.member.RaffleView;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -19,6 +28,7 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.RouteParameters;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.server.VaadinSession;
 
@@ -64,6 +74,13 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
 
         add(buildHeader(token, displayName, role));
         add(buildSearchBar());
+
+        if (role == UserRole.MEMBER || role == UserRole.ADMIN) {
+            List<CompanyDTO> companies = presenter.getMyCompanies(token);
+            add(buildMyCompaniesSection(companies));
+        }
+
+        add(buildSearchBar(token));
         add(buildEventGrid());
 
         loadEvents(null);
@@ -77,24 +94,46 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         H2 title = new H2("Event Marketplace");
         Span userLabel = new Span("Hello, " + displayName);
 
-        Button logoutButton = new Button("Logout", e -> presenter.handleLogout(token));
-
         header.add(title, userLabel);
         header.addAndExpand(new Span());
 
         if (role == UserRole.MEMBER || role == UserRole.ADMIN) {
-            header.add(new RouterLink("My Profile", com.sadna.group13a.presentation.views.member.ProfileView.class));
-            header.add(new RouterLink("My Orders", com.sadna.group13a.presentation.views.member.OrderHistoryView.class));
-            header.add(new RouterLink("Cart", com.sadna.group13a.presentation.views.cart.CartView.class));
+            header.add(new RouterLink("My Dashboard", MemberDashboardView.class));
+            header.add(new RouterLink("My Orders", OrderHistoryView.class));
+            header.add(new RouterLink("My Profile", ProfileView.class));
+            header.add(new RouterLink("My Raffles", RaffleView.class));
         }
         if (role == UserRole.ADMIN) {
-            header.add(new RouterLink("Admin", com.sadna.group13a.presentation.views.admin.AdminDashboardView.class));
+            header.add(new RouterLink("Admin", AdminDashboardView.class));
         }
-        header.add(logoutButton);
+        header.add(new RouterLink("Cart", CartView.class));
+
+        header.add(new Button("Logout", e -> presenter.handleLogout(token)));
         return header;
     }
 
     private HorizontalLayout buildSearchBar() {
+    private HorizontalLayout buildMyCompaniesSection(List<CompanyDTO> companies) {
+        HorizontalLayout row = new HorizontalLayout();
+        row.setAlignItems(Alignment.CENTER);
+        row.add(new H4("My Companies:"));
+
+        if (companies.isEmpty()) {
+            row.add(new Span("None — create one from My Dashboard."));
+        } else {
+            for (CompanyDTO company : companies) {
+                RouterLink link = new RouterLink(
+                    company.name(),
+                    CompanyDashboardView.class,
+                    new RouteParameters("companyId", company.id())
+                );
+                row.add(link);
+            }
+        }
+        return row;
+    }
+
+    private HorizontalLayout buildSearchBar(String token) {
         searchField.setPlaceholder("Search events...");
         searchField.setWidth("300px");
         Button searchButton = new Button("Search", e -> loadEvents(searchField.getValue().isBlank() ? null : searchField.getValue()));
