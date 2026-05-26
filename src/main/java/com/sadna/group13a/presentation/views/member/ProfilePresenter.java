@@ -54,7 +54,13 @@ public class ProfilePresenter {
     }
 
     private String currentToken() {
-        Object token = VaadinSession.getCurrent().getAttribute("token");
+        // VaadinSession.getCurrent() can be null when called outside a Vaadin
+        // request thread, so it must be guarded before dereferencing.
+        VaadinSession session = VaadinSession.getCurrent();
+        if (session == null) {
+            return null;
+        }
+        Object token = session.getAttribute("token");
         return token == null ? null : (String) token;
     }
 }
