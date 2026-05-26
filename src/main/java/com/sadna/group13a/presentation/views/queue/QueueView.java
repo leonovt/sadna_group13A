@@ -46,8 +46,8 @@ public class QueueView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void initView() {
-        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         removeAll();
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setAlignItems(Alignment.CENTER);
         setSizeFull();
 
