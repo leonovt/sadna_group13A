@@ -84,6 +84,23 @@ public class EventManagementPresenter {
         }
     }
 
+    public void handleUpdateEvent(EventManagementView view, String companyId, String eventId,
+                                   String title, String description,
+                                   LocalDateTime date, String category) {
+        String token = getToken();
+        if (token == null) {
+            UI.getCurrent().navigate("login");
+            return;
+        }
+        Result<Void> result = eventService.updateEventDetails(token, eventId, title, description, date, category);
+        if (result.isSuccess()) {
+            view.showSuccess("Event updated.");
+            loadEvents(view, companyId);
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
     public void handleBack(String companyId) {
         UI.getCurrent().navigate("company/" + companyId);
     }
