@@ -1,5 +1,6 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 
@@ -10,6 +11,8 @@ public class User {
     private UserState state;
     private UserTypeState typeState;
     private String activeOrderId;
+    private LocalDateTime suspendedAt;
+    private LocalDateTime suspendedUntil; // null = permanent suspension
 
     private int version = 0;
 
@@ -55,12 +58,38 @@ public class User {
 
     public void activate() {
         this.state = UserState.ACTIVE;
+        this.suspendedAt = null;
+        this.suspendedUntil = null;
         incrementVersion();
     }
 
     public void deactivate() {
         this.state = UserState.INACTIVE;
         incrementVersion();
+    }
+
+    // ── Suspension ────────────────────────────────────────────────
+
+    /**
+     * Suspends the user. Pass null for suspendedUntil to make the suspension permanent.
+     */
+    public void suspend(LocalDateTime suspendedAt, LocalDateTime suspendedUntil) {
+        this.state = UserState.INACTIVE;
+        this.suspendedAt = suspendedAt;
+        this.suspendedUntil = suspendedUntil;
+        incrementVersion();
+    }
+
+    public boolean isSuspended() {
+        return state == UserState.INACTIVE && suspendedAt != null;
+    }
+
+    public LocalDateTime getSuspendedAt() {
+        return suspendedAt;
+    }
+
+    public LocalDateTime getSuspendedUntil() {
+        return suspendedUntil;
     }
 
     // ── Active Order Pointer ──────────────────────────────────────
