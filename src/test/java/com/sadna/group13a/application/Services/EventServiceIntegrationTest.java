@@ -10,8 +10,10 @@ import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -46,7 +48,8 @@ class EventServiceIntegrationTest {
         userRepo    = new UserRepositoryImpl();
         auth        = new MultiUserStubAuth();
 
-        eventService = new EventService(eventRepo, companyRepo, auth, userRepo);
+        eventService = new EventService(eventRepo, companyRepo, auth, userRepo,
+                new OrderHistoryRepositoryImpl(), e -> {});
 
         seedFounderAndCompany();
     }

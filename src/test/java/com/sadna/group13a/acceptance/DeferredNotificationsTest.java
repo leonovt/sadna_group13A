@@ -73,14 +73,32 @@ class DeferredNotificationsTest {
         }
 
         @Override
-        public void notifyCompanyClosed(String companyId, String adminId) {
-            push(companyId, "Company closed by admin=" + adminId);
+        public void notifyCompanyClosed(java.util.List<String> staffIds, String companyId, String adminId) {
+            if (staffIds != null) staffIds.forEach(uid -> push(uid, "Company closed by admin=" + adminId));
+        }
+
+        @Override
+        public void notifyAdminMessage(String targetUserId, String message) {
+            push(targetUserId, "Message from admin: " + message);
         }
 
         @Override
         public void notifyRaffleDrawn(String eventId, int winnerCount) {
             // broadcast event — no per-user target in the current model
         }
+
+        @Override public void notifyActionFailed(String userId, String reason) {}
+        @Override public void notifyCompanySuspended(java.util.List<String> staffIds, String companyId) {}
+        @Override public void notifyCompanyReopened(java.util.List<String> staffIds, String companyId) {}
+        @Override public void notifyStaffNominated(String userId, String companyId, String role) {}
+        @Override public void notifyStaffRemoved(String userId, String companyId) {}
+        @Override public void notifyPermissionsUpdated(String userId, String companyId) {}
+        @Override public void notifyCartExpired(String userId) {}
+        @Override public void notifyEventCancelled(java.util.List<String> buyerIds, String eventId, String eventTitle) {}
+        @Override public void notifyEventRescheduled(java.util.List<String> buyerIds, String eventId, String eventTitle, java.time.LocalDateTime newDate) {}
+        @Override public void notifyUserReactivated(String userId) {}
+        @Override public void notifyEventSoldOut(java.util.List<String> staffIds, String eventId, String eventTitle) {}
+        @Override public void notifyRaffleWon(String userId, String eventId, String authCode, java.time.LocalDateTime expiresAt) {}
 
         /** Returns pending notifications for the user in chronological (oldest-first) order. */
         List<String> getPendingNotifications(String userId) {
