@@ -201,6 +201,32 @@ class UserServiceIntegrationTest {
             assertNotNull(guestToken);
             assertNotEquals(memberToken, guestToken);
         }
+
+        @Test
+        @DisplayName("After logout, guest token cannot view order history")
+        void givenLoggedOutMember_whenViewOrderHistory_thenFailsWithMembersOnlyMessage() {
+            userService.register("ivan", "pw");
+            String memberToken = userService.login("ivan", "pw").getOrThrow();
+            String guestToken = userService.logout(memberToken).getOrThrow();
+
+            Result<?> result = userService.viewOrderHistory(guestToken);
+
+            assertFalse(result.isSuccess());
+            assertTrue(result.getErrorMessage().contains("registered members"));
+        }
+
+        @Test
+        @DisplayName("After logout, guest token cannot update profile")
+        void givenLoggedOutMember_whenUpdateProfile_thenFails() {
+            userService.register("judy", "pw");
+            String memberToken = userService.login("judy", "pw").getOrThrow();
+            String guestToken = userService.logout(memberToken).getOrThrow();
+
+            Result<?> result = userService.updateProfile(guestToken, "newname");
+
+            assertFalse(result.isSuccess());
+            assertTrue(userRepo.findByUsername("judy").isPresent(), "Original member record must be untouched");
+        }
     }
 
     // ── Concurrency ───────────────────────────────────────────────

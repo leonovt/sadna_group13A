@@ -22,6 +22,9 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
     private final Span infoMessage = new Span();
     private final Span errorMessage = new Span();
 
+    /** The username last loaded from the server, used to detect unsaved edits. */
+    private String loadedUsername = "";
+
     public ProfileView(ProfilePresenter presenter) {
         this.presenter = presenter;
         initView();
@@ -55,8 +58,14 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     public void showProfile(UserDTO user) {
-        usernameField.setValue(user.username() == null ? "" : user.username());
+        loadedUsername = user.username() == null ? "" : user.username();
+        usernameField.setValue(loadedUsername);
         roleLabel.setText("Role: " + user.role());
+    }
+
+    /** The username currently loaded in the form (before any unsaved edit). */
+    public String getLoadedUsername() {
+        return loadedUsername;
     }
 
     public void showInfo(String message) {
