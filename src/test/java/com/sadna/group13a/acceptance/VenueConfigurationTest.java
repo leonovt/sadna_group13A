@@ -1,5 +1,6 @@
 package com.sadna.group13a.acceptance;
 
+import com.sadna.group13a.application.DTO.ZoneCreationDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.EventService;
@@ -8,7 +9,9 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.Aggregates.Event.SeatStatus;
 import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
+import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
+import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
@@ -133,5 +136,76 @@ class VenueConfigurationTest {
         Event fetched = eventRepository.findById("e1").get();
         assertEquals(1, fetched.getVenueMap().getZones().size(), "Post: venue map must contain the configured zone");
         assertEquals("Stadium", fetched.getVenueMap().getVenueName(), "Post: venue name must match the saved configuration");
+    }
+
+    @Test
+    @DisplayName("Given primitive zone specs — When createVenueMap — Then domain map is built and saved")
+    void GivenZoneSpecs_WhenCreateVenueMap_ThenMapBuiltAndSaved() {
+        String ownerId = "owner1";
+        userRepository.save(new Member(ownerId, "owner", "hash"));
+        String ownerToken = authGateway.generateToken(ownerId);
+
+        ProductionCompany company = new ProductionCompany("comp1", "Company", "Desc", ownerId);
+        companyRepository.save(company);
+
+        Event event = new Event("e1", "Show", "Desc", "comp1", LocalDateTime.now().plusDays(1), "Music");
+        eventRepository.save(event);
+        // Pre-condition: draft event with no venue map yet
+        assertNull(eventRepository.findById("e1").get().getVenueMap(), "Pre: event must not have a venue map before configuration");
+
+        List<ZoneCreationDTO> specs = List.of(
+                new ZoneCreationDTO("VIP", ZoneType.SEATED, 120.0, 3),
+                new ZoneCreationDTO("GA", ZoneType.STANDING, 50.0, 200));
+
+        Result<Void> result = eventService.createVenueMap(ownerToken, "e1", "Stadium", specs);
+
+        // Post-condition: a domain venue map is assembled from the primitives and persisted
+        assertTrue(result.isSuccess(), "Post: createVenueMap must succeed for the company owner");
+        VenueMap saved = eventRepository.findById("e1").get().getVenueMap();
+        assertEquals("Stadium", saved.getVenueName(), "Post: venue name must match the spec");
+        assertEquals(2, saved.getZones().size(), "Post: both zones must be created");
+
+        SeatedZone seated = (SeatedZone) saved.getZones().get(0);
+        assertEquals(3, seated.getSeats().size(), "Post: seated zone must materialise one seat per capacity unit");
+        assertEquals(120.0, seated.getBasePrice());
+
+        StandingZone standing = (StandingZone) saved.getZones().get(1);
+        assertEquals(200, standing.getMaxCapacity(), "Post: standing zone capacity must match the spec");
+    }
+
+    @Test
+    @DisplayName("Given no zones — When createVenueMap — Then rejected without persisting")
+    void GivenNoZones_WhenCreateVenueMap_ThenRejected() {
+        String ownerId = "owner1";
+        userRepository.save(new Member(ownerId, "owner", "hash"));
+        String ownerToken = authGateway.generateToken(ownerId);
+        companyRepository.save(new ProductionCompany("comp1", "Company", "Desc", ownerId));
+        eventRepository.save(new Event("e1", "Show", "Desc", "comp1", LocalDateTime.now().plusDays(1), "Music"));
+
+        Result<Void> result = eventService.createVenueMap(ownerToken, "e1", "Stadium", List.of());
+
+        // Post-condition: an empty configuration is rejected and nothing is saved
+        assertFalse(result.isSuccess(), "Post: a venue map with no zones must be rejected");
+        assertTrue(result.getErrorMessage().contains("at least one zone"));
+        assertNull(eventRepository.findById("e1").get().getVenueMap(), "Post: no venue map must be persisted on failure");
+    }
+
+    @Test
+    @DisplayName("Given invalid zone spec — When createVenueMap — Then construction error surfaces as failure")
+    void GivenInvalidZoneSpec_WhenCreateVenueMap_ThenFailure() {
+        String ownerId = "owner1";
+        userRepository.save(new Member(ownerId, "owner", "hash"));
+        String ownerToken = authGateway.generateToken(ownerId);
+        companyRepository.save(new ProductionCompany("comp1", "Company", "Desc", ownerId));
+        eventRepository.save(new Event("e1", "Show", "Desc", "comp1", LocalDateTime.now().plusDays(1), "Music"));
+
+        // A standing zone with zero capacity is invalid in the domain.
+        List<ZoneCreationDTO> specs = List.of(new ZoneCreationDTO("GA", ZoneType.STANDING, 50.0, 0));
+
+        Result<Void> result = eventService.createVenueMap(ownerToken, "e1", "Stadium", specs);
+
+        // Post-condition: the domain validation error is returned as a failure, not thrown
+        assertFalse(result.isSuccess(), "Post: invalid zone specs must produce a failure result");
+        assertNull(eventRepository.findById("e1").get().getVenueMap(), "Post: no venue map must be persisted on failure");
     }
 }
