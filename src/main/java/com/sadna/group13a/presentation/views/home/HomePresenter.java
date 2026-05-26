@@ -37,6 +37,10 @@ public class HomePresenter {
         return userService.getUserProfile(token);
     }
 
+    public boolean isTokenValid(String token) {
+        return authGateway.validateToken(token);
+    }
+
     public String getUserId(String token) {
         return authGateway.extractUserId(token);
     }
