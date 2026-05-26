@@ -30,7 +30,7 @@ public class CartCleanupService {
         this.eventPublisher = eventPublisher;
     }
 
-    @Scheduled(fixedDelay = 60_000)
+    @Scheduled(fixedDelay = 15_000)
     public void expireStaleOrders() {
         logger.debug("Cart cleanup scheduled task started.");
         try {
