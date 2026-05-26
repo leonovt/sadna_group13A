@@ -11,6 +11,7 @@ import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +35,7 @@ class CompanyServiceTest {
     @Mock private IOrderHistoryRepository historyRepository;
     @Mock private IAuth authGateway;
     @Mock private ObjectMapper objectMapper;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private CompanyService companyService;

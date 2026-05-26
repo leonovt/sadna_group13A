@@ -18,6 +18,8 @@ import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
 import com.sadna.group13a.domain.Interfaces.*;
+import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -107,15 +109,19 @@ class PurchaseCompletionTest {
             when(event.getId()).thenReturn(eventId);
             when(event.getCompanyId()).thenReturn(companyId);
             when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+            when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 
             ProductionCompany company = mock(ProductionCompany.class);
+            when(company.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(company.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
 
             // Domain Service mocks
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
                     "Zone1", "Seat1", 100.0);
-            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_1"));
             // Pre-condition: cart exists and has not expired; user is authenticated and active
@@ -156,13 +162,18 @@ class PurchaseCompletionTest {
             when(event.getId()).thenReturn(eventId);
             when(event.getCompanyId()).thenReturn("company1");
             when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+            when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 
-            when(companyRepository.findById("company1")).thenReturn(Optional.of(mock(ProductionCompany.class)));
+            ProductionCompany company1 = mock(ProductionCompany.class);
+            when(company1.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(company1.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
+            when(companyRepository.findById("company1")).thenReturn(Optional.of(company1));
 
             // Let checkoutDomainService throw an exception representing policy breach
             doThrow(new RuntimeException("Policy Exceeded")).when(checkoutDomainService)
-                    .checkoutItemsForEvent(any(), any(), any(), any(), any(), any());
+                    .checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any());
 
             Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
 
@@ -194,12 +205,18 @@ class PurchaseCompletionTest {
             when(event.getId()).thenReturn(eventId);
             when(event.getCompanyId()).thenReturn("company1");
             when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+            when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-            when(companyRepository.findById("company1")).thenReturn(Optional.of(mock(ProductionCompany.class)));
+
+            ProductionCompany company2 = mock(ProductionCompany.class);
+            when(company2.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(company2.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
+            when(companyRepository.findById("company1")).thenReturn(Optional.of(company2));
 
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), "company1", "Company",
                     "Zone1", "Seat1", 100.0);
-            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, "cc_good")).thenReturn(Result.success("txn_1"));
 

@@ -79,6 +79,10 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
         }
 
         EventDTO event = eventResult.getOrThrow();
+        if (!event.isPublished() && token == null) {
+            showError("Event not available.");
+            return;
+        }
         renderEventInfo(event);
 
         if (token != null) {
