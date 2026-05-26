@@ -16,7 +16,7 @@ import java.util.List;
 
 @Route("member/orders")
 @PageTitle("Order History")
-public class OrderHistoryView extends VerticalLayout {
+public class OrderHistoryView extends VerticalLayout implements BeforeEnterObserver {
 
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -30,6 +30,16 @@ public class OrderHistoryView extends VerticalLayout {
     public OrderHistoryView(OrderHistoryPresenter presenter) {
         this.presenter = presenter;
         initView();
+    }
+
+    /**
+     * Loads the orders on navigation rather than from the constructor: at
+     * construction time the component is not yet attached and
+     * {@code VaadinSession.getCurrent()} may be unavailable. {@code beforeEnter}
+     * runs in the UI request thread with the session initialized.
+     */
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
         presenter.loadOrders(this);
     }
 
