@@ -564,8 +564,21 @@ class OrderServiceIntegrationTest {
 
         @Override public void notifyQueueTurnArrived(String u, String e, LocalDateTime t) {}
         @Override public void notifyUserBanned(String u, String adminId) {}
-        @Override public void notifyCompanyClosed(String c, String adminId) {}
+        @Override public void notifyCompanyClosed(java.util.List<String> staffIds, String c, String adminId) {}
         @Override public void notifyRaffleDrawn(String e, int w) {}
+        @Override public void notifyActionFailed(String userId, String reason) {}
+        @Override public void notifyCompanySuspended(java.util.List<String> staffIds, String companyId) {}
+        @Override public void notifyCompanyReopened(java.util.List<String> staffIds, String companyId) {}
+        @Override public void notifyStaffNominated(String userId, String companyId, String role) {}
+        @Override public void notifyStaffRemoved(String userId, String companyId) {}
+        @Override public void notifyPermissionsUpdated(String userId, String companyId) {}
+        @Override public void notifyCartExpired(String userId) {}
+        @Override public void notifyEventCancelled(java.util.List<String> buyerIds, String eventId, String eventTitle) {}
+        @Override public void notifyEventRescheduled(java.util.List<String> buyerIds, String eventId, String eventTitle, LocalDateTime newDate) {}
+        @Override public void notifyUserReactivated(String userId) {}
+        @Override public void notifyEventSoldOut(java.util.List<String> staffIds, String eventId, String eventTitle) {}
+        @Override public void notifyRaffleWon(String userId, String eventId, String authCode, LocalDateTime expiresAt) {}
+        @Override public void notifyAdminMessage(String targetUserId, String message) {}
 
         // ── Accessors ─────────────────────────────────────────────────────────────
         int    getOrderCompletedCallCount() { return orderCompletedCallCount.get(); }

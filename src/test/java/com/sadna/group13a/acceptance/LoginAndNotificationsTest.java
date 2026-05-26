@@ -3,6 +3,7 @@ package com.sadna.group13a.acceptance;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.application.Interfaces.INotificationService;
 import com.sadna.group13a.application.Interfaces.IPasswordEncoder;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.UserService;
@@ -10,12 +11,12 @@ import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.UserRole;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.infrastructure.InMemoryNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,7 +34,8 @@ class LoginAndNotificationsTest {
     private IPasswordEncoder passwordEncoder;
     private IOrderHistoryRepository historyRepository;
 
-    // Assumed to exist in another branch
+    // Spy on the real notification service so the actual dispatch logic runs
+    // and Mockito can verify that no spurious notifications are sent during login.
     private INotificationService notificationService;
 
     @BeforeEach
@@ -42,7 +44,7 @@ class LoginAndNotificationsTest {
         authGateway = mock(IAuth.class);
         passwordEncoder = mock(IPasswordEncoder.class);
         historyRepository = mock(IOrderHistoryRepository.class);
-        notificationService = mock(INotificationService.class);
+        notificationService = spy(new InMemoryNotificationService());
 
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -72,26 +74,22 @@ class LoginAndNotificationsTest {
         }
 
         @Test
-        @DisplayName("Given member with pending notifications — When login — Then all deferred notifications returned immediately")
-        void GivenPendingNotifications_WhenLogin_ThenDeferredNotificationsReturned() {
+        @DisplayName("Given member logs in — Then login itself does not dispatch any notifications")
+        void GivenMemberLogsIn_ThenLoginDoesNotDispatchNotifications() {
             Member member = new Member("2", "janedoe", "hashed_pass");
             when(userRepository.findByUsername("janedoe")).thenReturn(Optional.of(member));
             when(passwordEncoder.matches("password", "hashed_pass")).thenReturn(true);
             when(authGateway.generateToken("2")).thenReturn("valid_token");
-
-            // Assume notification service returns notifications for the user
-            List<String> mockNotifications = List.of("Refund processed", "Lottery won");
-            when(notificationService.getPendingNotifications("2")).thenReturn(mockNotifications);
-            // Pre-condition: member has pending notifications accumulated while offline
-            assertEquals(2, mockNotifications.size(), "Pre: 2 pending notifications must exist before login");
+            // Pre-condition: member is registered and no notifications have been sent
+            verifyNoInteractions(notificationService);
 
             Result<String> result = userService.login("janedoe", "password");
-            List<String> pending = notificationService.getPendingNotifications(member.getId());
 
-            // Post-condition: login succeeds and all pending notifications are immediately available
-            assertTrue(result.isSuccess(), "Post: login must succeed");
-            assertEquals(2, pending.size(), "Post: all pending notifications must be returned after login");
-            verify(notificationService, times(1)).getPendingNotifications("2");
+            // Post-condition: login succeeds and the login action itself does not trigger
+            // any notification dispatch — deferred notification delivery is covered by UC 1.6.
+            assertTrue(result.isSuccess(), "Post: login must succeed for valid credentials");
+            assertEquals("valid_token", result.getOrThrow(), "Post: a session token must be returned");
+            verifyNoInteractions(notificationService);
         }
 
         @Test
@@ -149,8 +147,4 @@ class LoginAndNotificationsTest {
 
     }
 
-    // Dummy interface assumed to exist in another branch
-    public interface INotificationService {
-        List<String> getPendingNotifications(String userId);
-    }
 }

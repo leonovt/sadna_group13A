@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.shared.DomainException;
@@ -40,7 +41,7 @@ class PurchasePolicyTest {
         objectMapper = new ObjectMapper();
 
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
-                objectMapper);
+                objectMapper, e -> {});
     }
 
     class MaxTicketsPolicy implements PurchasePolicy {

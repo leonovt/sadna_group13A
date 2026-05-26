@@ -21,6 +21,9 @@ import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyStaffMember;
+import com.sadna.group13a.domain.Events.CheckoutFailedEvent;
+import com.sadna.group13a.domain.Events.EventSoldOutEvent;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
 import com.sadna.group13a.domain.Interfaces.IActiveOrderRepository;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
@@ -313,6 +316,7 @@ public class OrderService {
             } catch (PermissionDeniedException e) {
                 logger.warn("Access denied for user {} on event {}: {}", userId, eventId, e.getMessage());
                 rollbackSoldSeats(processedEvents, order.getItems());
+                eventPublisher.publishEvent(new CheckoutFailedEvent(userId, e.getMessage()));
                 return Result.failure(e.getMessage());
             }
 
@@ -338,10 +342,12 @@ public class OrderService {
             } catch (SeatUnavailableException e) {
                 logger.warn("Seat unavailable during checkout for user {}: {}", userId, e.getMessage());
                 rollbackSoldSeats(processedEvents, order.getItems());
+                eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Seat no longer available: " + e.getMessage()));
                 return Result.failure("Seat no longer available: " + e.getMessage());
             } catch (Exception e) {
                 logger.error("Checkout domain logic failed for user {}: {}", userId, e.getMessage());
                 rollbackSoldSeats(processedEvents, order.getItems());
+                eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Checkout failed: " + e.getMessage()));
                 return Result.failure("Checkout failed: " + e.getMessage());
             }
         }
@@ -351,6 +357,7 @@ public class OrderService {
         if (!paymentResult.isSuccess()) {
             logger.warn("Payment declined for user {} (amount {}): {}", userId, totalPaid, paymentResult.getErrorMessage());
             rollbackSoldSeats(processedEvents, order.getItems());
+            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Payment declined: " + paymentResult.getErrorMessage()));
             return Result.failure("Payment declined: " + paymentResult.getErrorMessage());
         }
         String transactionId = paymentResult.getOrThrow();
@@ -366,7 +373,21 @@ public class OrderService {
             logger.error("Failed to persist seat map after payment: {}", e.getMessage());
             paymentGateway.refundPayment(transactionId);
             rollbackSoldSeats(processedEvents, order.getItems());
+            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Concurrent modification detected — payment refunded. Please retry."));
             return Result.failure("Concurrent modification detected — payment refunded. Please retry.");
+        }
+
+        // ── Sold-out alerts ───────────────────────────────────────────────────────
+        for (Event event : processedEvents.values()) {
+            if (event.getTotalAvailable() == 0) {
+                companyRepository.findById(event.getCompanyId()).ifPresent(company -> {
+                    List<String> staffIds = company.getStaff().values().stream()
+                            .map(CompanyStaffMember::getUserId)
+                            .collect(Collectors.toList());
+                    eventPublisher.publishEvent(
+                            new EventSoldOutEvent(event.getId(), event.getTitle(), staffIds));
+                });
+            }
         }
 
         // ── Post-checkout ─────────────────────────────────────────────────────────
@@ -378,6 +399,7 @@ public class OrderService {
             logger.error("Ticket issuance failed for receipt {}: {}", history.getReceiptId(), ticketResult.getErrorMessage());
             paymentGateway.refundPayment(transactionId);
             rollbackSoldSeats(processedEvents, order.getItems());
+            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Ticket issuance failed — payment refunded."));
             return Result.failure("Ticket issuance failed — payment refunded.");
         }
 
