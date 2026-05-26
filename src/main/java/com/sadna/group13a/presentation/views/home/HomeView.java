@@ -73,14 +73,13 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         UserRole role = (profile != null) ? profile.role() : UserRole.GUEST;
 
         add(buildHeader(token, displayName, role));
-        add(buildSearchBar());
 
         if (role == UserRole.MEMBER || role == UserRole.ADMIN) {
             List<CompanyDTO> companies = presenter.getMyCompanies(token);
             add(buildMyCompaniesSection(companies));
         }
 
-        add(buildSearchBar(token));
+        add(buildSearchBar());
         add(buildEventGrid());
 
         loadEvents(null);
@@ -107,12 +106,10 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
             header.add(new RouterLink("Admin", AdminDashboardView.class));
         }
         header.add(new RouterLink("Cart", CartView.class));
-
         header.add(new Button("Logout", e -> presenter.handleLogout(token)));
         return header;
     }
 
-    private HorizontalLayout buildSearchBar() {
     private HorizontalLayout buildMyCompaniesSection(List<CompanyDTO> companies) {
         HorizontalLayout row = new HorizontalLayout();
         row.setAlignItems(Alignment.CENTER);
@@ -133,7 +130,7 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         return row;
     }
 
-    private HorizontalLayout buildSearchBar(String token) {
+    private HorizontalLayout buildSearchBar() {
         searchField.setPlaceholder("Search events...");
         searchField.setWidth("300px");
         Button searchButton = new Button("Search", e -> loadEvents(searchField.getValue().isBlank() ? null : searchField.getValue()));

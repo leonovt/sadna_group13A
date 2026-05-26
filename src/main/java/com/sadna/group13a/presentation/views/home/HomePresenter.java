@@ -39,13 +39,13 @@ public class HomePresenter {
         return eventService.searchEvents(query, null, null, null, null, null, null);
     }
 
+    public Result<UserDTO> loadUserProfile(String token) {
+        return userService.getUserProfile(token);
+    }
+
     public List<CompanyDTO> getMyCompanies(String token) {
         Result<List<CompanyDTO>> result = companyService.getMyCompanies(token);
         return result.isSuccess() ? result.getOrThrow() : Collections.emptyList();
-    }
-
-    public Result<UserDTO> loadUserProfile(String token) {
-        return userService.getUserProfile(token);
     }
 
     public boolean isTokenValid(String token) {
