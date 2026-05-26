@@ -134,6 +134,7 @@ class ActiveOrderManagementTest {
         verify(event).releaseItem("zone1", "seat1", userId);
         verify(eventRepository).save(event);
         verify(orderRepository).save(order);
+        assertEquals(0, order.getItems().size(), "Post: cart must be empty after removing the only item");
     }
 
     @Test
@@ -167,6 +168,7 @@ class ActiveOrderManagementTest {
         // Post-condition: item added but timer is unchanged (no infinite hold extension)
         assertTrue(result.isSuccess(), "Post: adding item must succeed");
         assertEquals(originalExpiry, order.getExpiresAt(), "Post: hold timer must not be reset on cart update");
+        assertEquals(1, order.getItems().size(), "Post: cart must contain the newly added item after update");
     }
 
     @Test

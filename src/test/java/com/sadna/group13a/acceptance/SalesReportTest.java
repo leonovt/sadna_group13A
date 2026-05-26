@@ -6,6 +6,7 @@ import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
@@ -45,7 +46,7 @@ class SalesReportTest {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
         objectMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway, objectMapper);
+        companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway, objectMapper, e -> {});
         paymentGateway = new StubPaymentGateway();
     }
 
@@ -65,9 +66,10 @@ class SalesReportTest {
 
         Result<SalesReportDTO> result = companyService.generateSalesReport(founderToken, "c1");
 
-        // Post-condition: report is returned for the company
+        // Post-condition: report is returned for the correct company with zero orders (none added)
         assertTrue(result.isSuccess(), "Post: report generation must succeed for the company founder");
-        assertNotNull(result.getOrThrow().companyId(), "Post: report must include the company ID");
+        assertEquals("c1", result.getOrThrow().companyId(), "Post: report must be scoped to the requested company");
+        assertEquals(0, result.getOrThrow().totalOrders(), "Post: report must show zero orders when no purchases exist");
     }
 
     @Test

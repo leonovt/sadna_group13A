@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
 import com.sadna.group13a.domain.Aggregates.User.Member;
@@ -40,7 +41,7 @@ class RoleManagementTest {
         authGateway = new AuthImpl();
 
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
-                new ObjectMapper());
+                new ObjectMapper(), e -> {});
     }
 
     private void setupUsersAndCompany(String founderId, String otherUserId) {
@@ -87,9 +88,11 @@ class RoleManagementTest {
 
         Result<Void> circularResult = companyService.appointOwner(t2, "c1", "u1");
 
-        // Post-condition: circular appointment is rejected
+        // Post-condition: circular appointment is rejected and u1's existing role is unchanged
         assertFalse(circularResult.isSuccess(), "Post: circular appointment must be blocked");
         assertTrue(circularResult.getErrorMessage().contains("already part of"), "Post: error must explain u1 is already in the hierarchy");
+        ProductionCompany postCompany = companyRepository.findById("c1").get();
+        assertTrue(postCompany.getStaff().containsKey("u1"), "Post: u1 must remain in company staff unchanged after the blocked circular appointment");
     }
 
     @Test

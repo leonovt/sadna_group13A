@@ -86,6 +86,9 @@ class SubscriberCancellationTest {
 
         // Post-condition: account is deactivated — the user can no longer perform actions
         assertFalse(((Member) userRepository.findById("u1").get()).isActive(), "Post: user must be inactive after cancellation");
+        // Post-condition: a UserBannedEvent is published so downstream listeners (CompanyEventListener)
+        // revoke the user's roles in all companies they belonged to
+        verify(eventPublisher).publishEvent(any(com.sadna.group13a.domain.Events.UserBannedEvent.class));
     }
 
     @Test

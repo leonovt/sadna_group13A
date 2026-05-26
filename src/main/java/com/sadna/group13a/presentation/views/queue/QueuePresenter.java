@@ -17,9 +17,12 @@ public class QueuePresenter {
     }
 
     /**
-     * Entering the waiting room joins the queue: the user is either admitted
-     * immediately, placed in line, or — when no queue is configured — granted
-     * direct access. The resulting standing is rendered.
+     * Entering the waiting room renders the user's standing. We first read the
+     * current status: if the user is already in the queue (active, or holding a
+     * waiting position) we simply refresh — navigating back to a page you are
+     * already queued for must not re-join. Only a user who is not yet in the
+     * queue is joined, at which point they are either admitted immediately,
+     * placed in line, or — when no queue is configured — granted direct access.
      */
     public void onEnter(String eventId, QueueView view) {
         String token = requireToken(view);
@@ -27,12 +30,28 @@ public class QueuePresenter {
             return;
         }
 
-        Result<QueueStatusDTO> result = queueService.joinQueue(token, eventId);
-        if (result.isSuccess()) {
-            view.showStatus(result.getOrThrow());
-        } else {
-            view.showError(result.getErrorMessage());
+        Result<QueueStatusDTO> statusResult = queueService.getStatus(token, eventId);
+        if (statusResult.isSuccess() && isInQueue(statusResult.getOrThrow())) {
+            view.showStatus(statusResult.getOrThrow());
+            return;
         }
+
+        Result<QueueStatusDTO> joinResult = queueService.joinQueue(token, eventId);
+        if (joinResult.isSuccess()) {
+            view.showStatus(joinResult.getOrThrow());
+        } else {
+            view.showError(joinResult.getErrorMessage());
+        }
+    }
+
+    /**
+     * A user counts as already in the queue when they hold active access (which
+     * also covers the no-queue direct-access case) or occupy a waiting position
+     * ({@code positionInLine >= 0}); {@code getStatus} reports a position of -1
+     * for someone who is not in the queue at all.
+     */
+    private boolean isInQueue(QueueStatusDTO status) {
+        return status.isActive() || status.positionInLine() >= 0;
     }
 
     /** Re-reads the user's position without altering the queue. */
@@ -72,7 +91,9 @@ public class QueuePresenter {
 
     private String requireToken(QueueView view) {
         Object token = VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
+        // A non-String value (corrupted session, future refactor) is treated the
+        // same as a missing token rather than throwing a ClassCastException.
+        if (!(token instanceof String)) {
             view.showError("You must be logged in to join a queue.");
             return null;
         }

@@ -1,6 +1,7 @@
 package com.sadna.group13a.application.Services;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,19 +15,28 @@ import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
+import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.Event.Zone;
+import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
 import com.sadna.group13a.application.DTO.EventDTO;
 import com.sadna.group13a.application.DTO.SeatDTO;
 import com.sadna.group13a.application.DTO.VenueMapDTO;
+import com.sadna.group13a.application.DTO.ZoneCreationDTO;
 import com.sadna.group13a.application.DTO.ZoneDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Events.EventRescheduledEvent;
+import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.domain.shared.DiscountPolicy;
+import com.sadna.group13a.domain.shared.PurchasePolicy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -37,13 +47,19 @@ public class EventService
     private final ICompanyRepository companyRepository;
     private final IAuth authGateway;
     private final IUserRepository userRepository;
+    private final IOrderHistoryRepository historyRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-
-    public EventService(IEventRepository eventRepository, ICompanyRepository companyRepository, IAuth authGateway, IUserRepository userRepository) {
+    public EventService(IEventRepository eventRepository, ICompanyRepository companyRepository,
+                        IAuth authGateway, IUserRepository userRepository,
+                        IOrderHistoryRepository historyRepository,
+                        ApplicationEventPublisher eventPublisher) {
         this.eventRepository = eventRepository;
         this.companyRepository = companyRepository;
         this.authGateway = authGateway;
         this.userRepository = userRepository;
+        this.historyRepository = historyRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -178,6 +194,54 @@ public class EventService
         }
     }
 
+    /**
+     * Builds a venue map from primitive zone specifications and assigns it to the
+     * event. This is the entry point for the organiser UI: the presentation layer
+     * supplies plain values ({@link ZoneCreationDTO}) and the domain
+     * {@link VenueMap}/{@link Zone}/{@link Seat} graph is assembled here, keeping
+     * aggregate construction out of the views. Authorisation, the published-event
+     * guard, and persistence are reused from {@link #setVenueMap}.
+     */
+    public Result<Void> createVenueMap(String tokenString, String eventId,
+                                       String venueName, List<ZoneCreationDTO> zoneSpecs) {
+        if (zoneSpecs == null || zoneSpecs.isEmpty()) {
+            return Result.failure("Venue map must have at least one zone");
+        }
+
+        VenueMap venueMap;
+        try {
+            List<Zone> zones = new ArrayList<>();
+            for (ZoneCreationDTO spec : zoneSpecs) {
+                zones.add(buildZone(spec));
+            }
+            venueMap = new VenueMap(UUID.randomUUID().toString(), venueName, zones);
+        } catch (IllegalArgumentException e) {
+            // Invalid input (blank names, non-positive capacity, …) is reported back
+            // to the caller as a failure rather than thrown across the boundary.
+            logger.warn("createVenueMap: rejected venue map for event '{}': {}", eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+
+        return setVenueMap(tokenString, eventId, venueMap);
+    }
+
+    private Zone buildZone(ZoneCreationDTO spec) {
+        if (spec == null || spec.type() == null) {
+            throw new IllegalArgumentException("Zone type must be specified");
+        }
+        String zoneId = UUID.randomUUID().toString();
+        if (spec.type() == ZoneType.SEATED) {
+            // A seated zone is materialised as individually addressable seats so the
+            // inventory is ready for per-seat holds; labels are "<zone> <n>".
+            List<Seat> seats = new ArrayList<>();
+            for (int i = 1; i <= spec.capacity(); i++) {
+                seats.add(new Seat(UUID.randomUUID().toString(), spec.name() + " " + i));
+            }
+            return new SeatedZone(zoneId, spec.name(), spec.basePrice(), seats);
+        }
+        return new StandingZone(zoneId, spec.name(), spec.basePrice(), spec.capacity());
+    }
+
     public Result<Void> unpublishEvent(String tokeString, String eventId)
     {
         if(!authGateway.validateToken(tokeString))
@@ -235,8 +299,21 @@ public class EventService
         try {
             if (title != null) event.setTitle(title);
             if (description != null) event.setDescription(description);
-            if (date != null) event.setEventDate(date);
             if (category != null) event.setCategory(category);
+            if (date != null) {
+                LocalDateTime oldDate = event.getEventDate();
+                event.setEventDate(date);
+                if (!date.equals(oldDate)) {
+                    List<String> buyerIds = historyRepository.findAll().stream()
+                            .filter(h -> h.getItems().stream()
+                                    .anyMatch(i -> i.getEventId().equals(eventId)))
+                            .map(OrderHistory::getUserId)
+                            .distinct()
+                            .collect(Collectors.toList());
+                    eventPublisher.publishEvent(
+                            new EventRescheduledEvent(eventId, event.getTitle(), date, buyerIds));
+                }
+            }
             eventRepository.save(event);
             logger.info("User '{}' updated details for event '{}'.", initiatorId, eventId);
             return Result.success();
@@ -305,6 +382,72 @@ public class EventService
 
         logger.debug("getVenueMap: venue map for event '{}' retrieved by '{}'.", eventId, callerId);
         return Result.success(new VenueMapDTO(map.getId(), map.getVenueName(), zoneDTOs));
+    }
+
+    public Result<Void> setPurchasePolicy(String tokenString, String eventId, PurchasePolicy policy) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized setPurchasePolicy attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String initiatorId = authGateway.extractUserId(tokenString);
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set purchase policy on non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
+        Event event = eventOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
+        if (compOpt.isEmpty()) {
+            return Result.failure("Company not found");
+        }
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_POLICIES)) {
+            logger.warn("User '{}' lacks MANAGE_POLICIES permission — setPurchasePolicy for event '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage policies");
+        }
+
+        try {
+            event.setPurchasePolicy(policy);
+            eventRepository.save(event);
+            logger.info("User '{}' updated purchase policy for event '{}'.", initiatorId, eventId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("User '{}' failed to set purchase policy for event '{}': {}", initiatorId, eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
+    public Result<Void> setDiscountPolicy(String tokenString, String eventId, DiscountPolicy policy) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized setDiscountPolicy attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String initiatorId = authGateway.extractUserId(tokenString);
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set discount policy on non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
+        Event event = eventOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
+        if (compOpt.isEmpty()) {
+            return Result.failure("Company not found");
+        }
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_DISCOUNTS)) {
+            logger.warn("User '{}' lacks MANAGE_DISCOUNTS permission — setDiscountPolicy for event '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage discounts");
+        }
+
+        try {
+            event.setDiscountPolicy(policy);
+            eventRepository.save(event);
+            logger.info("User '{}' updated discount policy for event '{}'.", initiatorId, eventId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("User '{}' failed to set discount policy for event '{}': {}", initiatorId, eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
     }
 
     private ZoneDTO toZoneDTO(Zone zone) {

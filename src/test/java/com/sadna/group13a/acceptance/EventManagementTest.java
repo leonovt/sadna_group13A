@@ -9,8 +9,10 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
+import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +46,10 @@ class EventManagementTest {
         userRepository = mock(IUserRepository.class);
         extendedEventOperations = mock(IEventExtendedOperations.class);
 
-        eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository);
+        IOrderHistoryRepository historyRepository = mock(IOrderHistoryRepository.class);
+        ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+        eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository,
+                historyRepository, publisher);
     }
 
     @Test
@@ -109,10 +114,11 @@ class EventManagementTest {
         VenueMap newMap = mock(VenueMap.class);
         Result<Void> result = eventService.setVenueMap(token, eventId, newMap);
 
-        // Post-condition: inventory update succeeds and event is saved with new map
+        // Post-condition: inventory update succeeds; venue map is applied to the domain object BEFORE persisting
         assertTrue(result.isSuccess(), "Post: inventory and venue update must succeed for authorized user");
-        verify(event).setVenueMap(newMap);
-        verify(eventRepository).save(event);
+        var inOrder = inOrder(event, eventRepository);
+        inOrder.verify(event).setVenueMap(newMap);
+        inOrder.verify(eventRepository).save(event);
     }
 
     @Test

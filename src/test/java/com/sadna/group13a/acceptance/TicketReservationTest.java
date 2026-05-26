@@ -142,6 +142,13 @@ class TicketReservationTest {
 
         assertEquals(SeatStatus.HELD, fetchedSeat.getStatus(), "Post: seat must be in HELD state after reservation");
         assertNotNull(fetchedSeat.getHoldExpiresAt(), "Post: seat hold must have an expiry time set");
+        long secondsUntilExpiry = java.time.Duration.between(Instant.now(), fetchedSeat.getHoldExpiresAt()).getSeconds();
+        assertTrue(secondsUntilExpiry > 9 * 60,
+                "Post: lottery seat hold must expire at least 9 minutes in the future");
+
+        var cart = activeOrderRepository.findActiveByUserId("u1");
+        assertTrue(cart.isPresent(), "Post: active cart must exist after reservation");
+        assertEquals(1, cart.get().getItems().size(), "Post: cart must contain exactly one reserved item");
     }
 
     @Test
@@ -302,12 +309,7 @@ class TicketReservationTest {
         setupData("e1", "c1", "z1", "s1", EventSaleMode.RAFFLE);
 
         ProductionCompany comp = companyRepository.findById("c1").get();
-        comp.addPurchasePolicy(new PurchasePolicy() {
-            @Override
-            public boolean isSatisfied() {
-                return false; // Force fail to simulate max 4 limit exceeded
-            }
-        });
+        comp.setPurchasePolicy(ctx -> false);
         companyRepository.save(comp);
 
         // Intentionally passing simulated test context

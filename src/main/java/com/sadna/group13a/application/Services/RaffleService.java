@@ -17,6 +17,7 @@ import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
 import com.sadna.group13a.domain.Aggregates.Raffle.Raffle;
 import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
+import com.sadna.group13a.domain.Events.RaffleWonEvent;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import org.slf4j.Logger;
@@ -219,6 +220,12 @@ public class RaffleService {
             raffleRepository.save(raffle);
 
             int actuallyDrawn = raffle.getWinningCodes().size();
+            // Individual notification per winner with their unique auth code
+            for (AuthorizationCode code : raffle.getWinningCodes()) {
+                eventPublisher.publishEvent(new RaffleWonEvent(
+                        code.getUserId(), raffle.getEventId(), code.getCode(), code.getExpirationTime()));
+            }
+            // Broadcast result count to event channel
             eventPublisher.publishEvent(new RaffleDrawnEvent(raffleId, raffle.getEventId(), actuallyDrawn));
             logger.info("User '{}' executed draw for raffle '{}' — {} winner(s) selected.", actingUserId, raffleId, actuallyDrawn);
 
