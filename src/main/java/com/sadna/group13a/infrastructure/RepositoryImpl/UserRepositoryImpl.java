@@ -35,7 +35,7 @@ public class UserRepositoryImpl implements IUserRepository {
         if (stored != null && stored != user) {
             // If the incoming version is NOT strictly greater than the stored version, 
             // it means a concurrent update happened and we have a collision.
-            if (user.getVersion() <= stored.getVersion()) {
+            if (stored.getVersion() > user.getVersion()) {
                 throw new OptimisticLockException(
                         "Optimistic lock conflict for User " + user.getId() +
                         ": stored version " + stored.getVersion() +
