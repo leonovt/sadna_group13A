@@ -109,10 +109,11 @@ class EventManagementTest {
         VenueMap newMap = mock(VenueMap.class);
         Result<Void> result = eventService.setVenueMap(token, eventId, newMap);
 
-        // Post-condition: inventory update succeeds and event is saved with new map
+        // Post-condition: inventory update succeeds; venue map is applied to the domain object BEFORE persisting
         assertTrue(result.isSuccess(), "Post: inventory and venue update must succeed for authorized user");
-        verify(event).setVenueMap(newMap);
-        verify(eventRepository).save(event);
+        var inOrder = inOrder(event, eventRepository);
+        inOrder.verify(event).setVenueMap(newMap);
+        inOrder.verify(eventRepository).save(event);
     }
 
     @Test

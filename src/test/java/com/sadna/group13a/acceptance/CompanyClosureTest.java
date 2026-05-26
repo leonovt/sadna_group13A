@@ -97,10 +97,12 @@ class CompanyClosureTest {
         // By invoking suspendCompany, its domain states transition to SUSPENDED
         Result<Void> result = companyService.suspendCompany(token, companyId);
 
-        // Post-condition: company is suspended; any subsequent purchase checks on company.isActive() will fail
+        // Post-condition: company is suspended; any subsequent purchase checks on company.isActive() will fail.
+        // Verify that suspendCompany was applied to the domain object BEFORE persisting it.
         assertTrue(result.isSuccess(), "Post: company suspension must succeed");
-        verify(company).suspendCompany(founderId);
-        verify(companyRepository).save(company);
+        var inOrder = inOrder(company, companyRepository);
+        inOrder.verify(company).suspendCompany(founderId);
+        inOrder.verify(companyRepository).save(company);
     }
 
     @Test

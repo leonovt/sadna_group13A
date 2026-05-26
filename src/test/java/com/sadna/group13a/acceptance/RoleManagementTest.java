@@ -87,9 +87,11 @@ class RoleManagementTest {
 
         Result<Void> circularResult = companyService.appointOwner(t2, "c1", "u1");
 
-        // Post-condition: circular appointment is rejected
+        // Post-condition: circular appointment is rejected and u1's existing role is unchanged
         assertFalse(circularResult.isSuccess(), "Post: circular appointment must be blocked");
         assertTrue(circularResult.getErrorMessage().contains("already part of"), "Post: error must explain u1 is already in the hierarchy");
+        ProductionCompany postCompany = companyRepository.findById("c1").get();
+        assertTrue(postCompany.getStaff().containsKey("u1"), "Post: u1 must remain in company staff unchanged after the blocked circular appointment");
     }
 
     @Test
