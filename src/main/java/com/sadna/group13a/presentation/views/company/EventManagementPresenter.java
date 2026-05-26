@@ -1,6 +1,7 @@
 package com.sadna.group13a.presentation.views.company;
 
 import com.sadna.group13a.application.DTO.EventDTO;
+import com.sadna.group13a.application.DTO.ZoneCreationDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.EventService;
 import com.vaadin.flow.component.UI;
@@ -95,6 +96,22 @@ public class EventManagementPresenter {
         Result<Void> result = eventService.updateEventDetails(token, eventId, title, description, date, category);
         if (result.isSuccess()) {
             view.showSuccess("Event updated.");
+            loadEvents(view, companyId);
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
+    public void handleConfigureVenue(EventManagementView view, String companyId, String eventId,
+                                     String venueName, List<ZoneCreationDTO> zones) {
+        String token = getToken();
+        if (token == null) {
+            UI.getCurrent().navigate("login");
+            return;
+        }
+        Result<Void> result = eventService.createVenueMap(token, eventId, venueName, zones);
+        if (result.isSuccess()) {
+            view.showSuccess("Venue map saved.");
             loadEvents(view, companyId);
         } else {
             view.showError(result.getErrorMessage());
