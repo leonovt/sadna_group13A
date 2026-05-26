@@ -27,6 +27,8 @@ import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Events.EventRescheduledEvent;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.domain.shared.DiscountPolicy;
+import com.sadna.group13a.domain.shared.PurchasePolicy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -328,6 +330,72 @@ public class EventService
 
         logger.debug("getVenueMap: venue map for event '{}' retrieved by '{}'.", eventId, callerId);
         return Result.success(new VenueMapDTO(map.getId(), map.getVenueName(), zoneDTOs));
+    }
+
+    public Result<Void> setPurchasePolicy(String tokenString, String eventId, PurchasePolicy policy) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized setPurchasePolicy attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String initiatorId = authGateway.extractUserId(tokenString);
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set purchase policy on non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
+        Event event = eventOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
+        if (compOpt.isEmpty()) {
+            return Result.failure("Company not found");
+        }
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_POLICIES)) {
+            logger.warn("User '{}' lacks MANAGE_POLICIES permission — setPurchasePolicy for event '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage policies");
+        }
+
+        try {
+            event.setPurchasePolicy(policy);
+            eventRepository.save(event);
+            logger.info("User '{}' updated purchase policy for event '{}'.", initiatorId, eventId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("User '{}' failed to set purchase policy for event '{}': {}", initiatorId, eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
+    public Result<Void> setDiscountPolicy(String tokenString, String eventId, DiscountPolicy policy) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized setDiscountPolicy attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String initiatorId = authGateway.extractUserId(tokenString);
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to set discount policy on non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
+        Event event = eventOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
+        if (compOpt.isEmpty()) {
+            return Result.failure("Company not found");
+        }
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_DISCOUNTS)) {
+            logger.warn("User '{}' lacks MANAGE_DISCOUNTS permission — setDiscountPolicy for event '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage discounts");
+        }
+
+        try {
+            event.setDiscountPolicy(policy);
+            eventRepository.save(event);
+            logger.info("User '{}' updated discount policy for event '{}'.", initiatorId, eventId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("User '{}' failed to set discount policy for event '{}': {}", initiatorId, eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
     }
 
     private ZoneDTO toZoneDTO(Zone zone) {

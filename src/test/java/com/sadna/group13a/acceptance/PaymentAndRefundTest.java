@@ -18,6 +18,8 @@ import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
 import com.sadna.group13a.domain.Interfaces.*;
+import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -108,14 +110,18 @@ class PaymentAndRefundTest {
             when(event.getId()).thenReturn(eventId);
             when(event.getCompanyId()).thenReturn(companyId);
             when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+            when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 
             ProductionCompany company = mock(ProductionCompany.class);
+            when(company.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(company.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
 
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
                     "Zone1", "Seat1", 100.0);
-            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any()))
                     .thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_success"));
@@ -162,14 +168,18 @@ class PaymentAndRefundTest {
             when(event.getId()).thenReturn(eventId);
             when(event.getCompanyId()).thenReturn(companyId);
             when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+            when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 
             ProductionCompany company = mock(ProductionCompany.class);
+            when(company.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(company.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
 
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
                     "Zone1", "Seat1", 100.0);
-            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.failure("Card declined"));
             // Pre-condition: user is authenticated, order exists with items
@@ -218,14 +228,18 @@ class PaymentAndRefundTest {
             when(event.getId()).thenReturn(eventId);
             when(event.getCompanyId()).thenReturn(companyId);
             when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+            when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 
             ProductionCompany company = mock(ProductionCompany.class);
+            when(company.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(company.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
             when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
 
             OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
                     "Zone1", "Seat1", 100.0);
-            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
 
             when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_123"));
 

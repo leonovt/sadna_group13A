@@ -32,8 +32,12 @@ import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IQueueRepository;
 import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.domain.policies.discount.AdditiveDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AndPolicy;
+import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
+import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
 
@@ -320,21 +324,27 @@ public class OrderService {
                 return Result.failure(e.getMessage());
             }
 
-            // Combine purchase and discount policies from both event and company
-            List<PurchasePolicy> purchasePolicies = new ArrayList<>();
-            purchasePolicies.addAll(event.getPurchasePolicies());
-            purchasePolicies.addAll(company.getPurchasePolicies());
+            // Combine purchase policies: both event AND company rules must pass
+            PurchasePolicy combinedPurchase = new AndPolicy(
+                    event.getPurchasePolicy(), company.getPurchasePolicy());
 
-            List<DiscountPolicy> discountPolicies = new ArrayList<>();
-            discountPolicies.addAll(event.getDiscountPolicies());
-            discountPolicies.addAll(company.getDiscountPolicies());
+            // Combine discount policies: sum discounts from event and company (additive by default)
+            DiscountPolicy combinedDiscount = new AdditiveDiscountPolicy(
+                    List.of(event.getDiscountPolicy(), company.getDiscountPolicy()));
+
+            // Build checkout contexts — userAge defaults to 0 until user age storage is added.
+            // optionalAuthCode doubles as coupon code for non-raffle events.
+            int ticketCount = eventItems.size();
+            PurchaseContext purchaseCtx = new PurchaseContext(userId, ticketCount, 0, optionalAuthCode);
+            DiscountContext  discountCtx = new DiscountContext(userId, ticketCount, optionalAuthCode);
 
             // Seat-level synchronization (on Seat and StandingZone methods) ensures
             // that two users competing for the same seat get correct all-or-nothing
             // behaviour without blocking unrelated seats on the same event.
             try {
                 List<OrderHistoryItem> items = checkoutDomainService.checkoutItemsForEvent(
-                        eventItems, order, event, company, purchasePolicies, discountPolicies);
+                        eventItems, order, event, company,
+                        combinedPurchase, combinedDiscount, purchaseCtx, discountCtx);
                 allHistoryItems.addAll(items);
                 totalPaid += items.stream().mapToDouble(OrderHistoryItem::getPricePaid).sum();
                 processedEvents.put(eventId, event);

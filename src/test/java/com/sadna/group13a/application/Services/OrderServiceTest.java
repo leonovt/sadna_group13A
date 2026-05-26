@@ -223,7 +223,7 @@ class OrderServiceTest {
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(activeOrder));
         when(eventRepository.findById(EVENT_ID)).thenReturn(Optional.of(event));
         when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
-        when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+        when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(buildHistoryItems());
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.failure("Declined"));
@@ -240,7 +240,7 @@ class OrderServiceTest {
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(activeOrder));
         when(eventRepository.findById(EVENT_ID)).thenReturn(Optional.of(event));
         when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
-        when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+        when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(buildHistoryItems());
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.success("TXN-123"));
@@ -260,7 +260,7 @@ class OrderServiceTest {
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(activeOrder));
         when(eventRepository.findById(EVENT_ID)).thenReturn(Optional.of(event));
         when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
-        when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any()))
+        when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(buildHistoryItems());
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.success("TXN-123"));

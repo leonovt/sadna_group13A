@@ -1,13 +1,13 @@
 package com.sadna.group13a.domain.Aggregates.Company;
 
+import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.DomainException;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,15 +22,16 @@ public class ProductionCompany {
     private String name;
     private String description;
     private CompanyStatus status;
-    
+
     // userId -> CompanyStaffMember
     private final Map<String, CompanyStaffMember> staff;
 
     // nomineeId -> AppointmentRequest
     private final Map<String, AppointmentRequest> pendingAppointments;
 
-    private final List<PurchasePolicy> purchasePolicies;
-    private final List<DiscountPolicy> discountPolicies;
+    // Single composite-pattern root nodes — defaults are AllowAll / NoDiscount
+    private PurchasePolicy purchasePolicy;
+    private DiscountPolicy discountPolicy;
 
     /** Incremented on every mutation — used for optimistic-locking conflict detection. */
     private volatile long version = 0L;
@@ -52,12 +53,12 @@ public class ProductionCompany {
         this.status = CompanyStatus.ACTIVE;
         this.staff = new ConcurrentHashMap<>();
         this.pendingAppointments = new ConcurrentHashMap<>();
-        
+
         // Founder has no appointer and full permissions (though permissions are typically checked for MANAGER)
         this.staff.put(ownerId, new CompanyStaffMember(ownerId, CompanyRole.FOUNDER, null, null));
-        
-        this.purchasePolicies = Collections.synchronizedList(new ArrayList<>());
-        this.discountPolicies = Collections.synchronizedList(new ArrayList<>());
+
+        this.purchasePolicy = new AllowAllPolicy();
+        this.discountPolicy = new NoDiscountPolicy();
     }
 
     public String getId() {
@@ -139,7 +140,7 @@ public class ProductionCompany {
     }
 
     /**
-     * Internal/Persistence use only. 
+     * Internal/Persistence use only.
      * For business logic, use getRoleTree(actingUserId).
      */
     public Map<String, CompanyStaffMember> getStaff() {
@@ -158,7 +159,7 @@ public class ProductionCompany {
         }
         return Collections.unmodifiableMap(staff);
     }
-    
+
     /**
      * Returns the target user and all their transitive appointees (sub-tree).
      * Useful for determining the scope of Sales Reports.
@@ -182,7 +183,7 @@ public class ProductionCompany {
             }
         }
     }
-    
+
     public Map<String, AppointmentRequest> getPendingAppointments() {
         return Collections.unmodifiableMap(pendingAppointments);
     }
@@ -225,7 +226,7 @@ public class ProductionCompany {
         if (staff.containsKey(nomineeId)) {
             throw new DomainException("User is already part of the company staff");
         }
-        
+
         if (pendingAppointments.containsKey(nomineeId)) {
             throw new DomainException("User already has a pending appointment");
         }
@@ -245,7 +246,7 @@ public class ProductionCompany {
         if (nomineeId == null || nomineeId.isBlank()) {
             throw new IllegalArgumentException("Nominee id cannot be null or blank");
         }
-        
+
         pendingAppointments.put(nomineeId, new AppointmentRequest(nomineeId, actingUserId, role, permissions));
         version++;
     }
@@ -326,11 +327,11 @@ public class ProductionCompany {
         CompanyStaffMember target = staff.get(targetManagerId);
         if (target == null) throw new DomainException("Target user is not part of the company");
         if (target.getRole() != CompanyRole.MANAGER) throw new DomainException("Permissions can only be updated for managers");
-        
+
         if (!actingUserId.equals(target.getAppointedByUserId())) {
             throw new DomainException("Only the direct appointer can modify permissions");
         }
-        
+
         target.setPermissions(newPermissions);
         version++;
     }
@@ -347,23 +348,27 @@ public class ProductionCompany {
         }
     }
 
-    public List<PurchasePolicy> getPurchasePolicies() {
-        return Collections.unmodifiableList(purchasePolicies);
+    // ── Policy Management ─────────────────────────────────────────
+
+    public PurchasePolicy getPurchasePolicy() {
+        return purchasePolicy;
     }
 
-    public void addPurchasePolicy(PurchasePolicy policy) {
-        if (policy == null) throw new IllegalArgumentException("Policy cannot be null");
-        purchasePolicies.add(policy);
+    /** Replaces the company-level purchase policy root. Pass AllowAllPolicy to remove restrictions. */
+    public void setPurchasePolicy(PurchasePolicy policy) {
+        if (policy == null) throw new IllegalArgumentException("Purchase policy cannot be null");
+        this.purchasePolicy = policy;
         version++;
     }
 
-    public List<DiscountPolicy> getDiscountPolicies() {
-        return Collections.unmodifiableList(discountPolicies);
+    public DiscountPolicy getDiscountPolicy() {
+        return discountPolicy;
     }
 
-    public void addDiscountPolicy(DiscountPolicy policy) {
-        if (policy == null) throw new IllegalArgumentException("Policy cannot be null");
-        discountPolicies.add(policy);
+    /** Replaces the company-level discount policy root. Pass NoDiscountPolicy to remove discounts. */
+    public void setDiscountPolicy(DiscountPolicy policy) {
+        if (policy == null) throw new IllegalArgumentException("Discount policy cannot be null");
+        this.discountPolicy = policy;
         version++;
     }
 }

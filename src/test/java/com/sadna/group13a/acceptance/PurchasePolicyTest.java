@@ -2,15 +2,15 @@ package com.sadna.group13a.acceptance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Interfaces.IAuth;
-import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
-import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.User.Member;
-import com.sadna.group13a.domain.shared.DomainException;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
+import com.sadna.group13a.domain.shared.DomainException;
+import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
@@ -54,8 +54,8 @@ class PurchasePolicyTest {
         }
 
         @Override
-        public boolean isSatisfied() {
-            return true;
+        public boolean isSatisfied(PurchaseContext ctx) {
+            return ctx.ticketCount() <= maxTickets;
         }
     }
 
@@ -71,16 +71,18 @@ class PurchasePolicyTest {
         String founderId = "user1";
         userRepository.save(new Member(founderId, "founder", "hash"));
         ProductionCompany company = new ProductionCompany("comp1", "Company", "Desc", founderId);
-        // Pre-condition: company exists with no policies yet
-        assertTrue(company.getPurchasePolicies().isEmpty(), "Pre: company must have no policies before adding an illogical rule");
+        // Pre-condition: company starts with the default AllowAll policy
+        assertTrue(company.getPurchasePolicy() instanceof AllowAllPolicy,
+                "Pre: company must have AllowAllPolicy before adding an illogical rule");
 
         Exception exception = assertThrows(DomainException.class, () -> {
-            company.addPurchasePolicy(new MaxTicketsPolicy(0));
+            company.setPurchasePolicy(new MaxTicketsPolicy(0));
         });
 
-        // Post-condition: domain rejects the rule and policies list remains empty
+        // Post-condition: domain rejects the rule and policy remains AllowAll
         assertTrue(exception.getMessage().contains("Illogical rule"), "Post: error must describe the illogical rule");
-        assertTrue(company.getPurchasePolicies().isEmpty(), "Post: no policy must be added when rule is illogical");
+        assertTrue(company.getPurchasePolicy() instanceof AllowAllPolicy,
+                "Post: policy must remain AllowAll when rule is illogical");
     }
 
     @Test
@@ -89,20 +91,17 @@ class PurchasePolicyTest {
         String founderId = "user1";
         userRepository.save(new Member(founderId, "founder", "hash"));
         ProductionCompany company = new ProductionCompany("comp1", "Company", "Desc", founderId);
-        // Pre-condition: company has no purchase policies before the change
-        assertTrue(company.getPurchasePolicies().isEmpty(), "Pre: company must have no policies before adding one");
+        // Pre-condition: company has default AllowAll policy before the change
+        assertTrue(company.getPurchasePolicy() instanceof AllowAllPolicy,
+                "Pre: company must have AllowAllPolicy before adding one");
 
-        company.addPurchasePolicy(new PurchasePolicy() {
-            @Override
-            public boolean isSatisfied() {
-                return false;
-            }
-        });
+        company.setPurchasePolicy(ctx -> false);
 
         // Post-condition: the new policy is immediately active and evaluated on next checkout
-        assertEquals(1, company.getPurchasePolicies().size(), "Post: exactly one policy must be present after addition");
-        PurchasePolicy activePolicy = company.getPurchasePolicies().get(0);
-        assertFalse(activePolicy.isSatisfied(), "Post: newly added policy must be evaluated immediately");
+        PurchasePolicy activePolicy = company.getPurchasePolicy();
+        assertFalse(activePolicy instanceof AllowAllPolicy, "Post: policy must not be AllowAll after update");
+        assertFalse(activePolicy.isSatisfied(new PurchaseContext("user", 1, 0, null)),
+                "Post: newly added policy must be evaluated immediately");
     }
 
     @Test
@@ -111,13 +110,14 @@ class PurchasePolicyTest {
         String founderId = "user1";
         userRepository.save(new Member(founderId, "founder", "hash"));
         ProductionCompany company = new ProductionCompany("comp1", "Company", "Desc", founderId);
-        // Pre-condition: company has no policies before the change
-        assertTrue(company.getPurchasePolicies().isEmpty(), "Pre: company must have no policies before adding one");
+        // Pre-condition: company has default AllowAll policy before the change
+        assertTrue(company.getPurchasePolicy() instanceof AllowAllPolicy,
+                "Pre: company must have AllowAllPolicy before adding one");
 
-        company.addPurchasePolicy(new MaxTicketsPolicy(10));
+        company.setPurchasePolicy(new MaxTicketsPolicy(10));
 
-        // Post-condition: policy was persisted in the company (audit log equivalent: policy list is non-empty)
-        assertFalse(company.getPurchasePolicies().isEmpty(), "Post: policy must be recorded in the company after addition");
-        assertEquals(1, company.getPurchasePolicies().size(), "Post: exactly one policy must be present");
+        // Post-condition: policy was updated in the company
+        assertFalse(company.getPurchasePolicy() instanceof AllowAllPolicy,
+                "Post: policy must be updated in the company after addition");
     }
 }
