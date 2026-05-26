@@ -6,12 +6,14 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 @Route("member/profile")
 @PageTitle("Profile")
-public class ProfileView extends VerticalLayout {
+public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
 
     private final ProfilePresenter presenter;
 
@@ -26,6 +28,16 @@ public class ProfileView extends VerticalLayout {
     public ProfileView(ProfilePresenter presenter) {
         this.presenter = presenter;
         initView();
+    }
+
+    /**
+     * Loads the profile on navigation rather than from the constructor: at
+     * construction time the component is not yet attached and
+     * {@code VaadinSession.getCurrent()} may be unavailable. {@code beforeEnter}
+     * runs in the UI request thread with the session initialized.
+     */
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
         presenter.loadProfile(this);
     }
 
