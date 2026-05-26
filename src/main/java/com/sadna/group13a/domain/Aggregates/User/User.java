@@ -14,7 +14,7 @@ public class User {
     private LocalDateTime suspendedAt;
     private LocalDateTime suspendedUntil; // null = permanent suspension
 
-    private int version = 0;
+    private volatile int version = 0;
 
     protected User(String id, String username, UserTypeState initialState) {
         this.id = id;
