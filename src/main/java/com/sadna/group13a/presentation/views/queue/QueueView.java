@@ -110,6 +110,14 @@ public class QueueView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     public void showError(String message) {
+        // Reset any prior status so the error isn't shown alongside stale standing
+        // (e.g. a leftover "Proceed to Purchase" button or position labels).
+        statusMessage.setVisible(false);
+        positionLabel.setVisible(false);
+        waitingLabel.setVisible(false);
+        expiryLabel.setVisible(false);
+        proceedButton.setVisible(false);
+
         errorMessage.setText(message);
         errorMessage.setVisible(true);
     }
