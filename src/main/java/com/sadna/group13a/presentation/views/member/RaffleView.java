@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.member;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.RaffleDTO;
 import com.sadna.group13a.application.DTO.WinningTicketDTO;
 import com.vaadin.flow.component.button.Button;
@@ -34,6 +36,7 @@ public class RaffleView extends VerticalLayout {
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setAlignItems(Alignment.CENTER);
         setSizeFull();
 

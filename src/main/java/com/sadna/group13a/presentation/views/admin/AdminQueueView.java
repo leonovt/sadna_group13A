@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.admin;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
@@ -33,6 +35,7 @@ public class AdminQueueView extends VerticalLayout {
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setPadding(true);
         setSpacing(true);
 

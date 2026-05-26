@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.company;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.EventDTO;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
@@ -41,6 +43,7 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         removeAll();
         setPadding(true);
         setSpacing(true);

@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.company;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.DTO.SalesReportDTO;
 import com.vaadin.flow.component.button.Button;
@@ -39,6 +41,7 @@ public class SalesReportView extends VerticalLayout implements BeforeEnterObserv
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         removeAll();
         setPadding(true);
         setSpacing(true);

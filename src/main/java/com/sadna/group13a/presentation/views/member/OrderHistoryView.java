@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.member;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
 import com.vaadin.flow.component.Component;
@@ -34,6 +36,7 @@ public class OrderHistoryView extends VerticalLayout {
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setSizeFull();
 
         errorMessage.getStyle().set("color", "var(--lumo-error-color)");
