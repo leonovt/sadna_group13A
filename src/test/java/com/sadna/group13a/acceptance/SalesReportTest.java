@@ -66,9 +66,10 @@ class SalesReportTest {
 
         Result<SalesReportDTO> result = companyService.generateSalesReport(founderToken, "c1");
 
-        // Post-condition: report is returned for the company
+        // Post-condition: report is returned for the correct company with zero orders (none added)
         assertTrue(result.isSuccess(), "Post: report generation must succeed for the company founder");
-        assertNotNull(result.getOrThrow().companyId(), "Post: report must include the company ID");
+        assertEquals("c1", result.getOrThrow().companyId(), "Post: report must be scoped to the requested company");
+        assertEquals(0, result.getOrThrow().totalOrders(), "Post: report must show zero orders when no purchases exist");
     }
 
     @Test

@@ -142,6 +142,13 @@ class TicketReservationTest {
 
         assertEquals(SeatStatus.HELD, fetchedSeat.getStatus(), "Post: seat must be in HELD state after reservation");
         assertNotNull(fetchedSeat.getHoldExpiresAt(), "Post: seat hold must have an expiry time set");
+        long secondsUntilExpiry = java.time.Duration.between(Instant.now(), fetchedSeat.getHoldExpiresAt()).getSeconds();
+        assertTrue(secondsUntilExpiry > 9 * 60,
+                "Post: lottery seat hold must expire at least 9 minutes in the future");
+
+        var cart = activeOrderRepository.findActiveByUserId("u1");
+        assertTrue(cart.isPresent(), "Post: active cart must exist after reservation");
+        assertEquals(1, cart.get().getItems().size(), "Post: cart must contain exactly one reserved item");
     }
 
     @Test

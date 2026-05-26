@@ -6,8 +6,8 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Interfaces.IActiveOrderRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;

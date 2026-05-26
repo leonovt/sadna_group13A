@@ -107,8 +107,10 @@ class CompanyCreationTest {
 
             ProductionCompany savedCompany = companyCaptor.getValue();
 
-            // Post-condition: company is created (default policies implied by non-null saved company)
-            assertNotNull(savedCompany, "Post: company must be created with implicit default policies initialized.");
+            // Post-condition: company is saved with correct name and founding user in staff
+            assertNotNull(savedCompany, "Post: company must be saved");
+            assertEquals("Awesome Policies Inc", savedCompany.getName(), "Post: company must have the correct name");
+            assertTrue(savedCompany.getStaff().containsKey(userId), "Post: founding user must be in company staff after creation");
         }
 
         @Test
