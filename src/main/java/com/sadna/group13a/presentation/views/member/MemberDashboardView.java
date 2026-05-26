@@ -8,13 +8,15 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
 
 @Route("member")
 @PageTitle("Dashboard")
-public class MemberDashboardView extends VerticalLayout {
+public class MemberDashboardView extends VerticalLayout implements BeforeEnterObserver {
 
     private final MemberDashboardPresenter presenter;
 
@@ -27,6 +29,16 @@ public class MemberDashboardView extends VerticalLayout {
     public MemberDashboardView(MemberDashboardPresenter presenter) {
         this.presenter = presenter;
         initView();
+    }
+
+    /**
+     * Loads the dashboard on navigation rather than from the constructor: at
+     * construction time the component is not yet attached and
+     * {@code VaadinSession.getCurrent()} may be unavailable. {@code beforeEnter}
+     * runs in the UI request thread with the session initialized.
+     */
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
         presenter.loadDashboard(this);
     }
 
