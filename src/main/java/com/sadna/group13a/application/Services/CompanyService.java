@@ -556,6 +556,27 @@ public class CompanyService {
         }
     }
 
+    public Result<List<CompanyDTO>> getMyCompanies(String token) {
+        if (!authGateway.validateToken(token)) {
+            return Result.failure("User not authenticated.");
+        }
+        String userId = authGateway.extractUserId(token);
+        List<CompanyDTO> companies = companyRepository.findAll().stream()
+                .filter(c -> c.getStaff().containsKey(userId))
+                .map(c -> {
+                    var staffDTOs = c.getStaff().values().stream()
+                            .map(s -> new StaffMemberDTO(s.getUserId(), s.getRole(), s.getPermissions()))
+                            .toList();
+                    String founderId = c.getStaff().values().stream()
+                            .filter(s -> s.getRole() == CompanyRole.FOUNDER)
+                            .findFirst().map(CompanyStaffMember::getUserId).orElse("");
+                    return new CompanyDTO(c.getId(), c.getName(), c.getDescription(),
+                            c.getStatus(), founderId, staffDTOs);
+                })
+                .collect(Collectors.toList());
+        return Result.success(companies);
+    }
+
     private List<String> staffUserIds(ProductionCompany company) {
         return company.getStaff().values().stream()
                 .map(CompanyStaffMember::getUserId)
