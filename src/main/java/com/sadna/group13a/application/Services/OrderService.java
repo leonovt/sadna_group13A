@@ -405,7 +405,7 @@ public class OrderService {
 
         // ── Post-checkout ─────────────────────────────────────────────────────────
         OrderHistory history = new OrderHistory(
-                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, allHistoryItems);
+                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, transactionId, allHistoryItems);
 
         Result<List<String>> ticketResult = ticketSupplier.issueTickets(history.getReceiptId(), allHistoryItems.size());
         if (!ticketResult.isSuccess()) {

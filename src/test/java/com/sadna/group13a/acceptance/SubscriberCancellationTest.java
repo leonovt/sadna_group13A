@@ -52,7 +52,8 @@ class SubscriberCancellationTest {
         SystemLogService systemLogService = mock(SystemLogService.class);
         adminService = new AdminService(
                 userRepository, adminRepository, null, companyRepository,
-                null, historyRepository, authGateway, eventPublisher, systemLogService);
+                null, historyRepository, new com.sadna.group13a.infrastructure.StubPaymentGateway(),
+                authGateway, eventPublisher, systemLogService);
     }
 
     @Test

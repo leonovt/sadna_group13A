@@ -13,6 +13,7 @@ import com.sadna.group13a.domain.Events.EventSoldOutEvent;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
 import com.sadna.group13a.domain.Events.PermissionsUpdatedEvent;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
+import com.sadna.group13a.domain.Events.RefundIssuedEvent;
 import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
 import com.sadna.group13a.domain.Events.RaffleWonEvent;
 import com.sadna.group13a.domain.Events.StaffNominatedEvent;
@@ -108,6 +109,12 @@ public class NotificationEventListener {
     @EventListener
     public void onEventCancelled(EventCancelledEvent event) {
         notificationService.notifyEventCancelled(event.buyerIds(), event.eventId(), event.eventTitle());
+    }
+
+    @EventListener
+    public void onRefundIssued(RefundIssuedEvent event) {
+        notificationService.notifyRefundIssued(
+                event.userId(), event.receiptId(), event.amount(), event.eventTitle());
     }
 
     @EventListener
