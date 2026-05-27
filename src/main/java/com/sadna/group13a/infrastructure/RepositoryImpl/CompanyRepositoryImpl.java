@@ -17,7 +17,7 @@ public class CompanyRepositoryImpl implements ICompanyRepository {
     private final ConcurrentHashMap<String, ProductionCompany> store = new ConcurrentHashMap<>();
 
     @Override
-    public void save(ProductionCompany company) {
+    public synchronized void save(ProductionCompany company) {
         ProductionCompany stored = store.get(company.getId());
         if (stored != null && stored.getVersion() > company.getVersion()) {
             throw new OptimisticLockException(

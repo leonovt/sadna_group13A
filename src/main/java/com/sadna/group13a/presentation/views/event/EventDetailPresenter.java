@@ -1,10 +1,12 @@
 package com.sadna.group13a.presentation.views.event;
 
 import com.sadna.group13a.application.DTO.EventDTO;
+import com.sadna.group13a.application.DTO.QueueStatusDTO;
 import com.sadna.group13a.application.DTO.VenueMapDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.EventService;
 import com.sadna.group13a.application.Services.OrderService;
+import com.sadna.group13a.application.Services.QueueService;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -12,10 +14,20 @@ public class EventDetailPresenter {
 
     private final EventService eventService;
     private final OrderService orderService;
+    private final QueueService queueService;
 
-    public EventDetailPresenter(EventService eventService, OrderService orderService) {
+    public EventDetailPresenter(EventService eventService, OrderService orderService,
+                                QueueService queueService) {
         this.eventService = eventService;
         this.orderService = orderService;
+        this.queueService = queueService;
+    }
+
+    /** Returns true if the user currently holds an active (purchasing) slot in the event's queue. */
+    public boolean isUserActiveInQueue(String token, String eventId) {
+        if (token == null) return false;
+        Result<QueueStatusDTO> result = queueService.getStatus(token, eventId);
+        return result.isSuccess() && result.getOrThrow().isActive();
     }
 
     public Result<EventDTO> loadEvent(String token, String eventId) {

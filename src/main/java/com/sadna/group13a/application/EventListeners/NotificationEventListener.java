@@ -13,11 +13,13 @@ import com.sadna.group13a.domain.Events.EventSoldOutEvent;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
 import com.sadna.group13a.domain.Events.PermissionsUpdatedEvent;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
+import com.sadna.group13a.domain.Events.RefundIssuedEvent;
 import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
 import com.sadna.group13a.domain.Events.RaffleWonEvent;
 import com.sadna.group13a.domain.Events.StaffNominatedEvent;
 import com.sadna.group13a.domain.Events.StaffRemovedEvent;
 import com.sadna.group13a.domain.Events.UserBannedEvent;
+import com.sadna.group13a.domain.Events.UserSuspendedEvent;
 import com.sadna.group13a.domain.Events.UserReactivatedEvent;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.EventListener;
@@ -48,6 +50,11 @@ public class NotificationEventListener {
     @EventListener
     public void onUserBanned(UserBannedEvent event) {
         notificationService.notifyUserBanned(event.targetUserId(), event.adminId());
+    }
+
+    @EventListener
+    public void onUserSuspended(UserSuspendedEvent event) {
+        notificationService.notifyUserSuspended(event.targetUserId(), event.suspendedUntil());
     }
 
     @EventListener
@@ -102,6 +109,12 @@ public class NotificationEventListener {
     @EventListener
     public void onEventCancelled(EventCancelledEvent event) {
         notificationService.notifyEventCancelled(event.buyerIds(), event.eventId(), event.eventTitle());
+    }
+
+    @EventListener
+    public void onRefundIssued(RefundIssuedEvent event) {
+        notificationService.notifyRefundIssued(
+                event.userId(), event.receiptId(), event.amount(), event.eventTitle());
     }
 
     @EventListener

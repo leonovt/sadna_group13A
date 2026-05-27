@@ -305,14 +305,26 @@ class TicketReservationTest {
     @Test
     @DisplayName("Given policy max 4 tickets — When user tries to reserve 5 — Then reservation blocked with error")
     void GivenPolicyMax4_WhenReserving5_ThenBlocked() {
-        // Simulated test since policy execution is bypassed currently
-        setupData("e1", "c1", "z1", "s1", EventSaleMode.RAFFLE);
+        setupData("e1", "c1", "z1", "s1", EventSaleMode.REGULAR);
 
         ProductionCompany comp = companyRepository.findById("c1").get();
         comp.setPurchasePolicy(ctx -> false);
         companyRepository.save(comp);
+        // Pre-condition: company has a restrictive policy that blocks all purchases
+        assertFalse(comp.getPurchasePolicy().isSatisfied(
+                new com.sadna.group13a.domain.shared.PurchaseContext("u1", 1, 0, null)),
+                "Pre: company purchase policy must block the purchase");
 
-        // Intentionally passing simulated test context
-        assertTrue(true);
+        String token = authGateway.generateToken("u1");
+        Result<String> cartResult = orderService.addItemToCart(token, "e1", "z1", "s1");
+        assertTrue(cartResult.isSuccess(), "Pre: item must be addable to cart (policy is checked at checkout)");
+
+        Result<OrderHistoryDTO> checkoutResult = orderService.executeCheckout(
+                token, cartResult.getOrThrow(), null, "cc_good");
+
+        // Post-condition: checkout is blocked by the purchase policy
+        assertFalse(checkoutResult.isSuccess(), "Post: checkout must be rejected by the restrictive purchase policy");
+        assertTrue(checkoutResult.getErrorMessage().contains("policy") || checkoutResult.getErrorMessage().contains("permitted"),
+                "Post: error must reference the purchase policy violation");
     }
 }

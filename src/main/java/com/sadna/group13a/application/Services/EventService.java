@@ -1,6 +1,7 @@
 package com.sadna.group13a.application.Services;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,13 +15,16 @@ import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
+import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.Event.Zone;
+import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
 import com.sadna.group13a.application.DTO.EventDTO;
 import com.sadna.group13a.application.DTO.SeatDTO;
 import com.sadna.group13a.application.DTO.VenueMapDTO;
+import com.sadna.group13a.application.DTO.ZoneCreationDTO;
 import com.sadna.group13a.application.DTO.ZoneDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
@@ -150,7 +154,8 @@ public class EventService
             e.getCategory(),
             e.getLocation(),
             e.isPublished(),
-            e.isPublished() ? e.getTotalAvailable() : 0
+            e.isPublished() ? e.getTotalAvailable() : 0,
+            e.getSaleMode()
         );
         logger.debug("getEvent: event '{}' retrieved by '{}'.", eventId, callerId);
         return Result.success(dto);
@@ -188,6 +193,54 @@ public class EventService
             logger.warn("User '{}' failed to set venue map on event '{}': {}", initiatorId, eventId, e.getMessage());
             return Result.failure(e.getMessage());
         }
+    }
+
+    /**
+     * Builds a venue map from primitive zone specifications and assigns it to the
+     * event. This is the entry point for the organiser UI: the presentation layer
+     * supplies plain values ({@link ZoneCreationDTO}) and the domain
+     * {@link VenueMap}/{@link Zone}/{@link Seat} graph is assembled here, keeping
+     * aggregate construction out of the views. Authorisation, the published-event
+     * guard, and persistence are reused from {@link #setVenueMap}.
+     */
+    public Result<Void> createVenueMap(String tokenString, String eventId,
+                                       String venueName, List<ZoneCreationDTO> zoneSpecs) {
+        if (zoneSpecs == null || zoneSpecs.isEmpty()) {
+            return Result.failure("Venue map must have at least one zone");
+        }
+
+        VenueMap venueMap;
+        try {
+            List<Zone> zones = new ArrayList<>();
+            for (ZoneCreationDTO spec : zoneSpecs) {
+                zones.add(buildZone(spec));
+            }
+            venueMap = new VenueMap(UUID.randomUUID().toString(), venueName, zones);
+        } catch (IllegalArgumentException e) {
+            // Invalid input (blank names, non-positive capacity, …) is reported back
+            // to the caller as a failure rather than thrown across the boundary.
+            logger.warn("createVenueMap: rejected venue map for event '{}': {}", eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+
+        return setVenueMap(tokenString, eventId, venueMap);
+    }
+
+    private Zone buildZone(ZoneCreationDTO spec) {
+        if (spec == null || spec.type() == null) {
+            throw new IllegalArgumentException("Zone type must be specified");
+        }
+        String zoneId = UUID.randomUUID().toString();
+        if (spec.type() == ZoneType.SEATED) {
+            // A seated zone is materialised as individually addressable seats so the
+            // inventory is ready for per-seat holds; labels are "<zone> <n>".
+            List<Seat> seats = new ArrayList<>();
+            for (int i = 1; i <= spec.capacity(); i++) {
+                seats.add(new Seat(UUID.randomUUID().toString(), spec.name() + " " + i));
+            }
+            return new SeatedZone(zoneId, spec.name(), spec.basePrice(), seats);
+        }
+        return new StandingZone(zoneId, spec.name(), spec.basePrice(), spec.capacity());
     }
 
     public Result<Void> unpublishEvent(String tokeString, String eventId)
@@ -433,7 +486,7 @@ public class EventService
                 .map(e -> new EventDTO(
                         e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
                         e.getEventDate(), e.getCategory(), e.getLocation(),
-                        e.isPublished(), e.isPublished() ? e.getTotalAvailable() : 0))
+                        e.isPublished(), e.isPublished() ? e.getTotalAvailable() : 0, e.getSaleMode()))
                 .collect(Collectors.toList());
         logger.debug("getCompanyEvents: {} event(s) retrieved for company '{}' by '{}'.", dtos.size(), companyId, callerId);
         return Result.success(dtos);
@@ -466,7 +519,7 @@ public class EventService
             })
             .map(e -> new EventDTO(
                 e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
-                e.getEventDate(), e.getCategory(), e.getLocation(), e.isPublished(), e.getTotalAvailable()
+                e.getEventDate(), e.getCategory(), e.getLocation(), e.isPublished(), e.getTotalAvailable(), e.getSaleMode()
             ))
             .collect(Collectors.toList());
         logger.debug("searchEvents: {} result(s) — query='{}' category='{}' location='{}' from='{}' to='{}' minPrice='{}' maxPrice='{}'.",

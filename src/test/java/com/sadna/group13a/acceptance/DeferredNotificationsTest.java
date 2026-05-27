@@ -73,6 +73,11 @@ class DeferredNotificationsTest {
         }
 
         @Override
+        public void notifyUserSuspended(String userId, java.time.LocalDateTime suspendedUntil) {
+            push(userId, "Account suspended until=" + suspendedUntil);
+        }
+
+        @Override
         public void notifyCompanyClosed(java.util.List<String> staffIds, String companyId, String adminId) {
             if (staffIds != null) staffIds.forEach(uid -> push(uid, "Company closed by admin=" + adminId));
         }
@@ -95,6 +100,7 @@ class DeferredNotificationsTest {
         @Override public void notifyPermissionsUpdated(String userId, String companyId) {}
         @Override public void notifyCartExpired(String userId) {}
         @Override public void notifyEventCancelled(java.util.List<String> buyerIds, String eventId, String eventTitle) {}
+        @Override public void notifyRefundIssued(String userId, String receiptId, double amount, String eventTitle) {}
         @Override public void notifyEventRescheduled(java.util.List<String> buyerIds, String eventId, String eventTitle, java.time.LocalDateTime newDate) {}
         @Override public void notifyUserReactivated(String userId) {}
         @Override public void notifyEventSoldOut(java.util.List<String> staffIds, String eventId, String eventTitle) {}

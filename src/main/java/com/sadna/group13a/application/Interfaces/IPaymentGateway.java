@@ -27,4 +27,15 @@ public interface IPaymentGateway
      * @return A Result indicating success or failure of the refund.
      */
     Result<Void> refundPayment(String transactionId);
+
+    /**
+     * Refunds part of a previously successful transaction. Used when only some of the
+     * items on a multi-event receipt must be reimbursed — e.g. one of several events on
+     * the same transaction is cancelled.
+     *
+     * @param transactionId The unique ID of the transaction to partially refund.
+     * @param amount        The amount to refund (must be &gt; 0 and &le; the original charge).
+     * @return A Result indicating success or failure of the partial refund.
+     */
+    Result<Void> refundPartial(String transactionId, double amount);
 }

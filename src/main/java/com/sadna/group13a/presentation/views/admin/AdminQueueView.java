@@ -1,6 +1,7 @@
 package com.sadna.group13a.presentation.views.admin;
 
 import com.sadna.group13a.application.DTO.TicketQueueDTO;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
@@ -25,8 +26,16 @@ public class AdminQueueView extends VerticalLayout implements BeforeEnterObserve
     private final AdminQueuePresenter presenter;
 
     private final Span statusMessage = new Span();
-    private final TextField eventIdField  = new TextField("Event ID");
-    private final TextField newMaxField   = new TextField("New max users");
+
+    // ── Shared event ID field (reused across all actions) ─────────
+    private final TextField eventIdField   = new TextField("Event ID");
+
+    // ── Adjust capacity ───────────────────────────────────────────
+    private final TextField newMaxField    = new TextField("New max users");
+
+    // ── Process batch ─────────────────────────────────────────────
+    private final TextField batchSizeField = new TextField("Batch size");
+
     private final Grid<TicketQueueDTO> queueGrid = new Grid<>(TicketQueueDTO.class, false);
 
     public AdminQueueView(AdminQueuePresenter presenter) {
@@ -34,7 +43,6 @@ public class AdminQueueView extends VerticalLayout implements BeforeEnterObserve
         initView();
     }
 
-    // Issues #4 & #5 fix: gate access and load data before the view is rendered
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         if (!presenter.hasAdminAccess()) {
@@ -45,6 +53,7 @@ public class AdminQueueView extends VerticalLayout implements BeforeEnterObserve
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setPadding(true);
         setSpacing(true);
 
@@ -55,12 +64,10 @@ public class AdminQueueView extends VerticalLayout implements BeforeEnterObserve
         header.setAlignItems(Alignment.CENTER);
         header.add(new H2("Queue Control"), new RouterLink("← Back to Dashboard", AdminDashboardView.class));
 
-        // ── Status message ────────────────────────────────────────
         statusMessage.setVisible(false);
         statusMessage.getStyle().set("font-weight", "bold");
 
         // ── Queue grid ────────────────────────────────────────────
-        // Issue #6 fix: bound to TicketQueueDTO, not the domain aggregate
         queueGrid.addColumn(TicketQueueDTO::eventId).setHeader("Event ID").setFlexGrow(2);
         queueGrid.addColumn(TicketQueueDTO::maxConcurrentUsers).setHeader("Max Capacity");
         queueGrid.addColumn(TicketQueueDTO::activeCount).setHeader("Active");
@@ -68,7 +75,7 @@ public class AdminQueueView extends VerticalLayout implements BeforeEnterObserve
         queueGrid.setWidthFull();
         queueGrid.setMaxHeight("350px");
 
-        // ── Actions ───────────────────────────────────────────────
+        // ── Clear / Adjust capacity ───────────────────────────────
         newMaxField.setPlaceholder("e.g. 10");
         newMaxField.setWidth("10rem");
 
@@ -76,20 +83,30 @@ public class AdminQueueView extends VerticalLayout implements BeforeEnterObserve
             statusMessage.setVisible(false);
             presenter.handleClearQueue(eventIdField.getValue(), this);
         });
-
         Button adjustBtn = new Button("Adjust Capacity", e -> {
             statusMessage.setVisible(false);
             presenter.handleAdjustCapacity(eventIdField.getValue(), newMaxField.getValue(), this);
         });
+        HorizontalLayout adjustRow = new HorizontalLayout(eventIdField, clearBtn, newMaxField, adjustBtn);
+        adjustRow.setAlignItems(Alignment.BASELINE);
 
-        HorizontalLayout actions = new HorizontalLayout(eventIdField, clearBtn, newMaxField, adjustBtn);
-        actions.setAlignItems(Alignment.BASELINE);
+        // ── Process batch ─────────────────────────────────────────
+        batchSizeField.setPlaceholder("e.g. 5");
+        batchSizeField.setWidth("10rem");
+
+        Button batchBtn = new Button("Process Batch", e -> {
+            statusMessage.setVisible(false);
+            presenter.handleProcessBatch(eventIdField.getValue(), batchSizeField.getValue(), this);
+        });
+        HorizontalLayout batchRow = new HorizontalLayout(batchSizeField, batchBtn);
+        batchRow.setAlignItems(Alignment.BASELINE);
 
         add(
                 header,
                 statusMessage,
                 new H3("All Queues"), queueGrid,
-                new H3("Queue Actions"), actions
+                new H3("Queue Actions"), adjustRow,
+                new H3("Manual Batch Processing"), batchRow
         );
     }
 

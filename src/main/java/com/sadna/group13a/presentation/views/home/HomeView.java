@@ -20,6 +20,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -34,6 +35,7 @@ import com.vaadin.flow.server.VaadinSession;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 @Route("")
@@ -52,7 +54,8 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
+        if (token == null || !presenter.isTokenValid(token)) {
+            VaadinSession.getCurrent().setAttribute("token", null);
             event.rerouteTo(LoginView.class);
             return;
         }
@@ -62,7 +65,7 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void initView(String token) {
-        setSizeFull();
+        setWidthFull();
         setPadding(true);
 
         Result<UserDTO> profileResult = presenter.loadUserProfile(token);
@@ -77,10 +80,18 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
             add(buildMyCompaniesSection(companies));
         }
 
-        add(buildSearchBar(token));
+        add(buildSearchBar());
         add(buildEventGrid());
 
-        loadEvents(token, null);
+        loadEvents(null, null, null);
+
+        Image easterEgg = new Image("images/image.png", "👑");
+        easterEgg.setHeight("200px");
+        easterEgg.getStyle().set("border-radius", "12px")
+                            .set("box-shadow", "0 4px 12px rgba(0,0,0,0.2)")
+                            .set("margin-top", "32px")
+                            .set("align-self", "center");
+        add(easterEgg);
     }
 
     private HorizontalLayout buildHeader(String token, String displayName, UserRole role) {
@@ -99,12 +110,11 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
             header.add(new RouterLink("My Orders", OrderHistoryView.class));
             header.add(new RouterLink("My Profile", ProfileView.class));
             header.add(new RouterLink("My Raffles", RaffleView.class));
-            header.add(new RouterLink("Cart", CartView.class));
         }
         if (role == UserRole.ADMIN) {
             header.add(new RouterLink("Admin", AdminDashboardView.class));
         }
-
+        header.add(new RouterLink("Cart", CartView.class));
         header.add(new Button("Logout", e -> presenter.handleLogout(token)));
         return header;
     }
@@ -129,14 +139,20 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         return row;
     }
 
-    private HorizontalLayout buildSearchBar(String token) {
-        searchField.setPlaceholder("Search events...");
-        searchField.setWidth("300px");
-        Button searchButton = new Button("Search", e -> loadEvents(token, searchField.getValue().isBlank() ? null : searchField.getValue()));
-        searchField.addValueChangeListener(e -> {
-            if (e.getValue().isBlank()) loadEvents(token, null);
-        });
-        HorizontalLayout bar = new HorizontalLayout(searchField, searchButton);
+    private final TextField categoryField = new TextField();
+    private final TextField locationField = new TextField();
+
+    private HorizontalLayout buildSearchBar() {
+        searchField.setPlaceholder("Search by title...");
+        searchField.setWidth("220px");
+        categoryField.setPlaceholder("Category");
+        categoryField.setWidth("150px");
+        locationField.setPlaceholder("Location");
+        locationField.setWidth("150px");
+        Button searchButton = new Button("Search", e -> loadEvents(
+                searchField.getValue().isBlank() ? null : searchField.getValue(),
+                categoryField.getValue(), locationField.getValue()));
+        HorizontalLayout bar = new HorizontalLayout(searchField, categoryField, locationField, searchButton);
         bar.setAlignItems(Alignment.BASELINE);
         return bar;
     }
@@ -144,7 +160,10 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
     private Grid<EventDTO> buildEventGrid() {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         eventGrid.addColumn(EventDTO::title).setHeader("Event").setSortable(true).setAutoWidth(true);
-        eventGrid.addColumn(e -> e.eventDate() != null ? e.eventDate().format(fmt) : "").setHeader("Date").setSortable(true).setAutoWidth(true);
+        eventGrid.addColumn(e -> e.eventDate() != null ? e.eventDate().format(fmt) : "")
+                .setHeader("Date")
+                .setComparator(Comparator.comparing(EventDTO::eventDate, Comparator.nullsLast(Comparator.naturalOrder())))
+                .setAutoWidth(true);
         eventGrid.addColumn(EventDTO::location).setHeader("Location").setAutoWidth(true);
         eventGrid.addColumn(EventDTO::category).setHeader("Category").setAutoWidth(true);
         eventGrid.addColumn(EventDTO::totalAvailableTickets).setHeader("Available").setAutoWidth(true);
@@ -153,8 +172,8 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         return eventGrid;
     }
 
-    private void loadEvents(String token, String query) {
-        Result<List<EventDTO>> result = presenter.loadEvents(query);
+    private void loadEvents(String query, String category, String location) {
+        Result<List<EventDTO>> result = presenter.loadEvents(query, category, location);
         List<EventDTO> events = result.isSuccess() ? result.getOrThrow() : Collections.emptyList();
         eventGrid.setItems(events);
     }
@@ -165,15 +184,18 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         if (token != null && currentUserId != null) {
             presenter.registerForNotifications(currentUserId, attachEvent.getUI());
             attachEvent.getUI().getPage().executeJs(
-                "window.addEventListener('notification', function(e) {" +
-                "  var n = document.createElement('div');" +
-                "  n.style.cssText = 'position:fixed;top:20px;right:20px;background:#323232;" +
+                "if (!window.__notificationHandler) {" +
+                "  window.__notificationHandler = function(e) {" +
+                "    var n = document.createElement('div');" +
+                "    n.style.cssText = 'position:fixed;top:20px;right:20px;background:#323232;" +
                 "color:white;padding:12px 20px;border-radius:4px;z-index:9999;" +
                 "box-shadow:0 2px 8px rgba(0,0,0,0.3);';" +
-                "  n.textContent = e.detail;" +
-                "  document.body.appendChild(n);" +
-                "  setTimeout(function(){ n.remove(); }, 5000);" +
-                "});"
+                "    n.textContent = e.detail;" +
+                "    document.body.appendChild(n);" +
+                "    setTimeout(function(){ n.remove(); }, 5000);" +
+                "  };" +
+                "  window.addEventListener('notification', window.__notificationHandler);" +
+                "}"
             );
         }
     }
@@ -183,5 +205,11 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         if (currentUserId != null) {
             presenter.unregisterFromNotifications(currentUserId);
         }
+        getUI().ifPresent(ui -> ui.getPage().executeJs(
+            "if (window.__notificationHandler) {" +
+            "  window.removeEventListener('notification', window.__notificationHandler);" +
+            "  window.__notificationHandler = null;" +
+            "}"
+        ));
     }
 }

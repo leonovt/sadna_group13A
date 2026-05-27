@@ -22,13 +22,30 @@ public class CompanyDashboardPresenter {
 
     public void loadDashboard(CompanyDashboardView view, String companyId) {
         String token = getToken();
-        if (token == null) {
-            UI.getCurrent().navigate("login");
-            return;
-        }
+        if (token == null) { UI.getCurrent().navigate("login"); return; }
         Result<CompanyDTO> result = companyService.getCompany(token, companyId);
         if (result.isSuccess()) {
             view.displayCompany(result.getData().orElseThrow());
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
+    public void handleSuspendCompany(String companyId, CompanyDashboardView view) {
+        Result<Void> result = companyService.suspendCompany(getToken(), companyId);
+        if (result.isSuccess()) {
+            view.showSuccess("Company suspended.");
+            loadDashboard(view, companyId);
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
+    public void handleReopenCompany(String companyId, CompanyDashboardView view) {
+        Result<Void> result = companyService.reopenCompany(getToken(), companyId);
+        if (result.isSuccess()) {
+            view.showSuccess("Company reopened.");
+            loadDashboard(view, companyId);
         } else {
             view.showError(result.getErrorMessage());
         }

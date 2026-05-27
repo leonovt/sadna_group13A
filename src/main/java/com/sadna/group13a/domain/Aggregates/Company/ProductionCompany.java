@@ -109,10 +109,15 @@ public class ProductionCompany {
     /**
      * Admin override: removes a staff member and re-parents their appointees to the removed member's appointer.
      * Called when a user is banned system-wide.
+     * If the removed member is the FOUNDER, the company is auto-closed: an active company
+     * must always have at least one owner, and there is no mechanism to promote a new founder.
      */
     public void forceRemoveStaff(String userId) {
         CompanyStaffMember member = staff.get(userId);
         if (member != null) {
+            if (member.getRole() == CompanyRole.FOUNDER) {
+                this.status = CompanyStatus.INACTIVE;
+            }
             removeAndReparent(userId, member.getAppointedByUserId());
             version++;
         }

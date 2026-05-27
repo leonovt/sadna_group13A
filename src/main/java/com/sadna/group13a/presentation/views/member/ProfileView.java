@@ -1,8 +1,11 @@
 package com.sadna.group13a.presentation.views.member;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
@@ -42,6 +45,7 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setAlignItems(Alignment.CENTER);
 
         infoMessage.getStyle().set("color", "var(--lumo-success-color)");
@@ -54,7 +58,13 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
             presenter.handleUpdateUsername(usernameField.getValue(), this);
         });
 
-        add(new H2("My Profile"), roleLabel, usernameField, saveButton, infoMessage, errorMessage);
+        Image easterEgg = new Image("images/supe.png", "🦸");
+        easterEgg.setHeight("180px");
+        easterEgg.getStyle().set("border-radius", "12px")
+                            .set("box-shadow", "0 4px 12px rgba(0,0,0,0.2)")
+                            .set("margin-top", "32px");
+
+        add(new H2("My Profile"), roleLabel, usernameField, saveButton, infoMessage, errorMessage, easterEgg);
     }
 
     public void showProfile(UserDTO user) {

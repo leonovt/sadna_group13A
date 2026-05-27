@@ -525,6 +525,9 @@ class OrderServiceIntegrationTest {
         @Override
         public Result<Void> refundPayment(String transactionId) { return Result.success(); }
 
+        @Override
+        public Result<Void> refundPartial(String transactionId, double amount) { return Result.success(); }
+
         // ── Accessors ─────────────────────────────────────────────────────────────
         int    getProcessPaymentCallCount() { return processPaymentCallCount.get(); }
         double getLastChargedAmount()       { return lastChargedAmount; }
@@ -564,6 +567,7 @@ class OrderServiceIntegrationTest {
 
         @Override public void notifyQueueTurnArrived(String u, String e, LocalDateTime t) {}
         @Override public void notifyUserBanned(String u, String adminId) {}
+        @Override public void notifyUserSuspended(String u, java.time.LocalDateTime suspendedUntil) {}
         @Override public void notifyCompanyClosed(java.util.List<String> staffIds, String c, String adminId) {}
         @Override public void notifyRaffleDrawn(String e, int w) {}
         @Override public void notifyActionFailed(String userId, String reason) {}
@@ -574,6 +578,7 @@ class OrderServiceIntegrationTest {
         @Override public void notifyPermissionsUpdated(String userId, String companyId) {}
         @Override public void notifyCartExpired(String userId) {}
         @Override public void notifyEventCancelled(java.util.List<String> buyerIds, String eventId, String eventTitle) {}
+        @Override public void notifyRefundIssued(String userId, String receiptId, double amount, String eventTitle) {}
         @Override public void notifyEventRescheduled(java.util.List<String> buyerIds, String eventId, String eventTitle, LocalDateTime newDate) {}
         @Override public void notifyUserReactivated(String userId) {}
         @Override public void notifyEventSoldOut(java.util.List<String> staffIds, String eventId, String eventTitle) {}

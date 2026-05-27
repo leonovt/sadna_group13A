@@ -57,7 +57,7 @@ public class Raffle
      * @param numberOfWinners How many people should win
      * @param codeValidMinutes How long the winners have to buy their tickets
      */
-    public void executeDraw(int numberOfWinners, int codeValidMinutes) {
+    public synchronized void executeDraw(int numberOfWinners, int codeValidMinutes) {
         if (this.status != RaffleStatus.OPEN_FOR_REGISTRATION) {
             throw new IllegalStateException("Cannot draw: Raffle is not in the correct state.");
         }
@@ -92,7 +92,7 @@ public class Raffle
     /**
      * Closes the raffle permanently (e.g. event cancelled or owner decision).
      */
-    public void close() {
+    public synchronized void close() {
         this.status = RaffleStatus.CLOSED;
         version++;
     }

@@ -2,11 +2,15 @@ package com.sadna.group13a.domain.Aggregates.User;
 
 import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
 public class Member extends User {
+
+    private LocalDate dateOfBirth;
 
     public Member(String id, String username, String passwordHash) {
         super(id, username, new MemberState(passwordHash));
@@ -14,6 +18,23 @@ public class Member extends User {
 
     public Member(String username, String passwordHash) {
         super(UUID.randomUUID().toString(), username, new MemberState(passwordHash));
+    }
+
+    // ── Age ───────────────────────────────────────────────────────
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+        incrementVersion();
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    /** Returns the member's current age in years, or 0 if date of birth is not set. */
+    public int getAge() {
+        if (dateOfBirth == null) return 0;
+        return Period.between(dateOfBirth, LocalDate.now()).getYears();
     }
 
     // ── Authentication ────────────────────────────────────────────

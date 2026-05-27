@@ -1,5 +1,6 @@
 package com.sadna.group13a.domain.Aggregates.ActiveOrder;
 
+import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.shared.OrderStatus;
 
 import java.time.LocalDateTime;
@@ -34,7 +35,10 @@ public class ActiveOrder {
         this.items = new ArrayList<>();
         this.status = OrderStatus.OPEN;
         this.createdAt = LocalDateTime.now();
-        this.expiresAt = createdAt.plusMinutes(30);
+        // The cart's lifetime must match the seat-hold lifetime so the order is never
+        // "valid" after its held seats have already been released. Seat.DEFAULT_HOLD_DURATION
+        // is the single source of truth for the bounded reservation window.
+        this.expiresAt = createdAt.plus(Seat.DEFAULT_HOLD_DURATION);
     }
 
     public String getId() { return id; }

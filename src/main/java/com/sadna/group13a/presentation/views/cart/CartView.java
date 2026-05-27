@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.cart;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.OrderDTO;
 import com.sadna.group13a.application.DTO.OrderItemDTO;
 import com.sadna.group13a.presentation.views.auth.LoginView;
@@ -51,6 +53,7 @@ public class CartView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void initView() {
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setPadding(true);
         setSpacing(true);
 

@@ -1,5 +1,7 @@
 package com.sadna.group13a.presentation.views.company;
 
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.StaffMemberDTO;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
 import com.vaadin.flow.component.button.Button;
@@ -43,6 +45,7 @@ public class PolicyManagementView extends VerticalLayout implements BeforeEnterO
 
     private void initView() {
         removeAll();
+        add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setPadding(true);
         setSpacing(true);
 
