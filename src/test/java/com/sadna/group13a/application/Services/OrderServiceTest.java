@@ -123,7 +123,8 @@ class OrderServiceTest {
     @Test
     void givenPublishedEventAndAvailableSeat_whenAddItemToCart_thenCartSaved() {
         when(eventRepository.findById(EVENT_ID)).thenReturn(Optional.of(event));
-        when(orderRepository.findActiveByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(orderRepository.getOrCreate(eq(USER_ID), any()))
+                .thenAnswer(inv -> inv.<java.util.function.Supplier<ActiveOrder>>getArgument(1).get());
 
         Result<String> result = orderService.addItemToCart(TOKEN, EVENT_ID, "zone-1", "seat-1");
 
