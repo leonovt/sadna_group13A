@@ -13,6 +13,10 @@ public interface INotificationService {
 
     void notifyUserBanned(String userId, String adminId);
 
+    /** Notifies a user that their account has been suspended (view-only) until the given time
+     *  ({@code null} = permanent). Distinct from a ban — roles are preserved. */
+    void notifyUserSuspended(String userId, java.time.LocalDateTime suspendedUntil);
+
     /** Notifies every staff member of the company that it has been force-closed. */
     void notifyCompanyClosed(List<String> staffIds, String companyId, String adminId);
 
