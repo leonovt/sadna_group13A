@@ -32,6 +32,12 @@ public class InMemoryNotificationService implements INotificationService {
     }
 
     @Override
+    public void notifyUserSuspended(String userId, java.time.LocalDateTime suspendedUntil) {
+        String when = (suspendedUntil != null) ? "until " + suspendedUntil : "indefinitely";
+        logger.warn("[NOTIFY] User {} — your account has been suspended {} (view-only).", userId, when);
+    }
+
+    @Override
     public void notifyCompanyClosed(List<String> staffIds, String companyId, String adminId) {
         staffIds.forEach(uid ->
             logger.warn("[NOTIFY] User {} — company {} has been force-closed by admin {}.",
