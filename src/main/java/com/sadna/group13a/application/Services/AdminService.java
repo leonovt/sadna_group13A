@@ -13,6 +13,7 @@ import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyStaffMember;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.Events.AdminMessageEvent;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
 import com.sadna.group13a.domain.Events.EventCancelledEvent;
@@ -272,8 +273,8 @@ public class AdminService {
         eventPublisher.publishEvent(new EventCancelledEvent(eventId, eventTitle, buyerIds));
 
         // Integrity rule (§2 / I.3): an event cancellation must auto-refund affected buyers.
-        // The payment was a single transaction per receipt, so we refund the whole transaction
-        // for each affected receipt and notify the buyer.
+        // A receipt may span several events on one transaction, so we refund ONLY the subtotal
+        // of the cancelled event's items — never the whole transaction — and notify the buyer.
         for (OrderHistory receipt : affectedReceipts) {
             String txnId = receipt.getTransactionId();
             if (txnId == null || txnId.isBlank()) {
@@ -281,14 +282,23 @@ public class AdminService {
                         receipt.getReceiptId(), eventId);
                 continue;
             }
-            Result<Void> refundResult = paymentGateway.refundPayment(txnId);
+            double refundAmount = receipt.getItems().stream()
+                    .filter(i -> i.getEventId().equals(eventId))
+                    .mapToDouble(OrderHistoryItem::getPricePaid)
+                    .sum();
+            if (refundAmount <= 0.0) {
+                logger.info("No refund due for receipt '{}' on cancelled event '{}' (subtotal {}).",
+                        receipt.getReceiptId(), eventId, refundAmount);
+                continue;
+            }
+            Result<Void> refundResult = paymentGateway.refundPartial(txnId, refundAmount);
             if (refundResult.isSuccess()) {
                 eventPublisher.publishEvent(new RefundIssuedEvent(
-                        receipt.getUserId(), receipt.getReceiptId(), receipt.getTotalPaid(), eventTitle));
+                        receipt.getUserId(), receipt.getReceiptId(), refundAmount, eventTitle));
                 systemLogService.logEvent("refundIssued adminId=" + adminId + " receiptId=" + receipt.getReceiptId()
-                        + " transactionId=" + txnId + " amount=" + receipt.getTotalPaid());
-                logger.info("Refunded receipt '{}' (transaction '{}', amount {}) for cancelled event '{}'.",
-                        receipt.getReceiptId(), txnId, receipt.getTotalPaid(), eventId);
+                        + " transactionId=" + txnId + " amount=" + refundAmount);
+                logger.info("Refunded {} on receipt '{}' (transaction '{}') for cancelled event '{}'.",
+                        refundAmount, receipt.getReceiptId(), txnId, eventId);
             } else {
                 logger.error("Refund failed for receipt '{}' (transaction '{}') on cancelled event '{}': {}",
                         receipt.getReceiptId(), txnId, eventId, refundResult.getErrorMessage());

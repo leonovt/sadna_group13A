@@ -525,6 +525,9 @@ class OrderServiceIntegrationTest {
         @Override
         public Result<Void> refundPayment(String transactionId) { return Result.success(); }
 
+        @Override
+        public Result<Void> refundPartial(String transactionId, double amount) { return Result.success(); }
+
         // ── Accessors ─────────────────────────────────────────────────────────────
         int    getProcessPaymentCallCount() { return processPaymentCallCount.get(); }
         double getLastChargedAmount()       { return lastChargedAmount; }
