@@ -36,6 +36,9 @@ public interface INotificationService {
 
     void notifyEventCancelled(List<String> buyerIds, String eventId, String eventTitle);
 
+    /** Notifies a buyer that a refund was issued (e.g. after an event cancellation). */
+    void notifyRefundIssued(String userId, String receiptId, double amount, String eventTitle);
+
     void notifyEventRescheduled(List<String> buyerIds, String eventId, String eventTitle, LocalDateTime newDate);
 
     void notifyUserReactivated(String userId);
