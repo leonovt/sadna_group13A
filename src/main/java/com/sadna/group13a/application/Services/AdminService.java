@@ -16,6 +16,7 @@ import com.sadna.group13a.domain.Events.AdminMessageEvent;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
 import com.sadna.group13a.domain.Events.EventCancelledEvent;
 import com.sadna.group13a.domain.Events.UserBannedEvent;
+import com.sadna.group13a.domain.Events.UserSuspendedEvent;
 import com.sadna.group13a.domain.Events.UserReactivatedEvent;
 import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
@@ -161,7 +162,10 @@ public class AdminService {
         LocalDateTime until = (durationDays != null) ? now.plusDays(durationDays) : null;
         target.suspend(now, until);
         userRepository.save(target);
-        eventPublisher.publishEvent(new UserBannedEvent(target.getId(), adminId));
+        // A suspension is NOT a ban: it must not cascade-revoke the user's company roles
+        // (those are only revoked on permanent cancellation via UserBannedEvent). Publishing a
+        // dedicated UserSuspendedEvent keeps the appointment tree intact so it can resume on lift.
+        eventPublisher.publishEvent(new UserSuspendedEvent(target.getId(), adminId, until));
 
         String durationDesc = (durationDays != null) ? durationDays + " day(s)" : "permanently";
         systemLogService.logEvent("suspendUser adminId=" + adminId + " target=" + targetUsername + " duration=" + durationDesc);

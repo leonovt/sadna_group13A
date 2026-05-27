@@ -35,6 +35,13 @@ public class WebSocketNotificationService implements INotificationService {
     }
 
     @Override
+    public void notifyUserSuspended(String userId, java.time.LocalDateTime suspendedUntil) {
+        String when = (suspendedUntil != null) ? "until " + suspendedUntil : "indefinitely";
+        broadcaster.send(userId, "Your account has been suspended " + when +
+                ". You can browse but cannot make purchases during this time.");
+    }
+
+    @Override
     public void notifyCompanyClosed(List<String> staffIds, String companyId, String adminId) {
         staffIds.forEach(uid ->
             broadcaster.send(uid, "Your production company has been force-closed by a system administrator."));

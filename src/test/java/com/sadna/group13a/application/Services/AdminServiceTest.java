@@ -13,6 +13,8 @@ import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
 import com.sadna.group13a.domain.Events.UserBannedEvent;
+import com.sadna.group13a.domain.Events.UserSuspendedEvent;
+import com.sadna.group13a.domain.Events.UserReactivatedEvent;
 import com.sadna.group13a.domain.Interfaces.IAdminRepository;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
@@ -138,6 +140,48 @@ class AdminServiceTest {
 
         assertTrue(result.isSuccess());
         verify(userRepository).save(member);
+    }
+
+    // ── suspendUser / liftSuspension (issue #189) ─────────────────
+
+    @Test
+    void givenAdminAndMember_whenSuspendUser_thenSuspendedAndUserSuspendedEventPublished() {
+        when(userRepository.findByUsername("alice")).thenReturn(Optional.of(member));
+        when(adminRepository.findByUserId(member.getId())).thenReturn(Optional.empty());
+
+        Result<Void> result = adminService.suspendUser(ADMIN_TOKEN, "alice", 7L);
+
+        assertTrue(result.isSuccess());
+        verify(userRepository).save(member);
+        assertTrue(member.isSuspended());
+        // A suspension must NOT be a ban: it emits UserSuspendedEvent so the company-role
+        // cascade (which only listens to UserBannedEvent) does not fire.
+        verify(eventPublisher).publishEvent(any(UserSuspendedEvent.class));
+        verify(eventPublisher, never()).publishEvent(any(UserBannedEvent.class));
+    }
+
+    @Test
+    void givenTargetIsAdmin_whenSuspendUser_thenReturnsFailureAndNoEvent() {
+        Member otherAdmin = new Member("a-2", "admin2", "hash");
+        when(userRepository.findByUsername("admin2")).thenReturn(Optional.of(otherAdmin));
+        when(adminRepository.findByUserId("a-2")).thenReturn(Optional.of(new Admin("admin-rec-2", "a-2")));
+
+        Result<Void> result = adminService.suspendUser(ADMIN_TOKEN, "admin2", null);
+
+        assertFalse(result.isSuccess());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void givenSuspendedMember_whenLiftSuspension_thenReactivatedAndEventPublished() {
+        member.suspend(LocalDateTime.now(), LocalDateTime.now().plusDays(3));
+        when(userRepository.findByUsername("alice")).thenReturn(Optional.of(member));
+
+        Result<Void> result = adminService.liftSuspension(ADMIN_TOKEN, "alice");
+
+        assertTrue(result.isSuccess());
+        assertTrue(member.isActive());
+        verify(eventPublisher).publishEvent(any(UserReactivatedEvent.class));
     }
 
     // ── cancelEventGlobally ───────────────────────────────────────
