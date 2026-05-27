@@ -11,6 +11,7 @@ import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.UserBannedEvent;
 import com.sadna.group13a.infrastructure.AuthImpl;
+import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
@@ -72,7 +73,7 @@ class SuspensionPreservesRolesTest {
         adminService = new AdminService(
                 userRepo, adminRepo, new EventRepositoryImpl(), companyRepo,
                 new QueueRepositoryImpl(), new OrderHistoryRepositoryImpl(),
-                auth, publisher, log);
+                new StubPaymentGateway(), auth, publisher, log);
     }
 
     /** Seeds a company whose founder appointed an accepted manager, and returns that company. */

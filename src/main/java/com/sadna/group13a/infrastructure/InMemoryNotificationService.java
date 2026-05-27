@@ -95,6 +95,12 @@ public class InMemoryNotificationService implements INotificationService {
     }
 
     @Override
+    public void notifyRefundIssued(String userId, String receiptId, double amount, String eventTitle) {
+        logger.info("[NOTIFY] User {} — refunded {} for \"{}\" (receipt {}).",
+                userId, amount, eventTitle, receiptId);
+    }
+
+    @Override
     public void notifyEventRescheduled(List<String> buyerIds, String eventId, String eventTitle,
                                        LocalDateTime newDate) {
         buyerIds.forEach(uid ->

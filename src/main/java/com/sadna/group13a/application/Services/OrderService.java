@@ -199,8 +199,8 @@ public class OrderService {
         }
 
         double price = event.getZoneBasePrice(zoneId);
-        ActiveOrder order = orderRepository.findActiveByUserId(userId)
-                .orElseGet(() -> new ActiveOrder(UUID.randomUUID().toString(), userId));
+        ActiveOrder order = orderRepository.getOrCreate(userId,
+                () -> new ActiveOrder(UUID.randomUUID().toString(), userId));
 
         for (String seatId : seatsToReserve) {
             order.addItem(new OrderItem(eventId, zoneId, seatId, price));
@@ -405,7 +405,7 @@ public class OrderService {
 
         // ── Post-checkout ─────────────────────────────────────────────────────────
         OrderHistory history = new OrderHistory(
-                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, allHistoryItems);
+                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, transactionId, allHistoryItems);
 
         Result<List<String>> ticketResult = ticketSupplier.issueTickets(history.getReceiptId(), allHistoryItems.size());
         if (!ticketResult.isSuccess()) {
