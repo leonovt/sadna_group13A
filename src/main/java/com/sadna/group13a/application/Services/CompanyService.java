@@ -305,12 +305,18 @@ public class CompanyService {
         try {
             Set<String> subtree = company.getStaffSubTree(targetUserId);
             company.fireStaff(actingUserId, targetUserId);
+            for (String uid : subtree) {
+                if (!uid.equals(targetUserId) && company.getStaff().containsKey(uid)) {
+                    company.fireStaff(actingUserId, uid);
+                }
+            }
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
 
             List<String> allRemoved = buildRemovedList(targetUserId, subtree);
             eventPublisher.publishEvent(new StaffRemovedEvent(allRemoved, companyId, actingUserId));
-            logger.warn("User '{}' removed owner '{}' from company '{}'.", actingUserId, targetUserId, companyId);
+            logger.warn("User '{}' removed owner '{}' from company '{}' (cascade removed {} subtree member(s)).",
+                    actingUserId, targetUserId, companyId, subtree.size() - 1);
             return Result.success();
         } catch (Exception e) {
             logger.warn("removeOwner failed for actor '{}' targeting '{}' in company '{}': {}",
