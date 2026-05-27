@@ -85,6 +85,11 @@ public class DemoDataSeeder implements ApplicationRunner {
             if (r.isSuccess()) logger.info("  [user] '{}' created.", username);
             else logger.warn("  [user] '{}' skipped: {}", username, r.getErrorMessage());
         }
+        for (String username : List.of("erez", "tkatch", "roeelevi", "yahlifan")) {
+            Result<?> r = userService.register(username, PASS);
+            if (r.isSuccess()) logger.info("  [easter-egg user] '{}' created.", username);
+            else logger.warn("  [easter-egg user] '{}' skipped: {}", username, r.getErrorMessage());
+        }
     }
 
     // ── SoundWave Entertainment ────────────────────────────────────

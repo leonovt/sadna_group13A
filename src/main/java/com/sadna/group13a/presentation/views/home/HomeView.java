@@ -20,6 +20,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -83,6 +84,14 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         add(buildEventGrid());
 
         loadEvents(null);
+
+        Image easterEgg = new Image("images/image.png", "👑");
+        easterEgg.setHeight("200px");
+        easterEgg.getStyle().set("border-radius", "12px")
+                            .set("box-shadow", "0 4px 12px rgba(0,0,0,0.2)")
+                            .set("margin-top", "32px")
+                            .set("align-self", "center");
+        add(easterEgg);
     }
 
     private HorizontalLayout buildHeader(String token, String displayName, UserRole role) {
