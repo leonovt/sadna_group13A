@@ -2,7 +2,11 @@ package com.sadna.group13a.application.Services;
 
 import com.sadna.group13a.application.DTO.SystemAnalyticsDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.Events.RefundIssuedEvent;
 import com.sadna.group13a.domain.Aggregates.Admin.Admin;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
@@ -44,6 +48,7 @@ class AdminServiceTest {
     @Mock private ICompanyRepository companyRepository;
     @Mock private IQueueRepository queueRepository;
     @Mock private IOrderHistoryRepository historyRepository;
+    @Mock private IPaymentGateway paymentGateway;
     @Mock private IAuth authGateway;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private SystemLogService systemLogService;
@@ -166,6 +171,43 @@ class AdminServiceTest {
         assertTrue(result.isSuccess());
         assertFalse(event.isPublished());
         verify(eventRepository).save(event);
+    }
+
+    @Test
+    void givenBuyersWithReceipts_whenCancelEventGlobally_thenRefundsAndNotifiesEachReceipt() {
+        Event event = buildPublishedEvent("ev-1", "co-1");
+        when(eventRepository.findById("ev-1")).thenReturn(Optional.of(event));
+
+        OrderHistoryItem item = new OrderHistoryItem(
+                "ev-1", "Concert", LocalDateTime.now(), "co-1", "Acme", "VIP", "A-1", 100.0);
+        OrderHistory receipt = new OrderHistory(
+                "r-1", "buyer-1", LocalDateTime.now(), 100.0, "TXN-123", List.of(item));
+        when(historyRepository.findAll()).thenReturn(List.of(receipt));
+        when(paymentGateway.refundPayment("TXN-123")).thenReturn(Result.success());
+
+        Result<Void> result = adminService.cancelEventGlobally(ADMIN_TOKEN, "ev-1");
+
+        assertTrue(result.isSuccess());
+        verify(paymentGateway).refundPayment("TXN-123");
+        verify(eventPublisher).publishEvent(any(RefundIssuedEvent.class));
+    }
+
+    @Test
+    void givenReceiptWithoutTransactionId_whenCancelEventGlobally_thenNoRefundAttempted() {
+        Event event = buildPublishedEvent("ev-1", "co-1");
+        when(eventRepository.findById("ev-1")).thenReturn(Optional.of(event));
+
+        OrderHistoryItem item = new OrderHistoryItem(
+                "ev-1", "Concert", LocalDateTime.now(), "co-1", "Acme", "VIP", "A-1", 100.0);
+        OrderHistory legacyReceipt = new OrderHistory(
+                "r-legacy", "buyer-1", LocalDateTime.now(), 100.0, List.of(item)); // no txn id
+        when(historyRepository.findAll()).thenReturn(List.of(legacyReceipt));
+
+        Result<Void> result = adminService.cancelEventGlobally(ADMIN_TOKEN, "ev-1");
+
+        assertTrue(result.isSuccess());
+        verify(paymentGateway, never()).refundPayment(any());
+        verify(eventPublisher, never()).publishEvent(any(RefundIssuedEvent.class));
     }
 
     // ── closeCompanyGlobally ──────────────────────────────────────
