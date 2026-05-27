@@ -15,9 +15,13 @@ public class OrderHistory {
     private final String userId;
     private final LocalDateTime purchaseDate;
     private final double totalPaid;
+    /** Payment-provider transaction id for this receipt. Needed to issue a refund
+     *  (e.g. on event cancellation). May be {@code null} for legacy/seeded records. */
+    private final String transactionId;
     private final List<OrderHistoryItem> items;
 
-    public OrderHistory(String receiptId, String userId, LocalDateTime purchaseDate, double totalPaid, List<OrderHistoryItem> items) {
+    public OrderHistory(String receiptId, String userId, LocalDateTime purchaseDate, double totalPaid,
+                        String transactionId, List<OrderHistoryItem> items) {
         if (receiptId == null || receiptId.isBlank()) throw new IllegalArgumentException("receiptId cannot be blank");
         if (userId == null || userId.isBlank()) throw new IllegalArgumentException("userId cannot be blank");
         if (purchaseDate == null) throw new IllegalArgumentException("purchaseDate cannot be null");
@@ -28,13 +32,20 @@ public class OrderHistory {
         this.userId = userId;
         this.purchaseDate = purchaseDate;
         this.totalPaid = totalPaid;
+        this.transactionId = transactionId;
         this.items = Collections.unmodifiableList(new ArrayList<>(items));
+    }
+
+    /** Convenience constructor for records without a known payment transaction id. */
+    public OrderHistory(String receiptId, String userId, LocalDateTime purchaseDate, double totalPaid, List<OrderHistoryItem> items) {
+        this(receiptId, userId, purchaseDate, totalPaid, null, items);
     }
 
     public String getReceiptId() { return receiptId; }
     public String getUserId() { return userId; }
     public LocalDateTime getPurchaseDate() { return purchaseDate; }
     public double getTotalPaid() { return totalPaid; }
+    public String getTransactionId() { return transactionId; }
     public List<OrderHistoryItem> getItems() { return items; }
 
     public boolean containsItemFromCompany(String companyId) {

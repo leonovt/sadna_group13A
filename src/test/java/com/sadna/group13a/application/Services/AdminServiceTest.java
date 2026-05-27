@@ -2,7 +2,11 @@ package com.sadna.group13a.application.Services;
 
 import com.sadna.group13a.application.DTO.SystemAnalyticsDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.Events.RefundIssuedEvent;
 import com.sadna.group13a.domain.Aggregates.Admin.Admin;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
@@ -24,6 +28,7 @@ import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -46,6 +51,7 @@ class AdminServiceTest {
     @Mock private ICompanyRepository companyRepository;
     @Mock private IQueueRepository queueRepository;
     @Mock private IOrderHistoryRepository historyRepository;
+    @Mock private IPaymentGateway paymentGateway;
     @Mock private IAuth authGateway;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private SystemLogService systemLogService;
@@ -210,6 +216,71 @@ class AdminServiceTest {
         assertTrue(result.isSuccess());
         assertFalse(event.isPublished());
         verify(eventRepository).save(event);
+    }
+
+    @Test
+    void givenSingleEventReceipt_whenCancelEventGlobally_thenRefundsThatEventsSubtotal() {
+        Event event = buildPublishedEvent("ev-1", "co-1");
+        when(eventRepository.findById("ev-1")).thenReturn(Optional.of(event));
+
+        OrderHistoryItem item = new OrderHistoryItem(
+                "ev-1", "Concert", LocalDateTime.now(), "co-1", "Acme", "VIP", "A-1", 100.0);
+        OrderHistory receipt = new OrderHistory(
+                "r-1", "buyer-1", LocalDateTime.now(), 100.0, "TXN-123", List.of(item));
+        when(historyRepository.findAll()).thenReturn(List.of(receipt));
+        when(paymentGateway.refundPartial("TXN-123", 100.0)).thenReturn(Result.success());
+
+        Result<Void> result = adminService.cancelEventGlobally(ADMIN_TOKEN, "ev-1");
+
+        assertTrue(result.isSuccess());
+        verify(paymentGateway).refundPartial("TXN-123", 100.0);
+        verify(eventPublisher).publishEvent(any(RefundIssuedEvent.class));
+    }
+
+    @Test
+    void givenMultiEventReceipt_whenCancelOneEvent_thenRefundsOnlyThatEventsItems() {
+        // Regression for issue #199: a receipt spanning two events on one transaction must
+        // only be refunded for the cancelled event's items, never the whole transaction.
+        Event jazz = buildPublishedEvent("jazz", "co-1");
+        when(eventRepository.findById("jazz")).thenReturn(Optional.of(jazz));
+
+        OrderHistoryItem jazzItem = new OrderHistoryItem(
+                "jazz", "Jazz Night", LocalDateTime.now(), "co-1", "Acme", "VIP", "A-1", 50.0);
+        OrderHistoryItem rockItem = new OrderHistoryItem(
+                "rock", "Rock Festival", LocalDateTime.now(), "co-1", "Acme", "GA", "B-2", 50.0);
+        OrderHistory receipt = new OrderHistory(
+                "r-multi", "buyer-1", LocalDateTime.now(), 100.0, "TXN-MULTI", List.of(jazzItem, rockItem));
+        when(historyRepository.findAll()).thenReturn(List.of(receipt));
+        when(paymentGateway.refundPartial(eq("TXN-MULTI"), anyDouble())).thenReturn(Result.success());
+
+        Result<Void> result = adminService.cancelEventGlobally(ADMIN_TOKEN, "jazz");
+
+        assertTrue(result.isSuccess());
+        // Only the €50 Jazz subtotal is refunded — NOT the full €100 transaction.
+        verify(paymentGateway).refundPartial("TXN-MULTI", 50.0);
+        verify(paymentGateway, never()).refundPartial("TXN-MULTI", 100.0);
+
+        ArgumentCaptor<RefundIssuedEvent> captor = ArgumentCaptor.forClass(RefundIssuedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(50.0, captor.getValue().amount(), "Refund notification must report only the cancelled event's subtotal");
+    }
+
+    @Test
+    void givenReceiptWithoutTransactionId_whenCancelEventGlobally_thenNoRefundAttempted() {
+        Event event = buildPublishedEvent("ev-1", "co-1");
+        when(eventRepository.findById("ev-1")).thenReturn(Optional.of(event));
+
+        OrderHistoryItem item = new OrderHistoryItem(
+                "ev-1", "Concert", LocalDateTime.now(), "co-1", "Acme", "VIP", "A-1", 100.0);
+        OrderHistory legacyReceipt = new OrderHistory(
+                "r-legacy", "buyer-1", LocalDateTime.now(), 100.0, List.of(item)); // no txn id
+        when(historyRepository.findAll()).thenReturn(List.of(legacyReceipt));
+
+        Result<Void> result = adminService.cancelEventGlobally(ADMIN_TOKEN, "ev-1");
+
+        assertTrue(result.isSuccess());
+        verify(paymentGateway, never()).refundPartial(any(), anyDouble());
+        verify(eventPublisher, never()).publishEvent(any(RefundIssuedEvent.class));
     }
 
     // ── closeCompanyGlobally ──────────────────────────────────────

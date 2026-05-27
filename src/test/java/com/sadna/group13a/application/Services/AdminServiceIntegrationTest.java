@@ -12,6 +12,7 @@ import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
 import com.sadna.group13a.domain.Events.UserBannedEvent;
+import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
@@ -53,6 +54,7 @@ class AdminServiceIntegrationTest {
     private SystemLogService      systemLogService;
     private SpyEventPublisher     eventPublisher;
     private StubAuth              auth;
+    private StubPaymentGateway    paymentGateway;
 
     private AdminService adminService;
 
@@ -68,10 +70,11 @@ class AdminServiceIntegrationTest {
         systemLogService = new SystemLogService();
         eventPublisher   = new SpyEventPublisher();
         auth             = new StubAuth(ADMIN_ID, ADMIN_TOKEN);
+        paymentGateway   = new StubPaymentGateway();
 
         adminService = new AdminService(
                 userRepo, adminRepo, eventRepo, companyRepo,
-                queueRepo, historyRepo, auth, eventPublisher, systemLogService
+                queueRepo, historyRepo, paymentGateway, auth, eventPublisher, systemLogService
         );
 
         seedAdmin();
@@ -148,7 +151,7 @@ class AdminServiceIntegrationTest {
             StubAuth nonAdminAuth = new StubAuth("non-admin-1", "non-admin-token");
             AdminService serviceForNonAdmin = new AdminService(
                     userRepo, adminRepo, eventRepo, companyRepo,
-                    queueRepo, historyRepo, nonAdminAuth, eventPublisher, systemLogService);
+                    queueRepo, historyRepo, paymentGateway, nonAdminAuth, eventPublisher, systemLogService);
             seedMember(MEMBER_ID, "alice");
 
             Result<Void> result = serviceForNonAdmin.deactivateUser("non-admin-token", "alice");
@@ -342,7 +345,7 @@ class AdminServiceIntegrationTest {
             StubAuth nonAdminAuth = new StubAuth("outsider", "outsider-token");
             AdminService nonAdminService = new AdminService(
                     userRepo, adminRepo, eventRepo, companyRepo,
-                    queueRepo, historyRepo, nonAdminAuth, eventPublisher, systemLogService);
+                    queueRepo, historyRepo, paymentGateway, nonAdminAuth, eventPublisher, systemLogService);
             seedMember("outsider", "outsider");
 
             assertFalse(nonAdminService.getSystemAnalytics("outsider-token").isSuccess());
@@ -380,7 +383,7 @@ class AdminServiceIntegrationTest {
             StubAuth nonAdminAuth = new StubAuth("outsider", "outsider-token");
             AdminService nonAdminService = new AdminService(
                     userRepo, adminRepo, eventRepo, companyRepo,
-                    queueRepo, historyRepo, nonAdminAuth, eventPublisher, systemLogService);
+                    queueRepo, historyRepo, paymentGateway, nonAdminAuth, eventPublisher, systemLogService);
             seedMember("outsider", "outsider");
 
             assertFalse(nonAdminService.getErrorLog("outsider-token").isSuccess());

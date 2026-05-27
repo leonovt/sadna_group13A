@@ -58,8 +58,10 @@ class AdminCompanyClosureTest {
         eventPublisher = mock(ApplicationEventPublisher.class);
 
         adminService = new AdminService(
-                userRepository, adminRepository, eventRepository, companyRepository, 
-                queueRepository, historyRepository, authGateway, eventPublisher, systemLogService);
+                userRepository, adminRepository, eventRepository, companyRepository,
+                queueRepository, historyRepository,
+                mock(com.sadna.group13a.application.Interfaces.IPaymentGateway.class),
+                authGateway, eventPublisher, systemLogService);
     }
 
     @Test

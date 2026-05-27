@@ -5,6 +5,7 @@ import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
 import com.sadna.group13a.application.DTO.SuspensionDTO;
 import com.sadna.group13a.application.DTO.SystemAnalyticsDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
@@ -12,9 +13,11 @@ import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyStaffMember;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.Events.AdminMessageEvent;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
 import com.sadna.group13a.domain.Events.EventCancelledEvent;
+import com.sadna.group13a.domain.Events.RefundIssuedEvent;
 import com.sadna.group13a.domain.Events.UserBannedEvent;
 import com.sadna.group13a.domain.Events.UserSuspendedEvent;
 import com.sadna.group13a.domain.Events.UserReactivatedEvent;
@@ -46,6 +49,7 @@ public class AdminService {
     private final ICompanyRepository companyRepository;
     private final IQueueRepository queueRepository;
     private final IOrderHistoryRepository historyRepository;
+    private final IPaymentGateway paymentGateway;
     private final IAuth authGateway;
     private final ApplicationEventPublisher eventPublisher;
     private final SystemLogService systemLogService;
@@ -56,6 +60,7 @@ public class AdminService {
                         ICompanyRepository companyRepository,
                         IQueueRepository queueRepository,
                         IOrderHistoryRepository historyRepository,
+                        IPaymentGateway paymentGateway,
                         IAuth authGateway,
                         ApplicationEventPublisher eventPublisher,
                         SystemLogService systemLogService) {
@@ -65,6 +70,7 @@ public class AdminService {
         this.companyRepository = companyRepository;
         this.queueRepository = queueRepository;
         this.historyRepository = historyRepository;
+        this.paymentGateway = paymentGateway;
         this.authGateway = authGateway;
         this.eventPublisher = eventPublisher;
         this.systemLogService = systemLogService;
@@ -256,14 +262,53 @@ public class AdminService {
 
         Event event = eventOpt.get();
         String eventTitle = event.getTitle();
-        List<String> buyerIds = historyRepository.findAll().stream()
+
+        // Receipts that include at least one ticket for the cancelled event.
+        List<OrderHistory> affectedReceipts = historyRepository.findAll().stream()
                 .filter(h -> h.getItems().stream().anyMatch(i -> i.getEventId().equals(eventId)))
+                .collect(Collectors.toList());
+        List<String> buyerIds = affectedReceipts.stream()
                 .map(OrderHistory::getUserId)
                 .distinct()
                 .collect(Collectors.toList());
+
         event.unpublish();
         eventRepository.save(event);
         eventPublisher.publishEvent(new EventCancelledEvent(eventId, eventTitle, buyerIds));
+
+        // Integrity rule (§2 / I.3): an event cancellation must auto-refund affected buyers.
+        // A receipt may span several events on one transaction, so we refund ONLY the subtotal
+        // of the cancelled event's items — never the whole transaction — and notify the buyer.
+        for (OrderHistory receipt : affectedReceipts) {
+            String txnId = receipt.getTransactionId();
+            if (txnId == null || txnId.isBlank()) {
+                logger.warn("Cannot refund receipt '{}' for cancelled event '{}': no transaction id stored.",
+                        receipt.getReceiptId(), eventId);
+                continue;
+            }
+            double refundAmount = receipt.getItems().stream()
+                    .filter(i -> i.getEventId().equals(eventId))
+                    .mapToDouble(OrderHistoryItem::getPricePaid)
+                    .sum();
+            if (refundAmount <= 0.0) {
+                logger.info("No refund due for receipt '{}' on cancelled event '{}' (subtotal {}).",
+                        receipt.getReceiptId(), eventId, refundAmount);
+                continue;
+            }
+            Result<Void> refundResult = paymentGateway.refundPartial(txnId, refundAmount);
+            if (refundResult.isSuccess()) {
+                eventPublisher.publishEvent(new RefundIssuedEvent(
+                        receipt.getUserId(), receipt.getReceiptId(), refundAmount, eventTitle));
+                systemLogService.logEvent("refundIssued adminId=" + adminId + " receiptId=" + receipt.getReceiptId()
+                        + " transactionId=" + txnId + " amount=" + refundAmount);
+                logger.info("Refunded {} on receipt '{}' (transaction '{}') for cancelled event '{}'.",
+                        refundAmount, receipt.getReceiptId(), txnId, eventId);
+            } else {
+                logger.error("Refund failed for receipt '{}' (transaction '{}') on cancelled event '{}': {}",
+                        receipt.getReceiptId(), txnId, eventId, refundResult.getErrorMessage());
+            }
+        }
+
         systemLogService.logEvent("cancelEventGlobally adminId=" + adminId + " eventId=" + eventId);
         logger.warn("Admin '{}' cancelled event '{}'.", adminId, eventId);
         return Result.success();

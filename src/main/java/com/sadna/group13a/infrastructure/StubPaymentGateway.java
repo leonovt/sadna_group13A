@@ -30,4 +30,10 @@ public class StubPaymentGateway implements IPaymentGateway {
         logger.info("[PAYMENT] Stub refunded transaction {}.", transactionId);
         return Result.success();
     }
+
+    @Override
+    public Result<Void> refundPartial(String transactionId, double amount) {
+        logger.info("[PAYMENT] Stub partially refunded {} of transaction {}.", amount, transactionId);
+        return Result.success();
+    }
 }
