@@ -2,7 +2,6 @@ package com.sadna.group13a.presentation.views.auth;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
@@ -46,12 +45,6 @@ public class LoginView extends VerticalLayout {
             "Don't have an account? Register", RegisterView.class
         );
 
-        Image easterEgg = new Image("images/king.png", "👑");
-        easterEgg.setHeight("180px");
-        easterEgg.getStyle().set("border-radius", "12px")
-                            .set("box-shadow", "0 4px 12px rgba(0,0,0,0.2)")
-                            .set("margin-top", "32px");
-
         add(
             new H2("Login"),
             usernameField,
@@ -59,8 +52,7 @@ public class LoginView extends VerticalLayout {
             errorMessage,
             loginButton,
             guestButton,
-            registerLink,
-            easterEgg
+            registerLink
         );
     }
 

@@ -20,7 +20,6 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H4;
-import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -84,8 +83,6 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         add(buildEventGrid());
 
         loadEvents(null);
-
-        add(buildYahlieSection());
     }
 
     private HorizontalLayout buildHeader(String token, String displayName, UserRole role) {
@@ -164,22 +161,6 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         Result<List<EventDTO>> result = presenter.loadEvents(query);
         List<EventDTO> events = result.isSuccess() ? result.getOrThrow() : Collections.emptyList();
         eventGrid.setItems(events);
-    }
-
-    private VerticalLayout buildYahlieSection() {
-        VerticalLayout section = new VerticalLayout();
-        section.setWidthFull();
-        section.setPadding(true);
-        section.getStyle().set("border-top", "2px solid var(--lumo-contrast-10pct)")
-                          .set("margin-top", "40px");
-        section.setAlignItems(Alignment.CENTER);
-
-        Image img = new Image("images/image.png", "👑");
-        img.setHeight("200px");
-        img.getStyle().set("border-radius", "12px")
-                      .set("box-shadow", "0 4px 12px rgba(0,0,0,0.2)");
-        section.add(img);
-        return section;
     }
 
     @Override

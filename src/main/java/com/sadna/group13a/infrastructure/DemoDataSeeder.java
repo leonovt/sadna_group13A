@@ -85,12 +85,6 @@ public class DemoDataSeeder implements ApplicationRunner {
             if (r.isSuccess()) logger.info("  [user] '{}' created.", username);
             else logger.warn("  [user] '{}' skipped: {}", username, r.getErrorMessage());
         }
-        // easter-egg accounts
-        for (String username : List.of("erez", "tkatch", "roeelevi", "yahlifan")) {
-            Result<?> r = userService.register(username, PASS);
-            if (r.isSuccess()) logger.info("  [easter-egg user] '{}' created.", username);
-            else logger.warn("  [easter-egg user] '{}' skipped: {}", username, r.getErrorMessage());
-        }
     }
 
     // ── SoundWave Entertainment ────────────────────────────────────
@@ -242,20 +236,12 @@ public class DemoDataSeeder implements ApplicationRunner {
         logger.info("╠══════════════════════════════════════════════════════════════╣");
         logger.info("║  All users have password: pass123                           ║");
         logger.info("║                                                              ║");
-        logger.info("║  alice    — founder, SoundWave Entertainment                ║");
-        logger.info("║  bob      — manager, SoundWave (events + reports)           ║");
-        logger.info("║  carol    — manager, SoundWave (policies + discounts)       ║");
-        logger.info("║  frank    — founder, Stellar Experiences                    ║");
-        logger.info("║  eve      — manager, Stellar (all permissions)              ║");
-        logger.info("║  dave     — regular buyer                                   ║");
-        logger.info("║                                                              ║");
-        logger.info("║  🥚 Easter-egg accounts (password: pass123):               ║");
-        logger.info("║  erez     — 👀                                              ║");
-        logger.info("║  tkatch   — 🫡                                              ║");
-        logger.info("║  roeelevi — 🤝                                              ║");
-        logger.info("║  yahlifan — 👑                                              ║");
-        logger.info("║                                                              ║");
-        logger.info("║  🥚 Easter-egg admin: yahlitheking / roeeohayonshit         ║");
+        logger.info("║  alice  — founder, SoundWave Entertainment                  ║");
+        logger.info("║  bob    — manager, SoundWave (events + reports)             ║");
+        logger.info("║  carol  — manager, SoundWave (policies + discounts)         ║");
+        logger.info("║  frank  — founder, Stellar Experiences                      ║");
+        logger.info("║  eve    — manager, Stellar (all permissions)                ║");
+        logger.info("║  dave   — regular buyer                                     ║");
         logger.info("║                                                              ║");
         logger.info("║  Events:                                                    ║");
         logger.info("║    Jazz Night 2026            REGULAR  seated+standing      ║");

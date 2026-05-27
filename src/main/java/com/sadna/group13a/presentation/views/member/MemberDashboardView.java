@@ -6,7 +6,6 @@ import com.sadna.group13a.application.DTO.UserDTO;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
-import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -71,12 +70,6 @@ public class MemberDashboardView extends VerticalLayout implements BeforeEnterOb
 
         Button logoutButton = new Button("Log out", e -> presenter.handleLogout(this));
 
-        Image easterEgg = new Image("images/prof.png", "🎓");
-        easterEgg.setHeight("180px");
-        easterEgg.getStyle().set("border-radius", "12px")
-                            .set("box-shadow", "0 4px 12px rgba(0,0,0,0.2)")
-                            .set("margin-top", "32px");
-
         add(
             greeting,
             navigation,
@@ -86,8 +79,7 @@ public class MemberDashboardView extends VerticalLayout implements BeforeEnterOb
             createCompanyButton,
             infoMessage,
             errorMessage,
-            logoutButton,
-            easterEgg
+            logoutButton
         );
     }
 

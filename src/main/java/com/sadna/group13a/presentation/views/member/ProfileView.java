@@ -5,7 +5,6 @@ import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
@@ -58,13 +57,7 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
             presenter.handleUpdateUsername(usernameField.getValue(), this);
         });
 
-        Image easterEgg = new Image("images/supe.png", "🦸");
-        easterEgg.setHeight("180px");
-        easterEgg.getStyle().set("border-radius", "12px")
-                            .set("box-shadow", "0 4px 12px rgba(0,0,0,0.2)")
-                            .set("margin-top", "32px");
-
-        add(new H2("My Profile"), roleLabel, usernameField, saveButton, infoMessage, errorMessage, easterEgg);
+        add(new H2("My Profile"), roleLabel, usernameField, saveButton, infoMessage, errorMessage);
     }
 
     public void showProfile(UserDTO user) {
