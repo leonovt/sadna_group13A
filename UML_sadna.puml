@@ -2,86 +2,163 @@
 skinparam packageStyle rectangle
 skinparam classAttributeIconSize 0
 skinparam linetype ortho
-skinparam nodesep 60
-skinparam ranksep 80
-skinparam padding 14
-skinparam roundCorner 8
 
-title Sadna Group 13A — Event Ticketing System
+title Sadna Group 13A — Event Ticketing System (Detailed Class Diagram)
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Shared
+' DOMAIN — shared
 '══════════════════════════════════════════════════════════════════
 
 package "domain.shared" #FFFDE7 {
 
-    interface PurchasePolicy
-    interface DiscountPolicy
+    enum OrderStatus {
+        OPEN
+        PENDING_PAYMENT
+        COMPLETED
+        CANCELLED
+    }
 
-    enum    OrderStatus
-    class   PurchaseContext <<record>>
-    class   DiscountContext <<record>>
+    interface PurchasePolicy {
+        + isSatisfied(ctx : PurchaseContext) : boolean
+    }
+
+    interface DiscountPolicy {
+        + calculate(ctx : DiscountContext) : double
+    }
+
+    class PurchaseContext <<record>> {
+        + userId : String
+        + eventId : String
+        + companyId : String
+        + quantity : int
+        + userAge : int
+    }
+
+    class DiscountContext <<record>> {
+        + baseTotal : double
+        + couponCode : String
+        + userId : String
+    }
 
     class DomainException
     class AuthenticationException
     class EntityNotFoundException
+    class OptimisticLockException
     class PermissionDeniedException
     class SeatUnavailableException
-    class OptimisticLockException
 
-    DomainException <|-- AuthenticationException
-    DomainException <|-- EntityNotFoundException
-    DomainException <|-- PermissionDeniedException
-    DomainException <|-- SeatUnavailableException
-    RuntimeException <|-- OptimisticLockException
+    DomainException          <|-- AuthenticationException
+    DomainException          <|-- EntityNotFoundException
+    DomainException          <|-- PermissionDeniedException
+    DomainException          <|-- SeatUnavailableException
+    RuntimeException         <|-- OptimisticLockException
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Policies  (Composite pattern)
+' DOMAIN — policies (Composite pattern)
 '══════════════════════════════════════════════════════════════════
 
 package "domain.policies.purchase" #FFFDE7 {
     class AllowAllPolicy
-    class AndPolicy
-    class OrPolicy
-    class MaxTicketsPolicy
-    class MinTicketsPolicy
-    class AgeRestrictionPolicy
+    class AndPolicy {
+        - left  : PurchasePolicy
+        - right : PurchasePolicy
+    }
+    class OrPolicy {
+        - left  : PurchasePolicy
+        - right : PurchasePolicy
+    }
+    class MaxTicketsPolicy {
+        - maxTickets : int
+    }
+    class MinTicketsPolicy {
+        - minTickets : int
+    }
+    class AgeRestrictionPolicy {
+        - minAge : int
+    }
 
-    AllowAllPolicy       ..|> PurchasePolicy
-    AndPolicy            ..|> PurchasePolicy
-    OrPolicy             ..|> PurchasePolicy
-    MaxTicketsPolicy     ..|> PurchasePolicy
-    MinTicketsPolicy     ..|> PurchasePolicy
+    AllowAllPolicy    ..|> PurchasePolicy
+    AndPolicy         ..|> PurchasePolicy
+    OrPolicy          ..|> PurchasePolicy
+    MaxTicketsPolicy  ..|> PurchasePolicy
+    MinTicketsPolicy  ..|> PurchasePolicy
     AgeRestrictionPolicy ..|> PurchasePolicy
 }
 
 package "domain.policies.discount" #FFFDE7 {
     class NoDiscountPolicy
-    class SimpleDiscount
-    class AdditiveDiscountPolicy
-    class MaxDiscountPolicy
-    class ConditionalDiscount
-    class CouponDiscount
+    class SimpleDiscount {
+        - percentage : double
+    }
+    class AdditiveDiscountPolicy {
+        - policies : List<DiscountPolicy>
+    }
+    class MaxDiscountPolicy {
+        - policies : List<DiscountPolicy>
+    }
+    class ConditionalDiscount {
+        - condition  : PurchasePolicy
+        - thenPolicy : DiscountPolicy
+    }
+    class CouponDiscount {
+        - couponCode : String
+        - percentage : double
+    }
 
-    NoDiscountPolicy       ..|> DiscountPolicy
-    SimpleDiscount         ..|> DiscountPolicy
+    NoDiscountPolicy      ..|> DiscountPolicy
+    SimpleDiscount        ..|> DiscountPolicy
     AdditiveDiscountPolicy ..|> DiscountPolicy
-    MaxDiscountPolicy      ..|> DiscountPolicy
-    ConditionalDiscount    ..|> DiscountPolicy
-    CouponDiscount         ..|> DiscountPolicy
+    MaxDiscountPolicy     ..|> DiscountPolicy
+    ConditionalDiscount   ..|> DiscountPolicy
+    CouponDiscount        ..|> DiscountPolicy
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Aggregates — User
+' DOMAIN — Aggregates.User
 '══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.User" #FFF9C4 {
-    class User   <<AggRoot>>
-    class Member
+
+    enum UserRole {
+        GUEST
+        MEMBER
+        ADMIN
+    }
+
+    enum UserState {
+        ACTIVE
+        INACTIVE
+    }
+
+    class User <<AggRoot>> #FFD54F {
+        - id            : String
+        - username      : String
+        - state         : UserState
+        - activeOrderId : String
+        - suspendedAt   : LocalDateTime
+        - suspendedUntil: LocalDateTime
+        - version       : int
+        + isActive()    : boolean
+        + activate()
+        + deactivate()
+        + suspend(at, until)
+        + isSuspended() : boolean
+        + getRole()     : UserRole
+        + canPurchase() : boolean
+        + canManageSystem() : boolean
+        + setActiveOrderId(id)
+    }
+
+    class Member {
+        + setPasswordHash(hash)
+        + addCompanyRole(companyId, role, appointedBy)
+        + removeCompanyRole(companyId)
+        + getCompanyRoles() : Map<String, CompanyRole>
+        + getRoleInCompany(companyId) : CompanyRole
+    }
+
     class Guest
-    enum  UserRole
-    enum  UserState
 
     User <|-- Member
     User <|-- Guest
@@ -90,253 +167,751 @@ package "domain.Aggregates.User" #FFF9C4 {
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Aggregates — Admin
+' DOMAIN — Aggregates.Admin
 '══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.Admin" #FFF9C4 {
-    class Admin <<AggRoot>>
+    class Admin <<AggRoot>> #FFD54F {
+        - id     : String
+        - userId : String
+    }
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Aggregates — Company
+' DOMAIN — Aggregates.Company
 '══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.Company" #FFF9C4 {
-    class ProductionCompany   <<AggRoot>>
-    class CompanyStaffMember
-    class AppointmentRequest
-    enum  CompanyRole
-    enum  CompanyStatus
-    enum  CompanyPermission
 
-    ProductionCompany  *-- CompanyStaffMember
-    ProductionCompany  *-- AppointmentRequest
+    enum CompanyRole {
+        FOUNDER
+        OWNER
+        MANAGER
+    }
+
+    enum CompanyPermission {
+        MANAGE_EVENTS
+        MANAGE_POLICIES
+        MANAGE_DISCOUNTS
+        VIEW_REPORTS
+    }
+
+    enum CompanyStatus {
+        ACTIVE
+        INACTIVE
+    }
+
+    class ProductionCompany <<AggRoot>> #FFD54F {
+        - id          : String
+        - name        : String
+        - description : String
+        - status      : CompanyStatus
+        - version     : long
+        + nominateStaff(actingUserId, nomineeId, role, permissions)
+        + acceptNomination(nomineeId)
+        + rejectNomination(nomineeId)
+        + fireStaff(actingUserId, targetUserId)
+        + forceRemoveStaff(userId)
+        + resign(actingUserId)
+        + updatePermissions(actingUserId, targetManagerId, newPerms)
+        + suspendCompany(actingUserId)
+        + reopenCompany(actingUserId)
+        + forceClose()
+        + isFounder(userId) : boolean
+        + isOwner(userId)   : boolean
+        + isManager(userId) : boolean
+        + hasPermission(userId, perm) : boolean
+        + getStaffSubTree(rootUserId) : Set<String>
+        + getRoleTree(actingUserId)   : Map<String, CompanyStaffMember>
+        + setPurchasePolicy(policy)
+        + setDiscountPolicy(policy)
+    }
+
+    class CompanyStaffMember {
+        - userId           : String
+        - role             : CompanyRole
+        - appointedByUserId: String
+        - permissions      : Set<CompanyPermission>
+        + setPermissions(perms)
+        + setAppointedByUserId(id)
+    }
+
+    class AppointmentRequest {
+        - nomineeId          : String
+        - appointerId        : String
+        - proposedRole       : CompanyRole
+        - proposedPermissions: Set<CompanyPermission>
+    }
+
+    ProductionCompany "1" *-- "0..*" CompanyStaffMember  : staff
+    ProductionCompany "1" *-- "0..*" AppointmentRequest  : pendingAppointments
     ProductionCompany  --> CompanyStatus
     CompanyStaffMember --> CompanyRole
     CompanyStaffMember --> CompanyPermission
     AppointmentRequest --> CompanyRole
-    ProductionCompany  ..> PurchasePolicy
-    ProductionCompany  ..> DiscountPolicy
+    AppointmentRequest --> CompanyPermission
+    ProductionCompany ..> PurchasePolicy
+    ProductionCompany ..> DiscountPolicy
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Aggregates — Event (show)
+' DOMAIN — Aggregates.Event
 '══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.Event" #FFF9C4 {
-    class Event      <<AggRoot>>
-    class VenueMap
-    abstract class Zone
-    class SeatedZone
-    class StandingZone
-    class Seat
-    enum  EventSaleMode
-    enum  SeatStatus
-    enum  ZoneType
 
-    Event      *-- VenueMap
-    VenueMap   *-- Zone
+    enum EventSaleMode {
+        REGULAR
+        QUEUE
+        RAFFLE
+    }
+
+    enum SeatStatus {
+        AVAILABLE
+        HELD
+        SOLD
+    }
+
+    enum ZoneType {
+        STANDING
+        SEATED
+    }
+
+    class Event <<AggRoot>> #FFD54F {
+        - id          : String
+        - title       : String
+        - description : String
+        - companyId   : String
+        - eventDate   : LocalDateTime
+        - category    : String
+        - location    : String
+        - published   : boolean
+        - saleMode    : EventSaleMode
+        - version     : long
+        + publish()
+        + unpublish()
+        + setVenueMap(map)
+        + reserveSeat(zoneId, seatId, userId)
+        + sellItem(zoneId, seatId, userId) : String
+        + unsellItem(zoneId, seatId)
+        + releaseItem(zoneId, seatId, userId)
+        + getZoneById(zoneId) : Zone
+        + getZoneBasePrice(zoneId) : double
+        + getTotalAvailable() : int
+        + setPurchasePolicy(policy)
+        + setDiscountPolicy(policy)
+    }
+
+    class VenueMap {
+        - id        : String
+        - venueName : String
+        + addZone(zone)
+        + getZoneById(zoneId) : Zone
+        + getTotalCapacity() : int
+        + getTotalAvailable() : int
+    }
+
+    abstract class Zone {
+        - id        : String
+        - name      : String
+        - basePrice : double
+        - type      : ZoneType
+        + getAvailableSeatCount() : int
+        + getMaxCapacity() : int
+    }
+
+    class SeatedZone {
+        + findSeatById(seatId) : Optional<Seat>
+    }
+
+    class StandingZone {
+        - maxCapacity : int
+        - heldCount   : int
+        - soldCount   : int
+        + holdStandingSpot(userId)
+        + sellStandingSpot(userId)
+        + releaseStandingSpot(userId)
+        + unsellStandingSpot()
+    }
+
+    class Seat {
+        - id            : String
+        - label         : String
+        - status        : SeatStatus
+        - heldByUserId  : String
+        - holdExpiresAt : Instant
+        + hold(userId)
+        + hold(userId, duration)
+        + release()
+        + sell(userId)
+        + unsell()
+        + getEffectiveStatus() : SeatStatus
+    }
+
+    Event      "1" *-- "0..1" VenueMap   : venueMap
+    VenueMap   "1" *-- "1..*" Zone       : zones
     Zone       <|-- SeatedZone
     Zone       <|-- StandingZone
-    SeatedZone *-- Seat
-    Event      --> EventSaleMode
-    Zone       --> ZoneType
-    Seat       --> SeatStatus
-    Event      ..> PurchasePolicy
-    Event      ..> DiscountPolicy
+    SeatedZone "1" *-- "1..*" Seat       : seats
+    Event       --> EventSaleMode
+    Zone        --> ZoneType
+    Seat        --> SeatStatus
+    Event       ..> PurchasePolicy
+    Event       ..> DiscountPolicy
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Aggregates — ActiveOrder  (shopping cart)
+' DOMAIN — Aggregates.ActiveOrder  (shopping cart, 30-min expiry)
 '══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.ActiveOrder" #FFF9C4 {
-    class ActiveOrder <<AggRoot>>
-    class OrderItem   <<VO>>
 
-    ActiveOrder *-- OrderItem
+    class ActiveOrder <<AggRoot>> #FFD54F {
+        - id        : String
+        - userId    : String
+        - status    : OrderStatus
+        - createdAt : LocalDateTime
+        - expiresAt : LocalDateTime
+        - version   : long
+        ' Timer starts at construction (+30 min)
+        + addItem(item)
+        + removeItem(item)
+        + removeItemByKey(eventId, zoneId, seatId) : boolean
+        + submit()
+        + cancel()
+        + isExpired() : boolean
+        + getTotalPrice() : double
+    }
+
+    class OrderItem <<VO>> {
+        - eventId   : String
+        - zoneId    : String
+        - seatId    : String
+        - basePrice : double
+    }
+
+    ActiveOrder "1" *-- "0..*" OrderItem : items
     ActiveOrder --> OrderStatus
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Aggregates — OrderHistory  (receipts + checkout session)
+' DOMAIN — Aggregates.OrderHistory  (receipts + checkout session)
 '══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.OrderHistory" #FFF9C4 {
-    class OrderHistory    <<AggRoot>>
-    class OrderHistoryItem <<VO>>
 
-    class "ActiveOrder\n(Checkout Session)" as CheckoutSession <<AggRoot>>
-    class "OrderItem\n(Checkout)"           as CheckoutItem   <<VO>>
+    class OrderHistory <<AggRoot>> #FFD54F {
+        - receiptId    : String
+        - userId       : String
+        - purchaseDate : LocalDateTime
+        - totalPaid    : double
+        + containsItemFromCompany(companyId) : boolean
+    }
 
-    OrderHistory    *-- OrderHistoryItem
-    CheckoutSession *-- CheckoutItem
-    CheckoutSession --> OrderStatus
-    CheckoutSession --> UserRole
+    class OrderHistoryItem <<VO>> {
+        - eventId     : String
+        - eventTitle  : String
+        - eventDate   : LocalDateTime
+        - companyId   : String
+        - companyName : String
+        - zoneName    : String
+        - seatLabel   : String
+        - pricePaid   : double
+    }
+
+    class ActiveOrder <<AggRoot>> #FFD54F {
+        ' Checkout session (10-min expiry, timer starts on first item)
+        {static} EXPIRATION_MINUTES = 10
+        - orderId       : String
+        - userId        : String
+        - userRole      : UserRole
+        - status        : OrderStatus
+        - createdAt     : LocalDateTime
+        - expiresAt     : LocalDateTime
+        - transactionId : String
+        + addItem(item)
+        + removeItem(item)
+        + calculateTotalBasePrice() : double
+        + complete(transactionId)
+        + cancel()
+        + isExpired() : boolean
+    }
+
+    class OrderItem <<VO>> {
+        - eventId   : String
+        - zoneId    : String
+        - seatId    : String
+        - basePrice : double
+    }
+
+    OrderHistory "1" *-- "1..*" OrderHistoryItem : items
+    ActiveOrder  "1" *-- "0..*" OrderItem        : items
+    ActiveOrder  --> OrderStatus
+    ActiveOrder  --> UserRole
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Aggregates — Raffle
+' DOMAIN — Aggregates.Raffle
 '══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.Raffle" #FFF9C4 {
-    class Raffle            <<AggRoot>>
-    class AuthorizationCode
-    enum  RaffleStatus
 
-    Raffle *-- AuthorizationCode
+    enum RaffleStatus {
+        OPEN_FOR_REGISTRATION
+        DRAWN
+        CLOSED
+    }
+
+    class Raffle <<AggRoot>> #FFD54F {
+        - id        : String
+        - eventId   : String
+        - companyId : String
+        - status    : RaffleStatus
+        - version   : long
+        + registerParticipant(userId)
+        + executeDraw(numberOfWinners, codeValidMinutes)
+        + getAuthorizationCodeFor(userId) : Optional<AuthorizationCode>
+        + close()
+        + getParticipantUserIds() : Set<String>
+        + getWinningCodes() : Collection<AuthorizationCode>
+    }
+
+    class AuthorizationCode {
+        - code           : String
+        - userId         : String
+        - eventId        : String
+        - expirationTime : LocalDateTime
+        + isValidFor(userId, eventId) : boolean
+    }
+
+    Raffle "1" *-- "0..*" AuthorizationCode : winners
     Raffle --> RaffleStatus
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Aggregates — TicketQueue
+' DOMAIN — Aggregates.TicketQueue
 '══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.TicketQueue" #FFF9C4 {
-    class TicketQueue <<AggRoot>>
-    class QueueTicket
 
-    TicketQueue *-- QueueTicket
+    class TicketQueue <<AggRoot>> #FFD54F {
+        - eventId            : String
+        - maxConcurrentUsers : int
+        - version            : long
+        + joinQueue(userId)
+        + processBatch(batchSize, validMinutes) : List<QueueTicket>
+        + removeActiveUser(userId)
+        + removeWaitingUser(userId) : boolean
+        + clearQueue()
+        + adjustMaxConcurrentUsers(newMax)
+        + isUserActive(userId) : boolean
+        + getActiveTicket(userId) : Optional<QueueTicket>
+        + getWaitingTicket(userId) : Optional<QueueTicket>
+        + getWaitingCount() : int
+        + getActiveCount()  : int
+        + getActiveUserIds() : Set<String>
+    }
+
+    class QueueTicket {
+        - userId         : String
+        - positionInLine : int
+        - grantedAt      : LocalDateTime
+        - expiresAt      : LocalDateTime
+        + grantAccess(validMinutes)
+        + decrementPosition(amount)
+        + hasAccess() : boolean
+    }
+
+    TicketQueue "1" *-- "0..*" QueueTicket : activeUsers / waitingUsers
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Domain Services
+' DOMAIN — DomainServices
 '══════════════════════════════════════════════════════════════════
 
 package "domain.DomainServices" #FFFDE7 {
-    class CheckoutDomainService
-    class TicketingAccessDomainService
+    class CheckoutDomainService {
+        + checkoutItemsForEvent(order, event, company, policy, discount, ctx) : List<OrderHistoryItem>
+    }
+    class TicketingAccessDomainService {
+        + validateAccess(user, event, queue, raffle, authCode) : boolean
+        + validateEventIsOpenForSale(event)
+    }
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Repository Interfaces
-'══════════════════════════════════════════════════════════════════
-
-package "domain.Interfaces" #FFFDE7 {
-    interface IUserRepository
-    interface IAdminRepository
-    interface ICompanyRepository
-    interface IEventRepository
-    interface IActiveOrderRepository
-    interface IOrderHistoryRepository
-    interface IRaffleRepository
-    interface IQueueRepository
-    interface IOrderQueueRepository
-}
-
-'══════════════════════════════════════════════════════════════════
-' LAYER 1 — DOMAIN : Domain Events  (Spring ApplicationEvent records)
+' DOMAIN — Events  (Spring ApplicationEvent records)
 '══════════════════════════════════════════════════════════════════
 
 package "domain.Events" #FFFDE7 {
-
-    together {
-        class UserBannedEvent        <<record>>
-        class UserReactivatedEvent   <<record>>
+    ' ── User events ───────────────────────────────
+    class UserBannedEvent <<record>> {
+        targetUserId : String
+        adminId      : String
+    }
+    class UserReactivatedEvent <<record>> {
+        userId  : String
+        adminId : String
     }
 
-    together {
-        class OrderCompletedEvent    <<record>>
-        class CartExpiredEvent       <<record>>
-        class CheckoutFailedEvent    <<record>>
+    ' ── Order / checkout events ───────────────────
+    class OrderCompletedEvent <<record>> {
+        receiptId  : String
+        userId     : String
+        totalPaid  : double
+    }
+    class CartExpiredEvent <<record>> {
+        userId : String
+        cartId : String
+    }
+    class CheckoutFailedEvent <<record>> {
+        userId : String
+        reason : String
     }
 
-    together {
-        class QueueTurnArrivedEvent  <<record>>
+    ' ── Queue events ──────────────────────────────
+    class QueueTurnArrivedEvent <<record>> {
+        eventId   : String
+        userId    : String
+        expiresAt : LocalDateTime
     }
 
-    together {
-        class RaffleDrawnEvent       <<record>>
-        class RaffleWonEvent         <<record>>
+    ' ── Raffle events ─────────────────────────────
+    class RaffleDrawnEvent <<record>> {
+        raffleId    : String
+        eventId     : String
+        winnerCount : int
+    }
+    class RaffleWonEvent <<record>> {
+        userId    : String
+        eventId   : String
+        authCode  : String
+        expiresAt : LocalDateTime
     }
 
-    together {
-        class CompanyClosedByAdminEvent <<record>>
-        class CompanySuspendedEvent     <<record>>
-        class CompanyReopenedEvent      <<record>>
-        class StaffNominatedEvent       <<record>>
-        class StaffRemovedEvent         <<record>>
-        class PermissionsUpdatedEvent   <<record>>
+    ' ── Company events ────────────────────────────
+    class CompanyClosedByAdminEvent <<record>> {
+        companyId    : String
+        adminId      : String
+        staffUserIds : List<String>
+    }
+    class CompanySuspendedEvent <<record>> {
+        companyId    : String
+        actingUserId : String
+        staffUserIds : List<String>
+    }
+    class CompanyReopenedEvent <<record>> {
+        companyId    : String
+        actingUserId : String
+        staffUserIds : List<String>
+    }
+    class StaffNominatedEvent <<record>> {
+        targetUserId : String
+        companyId    : String
+        role         : CompanyRole
+        nominatorId  : String
+    }
+    class StaffRemovedEvent <<record>> {
+        removedUserIds : List<String>
+        companyId      : String
+        removedByUserId: String
+    }
+    class PermissionsUpdatedEvent <<record>> {
+        targetUserId : String
+        companyId    : String
     }
 
-    together {
-        class EventCancelledEvent    <<record>>
-        class EventRescheduledEvent  <<record>>
-        class EventSoldOutEvent      <<record>>
+    ' ── Event (show) events ───────────────────────
+    class EventCancelledEvent <<record>> {
+        eventId   : String
+        eventTitle: String
+        buyerIds  : List<String>
+    }
+    class EventRescheduledEvent <<record>> {
+        eventId   : String
+        eventTitle: String
+        newDate   : LocalDateTime
+        buyerIds  : List<String>
+    }
+    class EventSoldOutEvent <<record>> {
+        eventId    : String
+        eventTitle : String
+        staffUserIds: List<String>
     }
 
-    together {
-        class AdminMessageEvent      <<record>>
+    ' ── Admin events ──────────────────────────────
+    class AdminMessageEvent <<record>> {
+        targetUserId : String
+        adminId      : String
+        message      : String
     }
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 2 — APPLICATION : Interfaces & Result
+' DOMAIN — Repository Interfaces
+'══════════════════════════════════════════════════════════════════
+
+package "domain.Interfaces" #FFFDE7 {
+    interface IUserRepository {
+        + findById(id) : Optional<User>
+        + findByUsername(name) : Optional<User>
+        + save(user)
+        + findAll() : List<User>
+    }
+    interface IAdminRepository {
+        + findById(id) : Optional<Admin>
+        + findByUserId(uid) : Optional<Admin>
+        + save(admin)
+    }
+    interface ICompanyRepository {
+        + findById(id) : Optional<ProductionCompany>
+        + save(company)
+        + findAll() : List<ProductionCompany>
+        + deleteById(id)
+    }
+    interface IEventRepository {
+        + findById(id) : Optional<Event>
+        + save(event)
+        + findAll() : List<Event>
+        + findByCompanyId(cid) : List<Event>
+    }
+    interface IActiveOrderRepository {
+        + findById(id) : Optional<ActiveOrder>
+        + findActiveByUserId(uid) : Optional<ActiveOrder>
+        + save(order)
+        + deleteById(id)
+        + findAll() : List<ActiveOrder>
+    }
+    interface IOrderHistoryRepository {
+        + findByUserId(uid) : List<OrderHistory>
+        + save(history)
+    }
+    interface IRaffleRepository {
+        + findById(id) : Optional<Raffle>
+        + findByEventId(eid) : Optional<Raffle>
+        + save(raffle)
+    }
+    interface IQueueRepository {
+        + findById(id) : Optional<TicketQueue>
+        + findByEventId(eid) : Optional<TicketQueue>
+        + save(queue)
+    }
+    interface IOrderQueueRepository {
+        + findById(id) : Optional<TicketQueue>
+        + save(queue)
+    }
+}
+
+'══════════════════════════════════════════════════════════════════
+' APPLICATION — Interfaces
 '══════════════════════════════════════════════════════════════════
 
 package "application.Interfaces" #E3F2FD {
-    interface IAuth
-    interface IPasswordEncoder
-    interface IPaymentGateway
-    interface ITicketSupplier
-    interface INotificationService
-    class     Result<T>
+
+    interface IAuth {
+        + generateToken(userId) : String
+        + validateToken(token)  : boolean
+        + extractUserId(token)  : String
+    }
+
+    interface IPasswordEncoder {
+        + encode(raw)             : String
+        + matches(raw, encoded)   : boolean
+    }
+
+    interface IPaymentGateway {
+        + processPayment(amount, paymentInfo) : Result<String>
+    }
+
+    interface ITicketSupplier {
+        + issueTickets(items, quantity) : Result<List<String>>
+    }
+
+    interface INotificationService {
+        ' ── Core ─────────────────────────────────────
+        + notifyOrderCompleted(userId, receiptId, totalPaid)
+        + notifyQueueTurnArrived(userId, eventId, expiresAt)
+        + notifyUserBanned(userId, adminId)
+        + notifyCompanyClosed(staffIds, companyId, adminId)
+        + notifyRaffleDrawn(eventId, winnerCount)
+        + notifyActionFailed(userId, reason)
+        ' ── Company lifecycle ─────────────────────────
+        + notifyCompanySuspended(staffIds, companyId)
+        + notifyCompanyReopened(staffIds, companyId)
+        + notifyStaffNominated(userId, companyId, role)
+        + notifyStaffRemoved(userId, companyId)
+        + notifyPermissionsUpdated(userId, companyId)
+        ' ── Order / event ─────────────────────────────
+        + notifyCartExpired(userId)
+        + notifyEventCancelled(buyerIds, eventId, title)
+        + notifyEventRescheduled(buyerIds, eventId, title, newDate)
+        + notifyEventSoldOut(staffIds, eventId, title)
+        + notifyRaffleWon(userId, eventId, authCode, expiresAt)
+        + notifyUserReactivated(userId)
+        + notifyAdminMessage(userId, message)
+    }
+
+    class Result<T> {
+        - success      : boolean
+        - value        : T
+        - errorMessage : String
+        {static} + success(value) : Result<T>
+        {static} + failure(msg)   : Result<T>
+        + isSuccess()      : boolean
+        + getOrThrow()     : T
+        + getErrorMessage(): String
+    }
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 2 — APPLICATION : DTOs
+' APPLICATION — DTOs
 '══════════════════════════════════════════════════════════════════
 
 package "application.DTO" #E3F2FD {
-    class CompanyDTO          <<record>>
-    class EventDTO            <<record>>
-    class OrderHistoryDTO     <<record>>
+    class CompanyDTO <<record>>
+    class EventDTO <<record>>
+    class OrderDTO <<record>>
+    class OrderHistoryDTO <<record>>
     class OrderHistoryItemDTO <<record>>
-    class SalesReportDTO      <<record>>
-    class UserDTO             <<record>>
-    class StaffMemberDTO      <<record>>
-    class VenueMapDTO         <<record>>
-    class ZoneDTO             <<record>>
-    class SeatDTO             <<record>>
-    class RaffleDTO           <<record>>
-    class RaffleResultDTO     <<record>>
-    class WinningTicketDTO    <<record>>
-    class QueueStatusDTO      <<record>>
-    class SuspensionDTO       <<record>>
-    class SystemAnalyticsDTO  <<record>>
+    class OrderItemDTO <<record>>
+    class SalesReportDTO <<record>> {
+        companyId   : String
+        totalOrders : int
+        totalRevenue: double
+    }
+    class UserDTO <<record>>
+    class StaffMemberDTO <<record>>
+    class VenueMapDTO <<record>>
+    class ZoneDTO <<record>>
+    class SeatDTO <<record>>
+    class RaffleDTO <<record>>
+    class RaffleRegistrationDTO <<record>>
+    class RaffleResultDTO <<record>>
+    class WinningTicketDTO <<record>>
+    class QueueStatusDTO <<record>>
+    class TicketQueueDTO <<record>>
+    class SuspensionDTO <<record>>
+    class SystemAnalyticsDTO <<record>>
+    class AdminActionRequestDTO <<record>>
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 2 — APPLICATION : Services
+' APPLICATION — Services
 '══════════════════════════════════════════════════════════════════
 
 package "application.Services" #E3F2FD {
-    class UserService
-    class CompanyService
-    class EventService
-    class OrderService
-    class RaffleService
-    class QueueService
-    class AdminService
-    class CartCleanupService
+
+    class UserService {
+        + enterAsGuest()   : Result<String>
+        + register(username, password) : Result<String>
+        + login(username, password)    : Result<String>
+        + logout(token)    : Result<Void>
+        + getProfile(token): Result<UserDTO>
+        + getOrderHistory(token) : Result<List<OrderHistoryDTO>>
+    }
+
+    class CompanyService {
+        + createCompany(token, name, desc) : Result<Boolean>
+        + getCompany(token, companyId) : Result<CompanyDTO>
+        + suspendCompany(token, companyId) : Result<Void>
+        + reopenCompany(token, companyId)  : Result<Void>
+        + appointOwner(token, companyId, userId) : Result<Void>
+        + appointManager(token, companyId, userId, perms) : Result<Void>
+        + acceptNomination(token, companyId) : Result<Void>
+        + rejectNomination(token, companyId) : Result<Void>
+        + fireManager(token, companyId, userId) : Result<Void>
+        + updatePermissions(token, companyId, userId, perms) : Result<Void>
+        + generateSalesReport(token, companyId) : Result<SalesReportDTO>
+    }
+
+    class EventService {
+        + createEvent(token, companyId, title, ...) : Result<String>
+        + updateEventDetails(token, eventId, ...) : Result<Void>
+        + setVenueMap(token, eventId, map) : Result<Void>
+        + publishEvent(token, eventId)   : Result<Void>
+        + unpublishEvent(token, eventId) : Result<Void>
+        + searchEvents(query, ...) : Result<List<EventDTO>>
+        + getEvent(token, eventId) : Result<EventDTO>
+    }
+
+    class OrderService {
+        + addItemToCart(token, eventId, zoneId, seatId) : Result<String>
+        + addBatchItemsToCart(token, eventId, zoneId, seats, qty) : Result<String>
+        + removeItemFromCart(token, eventId, zoneId, seatId) : Result<Void>
+        + cancelCart(token) : Result<Void>
+        + executeCheckout(token, orderId, authCode, payInfo) : Result<OrderHistoryDTO>
+    }
+
+    class RaffleService {
+        + createRaffle(token, eventId) : Result<String>
+        + registerForRaffle(token, eventId) : Result<Void>
+        + executeDraw(token, eventId, winners, codeMinutes) : Result<RaffleResultDTO>
+        + getRaffleDetails(token, eventId) : Result<RaffleDTO>
+        + validateAuthCode(token, eventId, code) : Result<Boolean>
+    }
+
+    class QueueService {
+        + joinQueue(token, eventId) : Result<QueueStatusDTO>
+        + leaveQueue(token, eventId) : Result<Void>
+        + getQueueStatus(token, eventId) : Result<QueueStatusDTO>
+        + processNextBatch(token, eventId, batchSize) : Result<Void>
+    }
+
+    class AdminService {
+        + deactivateUser(token, username) : Result<Void>
+        + reactivateUser(token, username) : Result<Void>
+        + closeCompanyGlobally(token, companyId) : Result<Void>
+        + suspendUser(token, username, duration) : Result<Void>
+        + sendAdminMessage(token, targetUserId, msg) : Result<Void>
+        + getSystemAnalytics(token) : Result<SystemAnalyticsDTO>
+    }
+
+    class CartCleanupService {
+        + expireStaleOrders()
+    }
+
     class SystemLogService
     class SystemService
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 2 — APPLICATION : Event Listeners
+' APPLICATION — Event Listeners
 '══════════════════════════════════════════════════════════════════
 
 package "application.EventListeners" #E3F2FD {
-    class NotificationEventListener
-    class CompanyEventListener
+
+    class NotificationEventListener {
+        + onOrderCompleted(OrderCompletedEvent)
+        + onQueueTurnArrived(QueueTurnArrivedEvent)
+        + onUserBanned(UserBannedEvent)
+        + onUserReactivated(UserReactivatedEvent)
+        + onCompanyClosed(CompanyClosedByAdminEvent)
+        + onCompanySuspended(CompanySuspendedEvent)
+        + onCompanyReopened(CompanyReopenedEvent)
+        + onRaffleDrawn(RaffleDrawnEvent)
+        + onRaffleWon(RaffleWonEvent)
+        + onCartExpired(CartExpiredEvent)
+        + onCheckoutFailed(CheckoutFailedEvent)
+        + onStaffNominated(StaffNominatedEvent)
+        + onStaffRemoved(StaffRemovedEvent)
+        + onPermissionsUpdated(PermissionsUpdatedEvent)
+        + onEventCancelled(EventCancelledEvent)
+        + onEventRescheduled(EventRescheduledEvent)
+        + onEventSoldOut(EventSoldOutEvent)
+        + onAdminMessage(AdminMessageEvent)
+    }
+
+    class CompanyEventListener {
+        + onUserBanned(UserBannedEvent)
+    }
 }
 
 '══════════════════════════════════════════════════════════════════
-' LAYER 3 — INFRASTRUCTURE
+' INFRASTRUCTURE
 '══════════════════════════════════════════════════════════════════
 
 package "infrastructure" #ECEFF1 {
+
     class AuthImpl
     class PasswordEncoderImpl
     class InMemoryNotificationService
@@ -357,24 +932,22 @@ package "infrastructure" #ECEFF1 {
     }
 }
 
-'══════════════════════════════════════════════════════════════════
-' LAYER 4 — PRESENTATION
-'══════════════════════════════════════════════════════════════════
-
 package "presentation.notification" #ECEFF1 {
-    class WebSocketNotificationService
+    class WebSocketNotificationService {
+        + broadcast(userId, message)
+    }
 }
 
 '══════════════════════════════════════════════════════════════════
-' INTERFACE IMPLEMENTATIONS
+' IMPLEMENTATIONS
 '══════════════════════════════════════════════════════════════════
 
-AuthImpl                     ..|> IAuth
-PasswordEncoderImpl          ..|> IPasswordEncoder
-InMemoryNotificationService  ..|> INotificationService
+AuthImpl                    ..|> IAuth
+PasswordEncoderImpl         ..|> IPasswordEncoder
+InMemoryNotificationService ..|> INotificationService
 WebSocketNotificationService ..|> INotificationService
-StubPaymentGateway           ..|> IPaymentGateway
-StubTicketSupplier           ..|> ITicketSupplier
+StubPaymentGateway          ..|> IPaymentGateway
+StubTicketSupplier          ..|> ITicketSupplier
 
 UserRepositoryImpl         ..|> IUserRepository
 AdminRepositoryImpl        ..|> IAdminRepository
@@ -387,7 +960,7 @@ QueueRepositoryImpl        ..|> IQueueRepository
 OrderQueueRepositoryImpl   ..|> IOrderQueueRepository
 
 '══════════════════════════════════════════════════════════════════
-' SERVICE → REPOSITORY & GATEWAY DEPENDENCIES
+' SERVICE DEPENDENCIES
 '══════════════════════════════════════════════════════════════════
 
 UserService    ..> IUserRepository
@@ -403,6 +976,7 @@ CompanyService ..> IAuth
 EventService   ..> IEventRepository
 EventService   ..> ICompanyRepository
 EventService   ..> IUserRepository
+EventService   ..> IOrderHistoryRepository
 EventService   ..> IAuth
 
 OrderService   ..> IActiveOrderRepository
