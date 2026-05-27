@@ -1,181 +1,242 @@
 @startuml UML_sadna_group13A
 skinparam packageStyle rectangle
 skinparam classAttributeIconSize 0
-hide empty members
+skinparam linetype ortho
+skinparam nodesep 55
+skinparam ranksep 75
+skinparam padding 13
+skinparam roundCorner 8
 
-title Sadna Group 13A - Class Diagram
+title Sadna Group 13A — Event Ticketing System (Full Class Diagram)
 
-'== DOMAIN - shared ============================================
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Shared
+'══════════════════════════════════════════════════════════════════
 
 package "domain.shared" #FFFDE7 {
-    enum OrderStatus {
-        OPEN
-        PENDING_PAYMENT
-        COMPLETED
-        CANCELLED
-    }
-    interface DiscountPolicy
+
     interface PurchasePolicy
+    interface DiscountPolicy
+
+    enum    OrderStatus
+    class   PurchaseContext <<record>>
+    class   DiscountContext <<record>>
 
     class DomainException
     class AuthenticationException
     class EntityNotFoundException
-    class OptimisticLockException
     class PermissionDeniedException
     class SeatUnavailableException
+    class OptimisticLockException
 
     DomainException <|-- AuthenticationException
     DomainException <|-- EntityNotFoundException
-    DomainException <|-- OptimisticLockException
     DomainException <|-- PermissionDeniedException
     DomainException <|-- SeatUnavailableException
+    RuntimeException <|-- OptimisticLockException
 }
 
-'== DOMAIN - Aggregates ========================================
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Policies
+'══════════════════════════════════════════════════════════════════
+
+package "domain.policies.purchase" #FFFDE7 {
+    class AllowAllPolicy
+    class AndPolicy
+    class OrPolicy
+    class MaxTicketsPolicy
+    class MinTicketsPolicy
+    class AgeRestrictionPolicy
+
+    AllowAllPolicy       ..|> PurchasePolicy
+    AndPolicy            ..|> PurchasePolicy
+    OrPolicy             ..|> PurchasePolicy
+    MaxTicketsPolicy     ..|> PurchasePolicy
+    MinTicketsPolicy     ..|> PurchasePolicy
+    AgeRestrictionPolicy ..|> PurchasePolicy
+}
+
+package "domain.policies.discount" #FFFDE7 {
+    class NoDiscountPolicy
+    class SimpleDiscount
+    class AdditiveDiscountPolicy
+    class MaxDiscountPolicy
+    class ConditionalDiscount
+    class CouponDiscount
+
+    NoDiscountPolicy       ..|> DiscountPolicy
+    SimpleDiscount         ..|> DiscountPolicy
+    AdditiveDiscountPolicy ..|> DiscountPolicy
+    MaxDiscountPolicy      ..|> DiscountPolicy
+    ConditionalDiscount    ..|> DiscountPolicy
+    CouponDiscount         ..|> DiscountPolicy
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — User  (State pattern)
+'══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.User" #FFF9C4 {
-    enum UserRole {
-        GUEST
-        MEMBER
-        ADMIN
-    }
-    enum UserState {
-        ACTIVE
-        INACTIVE
-    }
+    class  User   <<AggRoot>>
+    class  Member
+    class  Guest
+    enum   UserRole
+    enum   UserState
+    enum   UserType
 
-    abstract class User <<AggRoot>> #FFD54F
-    class Member
-    class Guest
+    interface UserTypeState
+    class     MemberState
+    class     GuestState
+    class     AdminState
 
-    User <|-- Member
-    User <|-- Guest
+    User   <|-- Member
+    User   <|-- Guest
     User   --> UserState
-    Member --> UserRole
-    Guest  --> UserRole
+    User   --> UserRole
+    User   --> UserType
+    User   --> UserTypeState
+
+    MemberState ..|> UserTypeState
+    GuestState  ..|> UserTypeState
+    AdminState  ..|> UserTypeState
 }
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — Admin
+'══════════════════════════════════════════════════════════════════
 
 package "domain.Aggregates.Admin" #FFF9C4 {
-    class Admin <<AggRoot>> #FFD54F
+    class Admin <<AggRoot>>
 }
 
-package "domain.Aggregates.Company" #FFF9C4 {
-    enum CompanyRole {
-        FOUNDER
-        OWNER
-        MANAGER
-    }
-    enum CompanyPermission {
-        MANAGE_EVENTS
-        MANAGE_POLICIES
-        MANAGE_DISCOUNTS
-        VIEW_REPORTS
-    }
-    enum CompanyStatus {
-        ACTIVE
-        INACTIVE
-    }
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — Company
+'══════════════════════════════════════════════════════════════════
 
-    class ProductionCompany <<AggRoot>> #FFD54F
+package "domain.Aggregates.Company" #FFF9C4 {
+    class ProductionCompany  <<AggRoot>>
     class CompanyStaffMember
     class AppointmentRequest
+    enum  CompanyRole
+    enum  CompanyStatus
+    enum  CompanyPermission
 
-    ProductionCompany "1" *-- "0..*" CompanyStaffMember : staff
-    ProductionCompany "1" *-- "0..*" AppointmentRequest : pendingAppointments
+    ProductionCompany  *-- CompanyStaffMember
+    ProductionCompany  *-- AppointmentRequest
     ProductionCompany  --> CompanyStatus
     CompanyStaffMember --> CompanyRole
     CompanyStaffMember --> CompanyPermission
     AppointmentRequest --> CompanyRole
-    AppointmentRequest --> CompanyPermission
-    ProductionCompany ..> PurchasePolicy
-    ProductionCompany ..> DiscountPolicy
+    ProductionCompany  ..> PurchasePolicy
+    ProductionCompany  ..> DiscountPolicy
 }
 
-package "domain.Aggregates.Event" #FFF9C4 {
-    enum EventSaleMode {
-        REGULAR
-        QUEUE
-        RAFFLE
-    }
-    enum SeatStatus {
-        AVAILABLE
-        HELD
-        SOLD
-    }
-    enum ZoneType {
-        STANDING
-        SEATED
-    }
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — Event (show)
+'══════════════════════════════════════════════════════════════════
 
-    class Event <<AggRoot>> #FFD54F
+package "domain.Aggregates.Event" #FFF9C4 {
+    class Event      <<AggRoot>>
     class VenueMap
     abstract class Zone
     class SeatedZone
     class StandingZone
     class Seat
+    enum  EventSaleMode
+    enum  SeatStatus
+    enum  ZoneType
 
-    Event      "1" *-- "0..1" VenueMap
-    VenueMap   "1" *-- "1..*" Zone
+    Event      *-- VenueMap
+    VenueMap   *-- Zone
     Zone       <|-- SeatedZone
     Zone       <|-- StandingZone
-    SeatedZone "1" *-- "1..*" Seat
-    Event --> EventSaleMode
-    Zone  --> ZoneType
-    Seat  --> SeatStatus
-    Event ..> PurchasePolicy
-    Event ..> DiscountPolicy
+    SeatedZone *-- Seat
+    Event      --> EventSaleMode
+    Zone       --> ZoneType
+    Seat       --> SeatStatus
+    Event      ..> PurchasePolicy
+    Event      ..> DiscountPolicy
 }
 
-package "domain.Aggregates.ActiveOrder" #FFF9C4 {
-    class ActiveOrder <<AggRoot>> #FFD54F
-    class OrderItem
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — ActiveOrder  (shopping cart, 30-min)
+'══════════════════════════════════════════════════════════════════
 
-    ActiveOrder "1" *-- "0..*" OrderItem
+package "domain.Aggregates.ActiveOrder" #FFF9C4 {
+    class ActiveOrder <<AggRoot>>
+    class OrderItem   <<VO>>
+
+    ActiveOrder *-- OrderItem
     ActiveOrder --> OrderStatus
 }
 
-package "domain.Aggregates.OrderHistory" #FFF9C4 {
-    class OrderHistory <<AggRoot>> #FFD54F
-    class OrderHistoryItem
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — OrderHistory  (receipts + checkout session)
+'══════════════════════════════════════════════════════════════════
 
-    OrderHistory "1" *-- "1..*" OrderHistoryItem
+package "domain.Aggregates.OrderHistory" #FFF9C4 {
+    class  OrderHistory    <<AggRoot>>
+    class  OrderHistoryItem <<VO>>
+
+    class  "ActiveOrder (Checkout)" as CheckoutSession <<AggRoot>>
+    class  "OrderItem (Checkout)"   as CheckoutItem   <<VO>>
+
+    interface IHistoryRepository
+    interface IOrderRepository
+
+    OrderHistory    *-- OrderHistoryItem
+    CheckoutSession *-- CheckoutItem
+    CheckoutSession --> OrderStatus
+    CheckoutSession --> UserRole
 }
 
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — Raffle
+'══════════════════════════════════════════════════════════════════
+
 package "domain.Aggregates.Raffle" #FFF9C4 {
-    enum RaffleStatus {
-        OPEN_FOR_REGISTRATION
-        DRAWN
-        CLOSED
-    }
-
-    class Raffle <<AggRoot>> #FFD54F
+    class Raffle            <<AggRoot>>
     class AuthorizationCode
+    enum  RaffleStatus
 
-    Raffle "1" *-- "0..*" AuthorizationCode : winners
+    Raffle *-- AuthorizationCode
     Raffle --> RaffleStatus
 }
 
-package "domain.Aggregates.TicketQueue" #FFF9C4 {
-    class TicketQueue <<AggRoot>> #FFD54F
-    class QueueTicket
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — TicketQueue
+'══════════════════════════════════════════════════════════════════
 
-    TicketQueue "1" *-- "0..*" QueueTicket
+package "domain.Aggregates.TicketQueue" #FFF9C4 {
+    class TicketQueue <<AggRoot>>
+    class "QueueTicket (Queue)" as QueueTicketTQ
+
+    TicketQueue *-- QueueTicketTQ
 }
 
-'== DOMAIN - Services / Events / Interfaces ====================
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — ItemQueue  (placeholder)
+'══════════════════════════════════════════════════════════════════
+
+package "domain.Aggregates.ItemQueue" #FFF9C4 {
+    class ItemQueue <<AggRoot>>
+    class "QueueTicket (Item)" as QueueTicketIQ
+
+    ItemQueue *-- QueueTicketIQ
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Domain Services
+'══════════════════════════════════════════════════════════════════
 
 package "domain.DomainServices" #FFFDE7 {
     class CheckoutDomainService
     class TicketingAccessDomainService
 }
 
-package "domain.Events" #FFFDE7 {
-    class CompanyClosedByAdminEvent <<record>>
-    class OrderCompletedEvent       <<record>>
-    class QueueTurnArrivedEvent     <<record>>
-    class RaffleDrawnEvent          <<record>>
-    class UserBannedEvent           <<record>>
-}
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Repository Interfaces
+'══════════════════════════════════════════════════════════════════
 
 package "domain.Interfaces" #FFFDE7 {
     interface IUserRepository
@@ -187,18 +248,99 @@ package "domain.Interfaces" #FFFDE7 {
     interface IRaffleRepository
     interface IQueueRepository
     interface IOrderQueueRepository
+    interface IPendingNotificationRepository
 }
 
-'== APPLICATION LAYER ==========================================
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Domain Events  (records published via Spring)
+'══════════════════════════════════════════════════════════════════
+
+package "domain.Events" #FFFDE7 {
+
+    together {
+        class UserBannedEvent       <<record>>
+        class UserReactivatedEvent  <<record>>
+    }
+
+    together {
+        class OrderCompletedEvent   <<record>>
+        class CartExpiredEvent      <<record>>
+        class CheckoutFailedEvent   <<record>>
+    }
+
+    together {
+        class QueueTurnArrivedEvent <<record>>
+    }
+
+    together {
+        class RaffleDrawnEvent      <<record>>
+        class RaffleWonEvent        <<record>>
+    }
+
+    together {
+        class CompanyClosedByAdminEvent <<record>>
+        class CompanySuspendedEvent     <<record>>
+        class CompanyReopenedEvent      <<record>>
+        class StaffNominatedEvent       <<record>>
+        class StaffRemovedEvent         <<record>>
+        class PermissionsUpdatedEvent   <<record>>
+    }
+
+    together {
+        class EventCancelledEvent   <<record>>
+        class EventRescheduledEvent <<record>>
+        class EventSoldOutEvent     <<record>>
+    }
+
+    together {
+        class AdminMessageEvent     <<record>>
+    }
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 2 — APPLICATION : Interfaces & Result
+'══════════════════════════════════════════════════════════════════
 
 package "application.Interfaces" #E3F2FD {
     interface IAuth
-    interface IPaymentGateway
-    interface INotificationService
-    interface ITicketSupplier
     interface IPasswordEncoder
-    class Result
+    interface IPaymentGateway
+    interface ITicketSupplier
+    interface INotificationService
+    class     Result<T>
 }
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 2 — APPLICATION : DTOs
+'══════════════════════════════════════════════════════════════════
+
+package "application.DTO" #E3F2FD {
+    class AdminActionRequestDTO <<record>>
+    class CompanyDTO            <<record>>
+    class EventDTO              <<record>>
+    class OrderDTO              <<record>>
+    class OrderHistoryDTO       <<record>>
+    class OrderHistoryItemDTO   <<record>>
+    class OrderItemDTO          <<record>>
+    class QueueStatusDTO        <<record>>
+    class RaffleDTO             <<record>>
+    class RaffleRegistrationDTO <<record>>
+    class RaffleResultDTO       <<record>>
+    class SalesReportDTO        <<record>>
+    class SeatDTO               <<record>>
+    class StaffMemberDTO        <<record>>
+    class SuspensionDTO         <<record>>
+    class SystemAnalyticsDTO    <<record>>
+    class TicketQueueDTO        <<record>>
+    class UserDTO               <<record>>
+    class VenueMapDTO           <<record>>
+    class WinningTicketDTO      <<record>>
+    class ZoneDTO               <<record>>
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 2 — APPLICATION : Services
+'══════════════════════════════════════════════════════════════════
 
 package "application.Services" #E3F2FD {
     class UserService
@@ -208,17 +350,32 @@ package "application.Services" #E3F2FD {
     class RaffleService
     class QueueService
     class AdminService
-    class SystemService
-    class SystemLogService
     class CartCleanupService
+    class SuspensionExpiryJob
+    class SystemLogService
+    class SystemService
 }
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 2 — APPLICATION : Event Listeners
+'══════════════════════════════════════════════════════════════════
 
 package "application.EventListeners" #E3F2FD {
     class NotificationEventListener
     class CompanyEventListener
 }
 
-'== INFRASTRUCTURE LAYER =======================================
+'══════════════════════════════════════════════════════════════════
+' LAYER 2 — APPLICATION : Config
+'══════════════════════════════════════════════════════════════════
+
+package "application.config" #E3F2FD {
+    class DomainServiceConfig
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 3 — INFRASTRUCTURE
+'══════════════════════════════════════════════════════════════════
 
 package "infrastructure" #ECEFF1 {
     class AuthImpl
@@ -226,6 +383,7 @@ package "infrastructure" #ECEFF1 {
     class InMemoryNotificationService
     class StubPaymentGateway
     class StubTicketSupplier
+    class PendingNotification
     class PlatformBootstrap
 
     package "infrastructure.RepositoryImpl" #E0E0E0 {
@@ -238,58 +396,266 @@ package "infrastructure" #ECEFF1 {
         class RaffleRepositoryImpl
         class QueueRepositoryImpl
         class OrderQueueRepositoryImpl
+        class PendingNotificationRepositoryImpl
     }
 }
 
-'== IMPLEMENTATIONS ============================================
+'══════════════════════════════════════════════════════════════════
+' LAYER 4 — PRESENTATION : Config & Notification
+'══════════════════════════════════════════════════════════════════
 
-AuthImpl                    ..|> IAuth
-PasswordEncoderImpl         ..|> IPasswordEncoder
-InMemoryNotificationService ..|> INotificationService
-StubPaymentGateway          ..|> IPaymentGateway
-StubTicketSupplier          ..|> ITicketSupplier
+package "presentation.config" #F3E5F5 {
+    class VaadinConfig
+    class PushConfig
+}
 
-UserRepositoryImpl         ..|> IUserRepository
-AdminRepositoryImpl        ..|> IAdminRepository
-CompanyRepositoryImpl      ..|> ICompanyRepository
-EventRepositoryImpl        ..|> IEventRepository
-ActiveOrderRepositoryImpl  ..|> IActiveOrderRepository
-OrderHistoryRepositoryImpl ..|> IOrderHistoryRepository
-RaffleRepositoryImpl       ..|> IRaffleRepository
-QueueRepositoryImpl        ..|> IQueueRepository
+package "presentation.notification" #F3E5F5 {
+    class NotificationBroadcaster
+    class WebSocketNotificationService
+}
 
-'== KEY SERVICE DEPENDENCIES ===================================
+'══════════════════════════════════════════════════════════════════
+' LAYER 4 — PRESENTATION : Views — Auth
+'══════════════════════════════════════════════════════════════════
 
-OrderService ..> IActiveOrderRepository
-OrderService ..> IOrderHistoryRepository
-OrderService ..> IEventRepository
-OrderService ..> ICompanyRepository
-OrderService ..> IPaymentGateway
-OrderService ..> ITicketSupplier
-OrderService ..> CheckoutDomainService
-OrderService ..> TicketingAccessDomainService
+package "presentation.views.auth" #F3E5F5 {
+    class LoginView
+    class LoginPresenter
+    class RegisterView
+    class RegisterPresenter
 
-UserService ..> IUserRepository
-UserService ..> IPasswordEncoder
-UserService ..> IAuth
+    LoginView    --> LoginPresenter
+    RegisterView --> RegisterPresenter
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 4 — PRESENTATION : Views — Home
+'══════════════════════════════════════════════════════════════════
+
+package "presentation.views.home" #F3E5F5 {
+    class HomeView
+    class HomePresenter
+
+    HomeView --> HomePresenter
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 4 — PRESENTATION : Views — Event
+'══════════════════════════════════════════════════════════════════
+
+package "presentation.views.event" #F3E5F5 {
+    class EventDetailView
+    class EventDetailPresenter
+
+    EventDetailView --> EventDetailPresenter
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 4 — PRESENTATION : Views — Cart
+'══════════════════════════════════════════════════════════════════
+
+package "presentation.views.cart" #F3E5F5 {
+    class CartView
+    class CartPresenter
+    class CheckoutView
+    class CheckoutPresenter
+
+    CartView     --> CartPresenter
+    CheckoutView --> CheckoutPresenter
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 4 — PRESENTATION : Views — Member
+'══════════════════════════════════════════════════════════════════
+
+package "presentation.views.member" #F3E5F5 {
+    class MemberDashboardView
+    class MemberDashboardPresenter
+    class OrderHistoryView
+    class OrderHistoryPresenter
+    class ProfileView
+    class ProfilePresenter
+    class RaffleView
+    class RafflePresenter
+
+    MemberDashboardView --> MemberDashboardPresenter
+    OrderHistoryView    --> OrderHistoryPresenter
+    ProfileView         --> ProfilePresenter
+    RaffleView          --> RafflePresenter
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 4 — PRESENTATION : Views — Company
+'══════════════════════════════════════════════════════════════════
+
+package "presentation.views.company" #F3E5F5 {
+    class CompanyDashboardView
+    class CompanyDashboardPresenter
+    class StaffManagementView
+    class StaffManagementPresenter
+    class EventManagementView
+    class EventManagementPresenter
+    class PolicyManagementView
+    class PolicyManagementPresenter
+    class SalesReportView
+    class SalesReportPresenter
+
+    CompanyDashboardView --> CompanyDashboardPresenter
+    StaffManagementView  --> StaffManagementPresenter
+    EventManagementView  --> EventManagementPresenter
+    PolicyManagementView --> PolicyManagementPresenter
+    SalesReportView      --> SalesReportPresenter
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 4 — PRESENTATION : Views — Admin
+'══════════════════════════════════════════════════════════════════
+
+package "presentation.views.admin" #F3E5F5 {
+    class AdminDashboardView
+    class AdminDashboardPresenter
+    class AdminAnalyticsView
+    class AdminAnalyticsPresenter
+    class AdminQueueView
+    class AdminQueuePresenter
+    class AdminUserManagementView
+    class AdminUserManagementPresenter
+
+    AdminDashboardView        --> AdminDashboardPresenter
+    AdminAnalyticsView        --> AdminAnalyticsPresenter
+    AdminQueueView            --> AdminQueuePresenter
+    AdminUserManagementView   --> AdminUserManagementPresenter
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 4 — PRESENTATION : Views — Queue
+'══════════════════════════════════════════════════════════════════
+
+package "presentation.views.queue" #F3E5F5 {
+    class QueueView
+    class QueuePresenter
+
+    QueueView --> QueuePresenter
+}
+
+'══════════════════════════════════════════════════════════════════
+' ENTRY POINT
+'══════════════════════════════════════════════════════════════════
+
+class SadnaApplication
+
+'══════════════════════════════════════════════════════════════════
+' INTERFACE IMPLEMENTATIONS
+'══════════════════════════════════════════════════════════════════
+
+AuthImpl                     ..|> IAuth
+PasswordEncoderImpl          ..|> IPasswordEncoder
+InMemoryNotificationService  ..|> INotificationService
+WebSocketNotificationService ..|> INotificationService
+StubPaymentGateway           ..|> IPaymentGateway
+StubTicketSupplier           ..|> ITicketSupplier
+
+UserRepositoryImpl                ..|> IUserRepository
+AdminRepositoryImpl               ..|> IAdminRepository
+CompanyRepositoryImpl             ..|> ICompanyRepository
+EventRepositoryImpl               ..|> IEventRepository
+ActiveOrderRepositoryImpl         ..|> IActiveOrderRepository
+OrderHistoryRepositoryImpl        ..|> IOrderHistoryRepository
+RaffleRepositoryImpl              ..|> IRaffleRepository
+QueueRepositoryImpl               ..|> IQueueRepository
+OrderQueueRepositoryImpl          ..|> IOrderQueueRepository
+PendingNotificationRepositoryImpl ..|> IPendingNotificationRepository
+
+'══════════════════════════════════════════════════════════════════
+' SERVICE → INTERFACE DEPENDENCIES
+'══════════════════════════════════════════════════════════════════
+
+UserService    ..> IUserRepository
+UserService    ..> IPasswordEncoder
+UserService    ..> IAuth
+UserService    ..> IOrderHistoryRepository
 
 CompanyService ..> ICompanyRepository
 CompanyService ..> IUserRepository
+CompanyService ..> IOrderHistoryRepository
+CompanyService ..> IAuth
 
-EventService ..> IEventRepository
-EventService ..> ICompanyRepository
+EventService   ..> IEventRepository
+EventService   ..> ICompanyRepository
+EventService   ..> IUserRepository
+EventService   ..> IAuth
 
-RaffleService ..> IRaffleRepository
-RaffleService ..> IEventRepository
+OrderService   ..> IActiveOrderRepository
+OrderService   ..> IOrderHistoryRepository
+OrderService   ..> IEventRepository
+OrderService   ..> ICompanyRepository
+OrderService   ..> IQueueRepository
+OrderService   ..> IRaffleRepository
+OrderService   ..> IUserRepository
+OrderService   ..> IPaymentGateway
+OrderService   ..> ITicketSupplier
+OrderService   ..> IAuth
+OrderService   ..> CheckoutDomainService
+OrderService   ..> TicketingAccessDomainService
 
-QueueService ..> IQueueRepository
-QueueService ..> IEventRepository
+RaffleService  ..> IRaffleRepository
+RaffleService  ..> IEventRepository
+RaffleService  ..> ICompanyRepository
+RaffleService  ..> IUserRepository
+RaffleService  ..> IAuth
 
-AdminService ..> IAdminRepository
-AdminService ..> IUserRepository
-AdminService ..> ICompanyRepository
+QueueService   ..> IQueueRepository
+QueueService   ..> IEventRepository
+QueueService   ..> ICompanyRepository
+QueueService   ..> IUserRepository
+QueueService   ..> IAdminRepository
+QueueService   ..> IAuth
+
+AdminService   ..> IAdminRepository
+AdminService   ..> IUserRepository
+AdminService   ..> ICompanyRepository
+AdminService   ..> IEventRepository
+AdminService   ..> IQueueRepository
+AdminService   ..> IOrderHistoryRepository
+AdminService   ..> IAuth
+AdminService   ..> SystemLogService
+
+CartCleanupService    ..> IActiveOrderRepository
+CartCleanupService    ..> IEventRepository
+SuspensionExpiryJob   ..> IUserRepository
 
 NotificationEventListener ..> INotificationService
 CompanyEventListener      ..> ICompanyRepository
+
+'══════════════════════════════════════════════════════════════════
+' PRESENTER → SERVICE DEPENDENCIES
+'══════════════════════════════════════════════════════════════════
+
+LoginPresenter           ..> UserService
+RegisterPresenter        ..> UserService
+HomePresenter            ..> EventService
+EventDetailPresenter     ..> EventService
+EventDetailPresenter     ..> OrderService
+CartPresenter            ..> OrderService
+CheckoutPresenter        ..> OrderService
+MemberDashboardPresenter ..> UserService
+OrderHistoryPresenter    ..> UserService
+ProfilePresenter         ..> UserService
+RafflePresenter          ..> RaffleService
+QueuePresenter           ..> QueueService
+
+CompanyDashboardPresenter ..> CompanyService
+StaffManagementPresenter  ..> CompanyService
+EventManagementPresenter  ..> EventService
+EventManagementPresenter  ..> CompanyService
+PolicyManagementPresenter ..> CompanyService
+SalesReportPresenter      ..> CompanyService
+
+AdminDashboardPresenter        ..> AdminService
+AdminAnalyticsPresenter        ..> AdminService
+AdminQueuePresenter            ..> QueueService
+AdminUserManagementPresenter   ..> AdminService
+
+WebSocketNotificationService ..> NotificationBroadcaster
 
 @enduml
