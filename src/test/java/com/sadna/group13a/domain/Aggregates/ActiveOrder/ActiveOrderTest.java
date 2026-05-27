@@ -33,6 +33,15 @@ class ActiveOrderTest {
     }
 
     @Test
+    void givenNewOrder_whenCheckingExpiry_thenWindowMatchesSeatHoldDuration() {
+        // Issue #191: the cart's bounded window must equal the seat-hold window so the cart
+        // is never valid after its held seats are released. Single source of truth = Seat.
+        assertEquals(order.getCreatedAt().plus(com.sadna.group13a.domain.Aggregates.Event.Seat.DEFAULT_HOLD_DURATION),
+                order.getExpiresAt(),
+                "Cart expiry must equal createdAt + Seat.DEFAULT_HOLD_DURATION");
+    }
+
+    @Test
     void givenBlankId_whenCreatingOrder_thenThrowsIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () -> new ActiveOrder("  ", USER_ID));
     }
