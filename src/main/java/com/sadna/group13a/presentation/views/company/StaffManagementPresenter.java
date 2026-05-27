@@ -24,10 +24,7 @@ public class StaffManagementPresenter {
 
     public void loadStaff(StaffManagementView view, String companyId) {
         String token = getToken();
-        if (token == null) {
-            UI.getCurrent().navigate("login");
-            return;
-        }
+        if (token == null) { UI.getCurrent().navigate("login"); return; }
         Result<List<StaffMemberDTO>> result = companyService.getRoleTree(token, companyId);
         if (result.isSuccess()) {
             view.displayStaff(result.getData().orElseThrow());
@@ -41,12 +38,8 @@ public class StaffManagementPresenter {
     }
 
     public void handleAppointManager(String username, String companyId, StaffManagementView view) {
-        if (username == null || username.isBlank()) {
-            view.showError("Username cannot be blank.");
-            return;
-        }
-        String token = getToken();
-        Result<Void> result = companyService.appointManager(token, companyId, username, null);
+        if (username == null || username.isBlank()) { view.showError("Username cannot be blank."); return; }
+        Result<Void> result = companyService.appointManager(getToken(), companyId, username, null);
         if (result.isSuccess()) {
             view.showSuccess("Manager nomination sent to " + username + ".");
             loadStaff(view, companyId);
@@ -55,13 +48,31 @@ public class StaffManagementPresenter {
         }
     }
 
-    public void handleFireStaff(String username, String companyId, StaffManagementView view) {
-        if (username == null || username.isBlank()) {
-            view.showError("Username cannot be blank.");
-            return;
+    public void handleAppointOwner(String username, String companyId, StaffManagementView view) {
+        if (username == null || username.isBlank()) { view.showError("Username cannot be blank."); return; }
+        Result<Void> result = companyService.appointOwner(getToken(), companyId, username);
+        if (result.isSuccess()) {
+            view.showSuccess("Owner nomination sent to " + username + ".");
+            loadStaff(view, companyId);
+        } else {
+            view.showError(result.getErrorMessage());
         }
-        String token = getToken();
-        Result<Void> result = companyService.fireManager(token, companyId, username);
+    }
+
+    public void handleRemoveOwner(String username, String companyId, StaffManagementView view) {
+        if (username == null || username.isBlank()) { view.showError("Username cannot be blank."); return; }
+        Result<Void> result = companyService.removeOwner(getToken(), companyId, username);
+        if (result.isSuccess()) {
+            view.showSuccess("Owner '" + username + "' removed.");
+            loadStaff(view, companyId);
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
+    public void handleFireStaff(String username, String companyId, StaffManagementView view) {
+        if (username == null || username.isBlank()) { view.showError("Username cannot be blank."); return; }
+        Result<Void> result = companyService.fireManager(getToken(), companyId, username);
         if (result.isSuccess()) {
             view.showSuccess(username + " has been removed from staff.");
             loadStaff(view, companyId);
@@ -70,9 +81,27 @@ public class StaffManagementPresenter {
         }
     }
 
+    public void handleAcceptNomination(String companyId, StaffManagementView view) {
+        Result<Void> result = companyService.acceptNomination(getToken(), companyId);
+        if (result.isSuccess()) {
+            view.showSuccess("Nomination accepted. You are now part of the company.");
+            loadStaff(view, companyId);
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
+    public void handleRejectNomination(String companyId, StaffManagementView view) {
+        Result<Void> result = companyService.rejectNomination(getToken(), companyId);
+        if (result.isSuccess()) {
+            view.showSuccess("Nomination rejected.");
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
     public void handleResign(String companyId, StaffManagementView view) {
-        String token = getToken();
-        Result<Void> result = companyService.resign(token, companyId);
+        Result<Void> result = companyService.resign(getToken(), companyId);
         if (result.isSuccess()) {
             UI.getCurrent().navigate("company/" + companyId);
         } else {
