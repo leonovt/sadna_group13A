@@ -391,6 +391,47 @@ class ProductionCompanyTest {
         }
 
         @Test
+        void givenFounder_whenForceRemoved_thenCompanyAutoClosedAndFounderRemovedFromStaff() {
+            company.forceRemoveStaff(FOUNDER_ID);
+
+            assertEquals(CompanyStatus.INACTIVE, company.getStatus(),
+                    "Banning the founder must auto-close the company (no owner invariant)");
+            assertFalse(company.getStaff().containsKey(FOUNDER_ID),
+                    "Founder must be removed from staff");
+        }
+
+        @Test
+        void givenFounderWithSubStaff_whenForceRemoved_thenCompanyClosedAndRemainingStaffKept() {
+            String ownerId = "owner-kept";
+            String managerId = "mgr-kept";
+            company.nominateStaff(FOUNDER_ID, ownerId, CompanyRole.OWNER, null);
+            company.acceptNomination(ownerId);
+            company.nominateStaff(ownerId, managerId, CompanyRole.MANAGER, null);
+            company.acceptNomination(managerId);
+
+            company.forceRemoveStaff(FOUNDER_ID);
+
+            assertEquals(CompanyStatus.INACTIVE, company.getStatus());
+            assertFalse(company.getStaff().containsKey(FOUNDER_ID));
+            assertTrue(company.getStaff().containsKey(ownerId),
+                    "Remaining staff must not be deleted when founder is removed");
+            assertTrue(company.getStaff().containsKey(managerId));
+        }
+
+        @Test
+        void givenManager_whenForceRemoved_thenCompanyRemainsActive() {
+            String managerId = "mgr-active";
+            company.nominateStaff(FOUNDER_ID, managerId, CompanyRole.MANAGER, null);
+            company.acceptNomination(managerId);
+
+            company.forceRemoveStaff(managerId);
+
+            assertEquals(CompanyStatus.ACTIVE, company.getStatus(),
+                    "Removing a non-founder must not close the company");
+            assertFalse(company.getStaff().containsKey(managerId));
+        }
+
+        @Test
         void givenManagerWithSubManagers_whenForceRemoved_thenSubManagersReparentedToGrandparent() {
             String mgr1 = "mgr-ban-1";
             String mgr2 = "mgr-ban-2";

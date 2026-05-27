@@ -153,6 +153,7 @@ class ActiveOrderManagementTest {
         assertNotNull(originalExpiry, "Pre: cart must have an expiry timer set before update");
 
         when(orderRepository.findActiveByUserId(userId)).thenReturn(Optional.of(order));
+        when(orderRepository.getOrCreate(eq(userId), any())).thenReturn(order);
 
         Event event = mock(Event.class);
         when(eventRepository.findById("ev1")).thenReturn(Optional.of(event));
@@ -214,6 +215,8 @@ class ActiveOrderManagementTest {
         when(company.getStatus()).thenReturn(CompanyStatus.ACTIVE);
         when(companyRepository.findById("company1")).thenReturn(Optional.of(company));
         when(orderRepository.findActiveByUserId(userId)).thenReturn(Optional.empty());
+        when(orderRepository.getOrCreate(eq(userId), any()))
+                .thenAnswer(inv -> inv.<java.util.function.Supplier<ActiveOrder>>getArgument(1).get());
 
         Result<String> result = orderService.addBatchItemsToCart(
                 token, eventId, "zone1", List.of("seat1", "seat2"), null);
@@ -244,6 +247,8 @@ class ActiveOrderManagementTest {
         when(company.getStatus()).thenReturn(CompanyStatus.ACTIVE);
         when(companyRepository.findById("company1")).thenReturn(Optional.of(company));
         when(orderRepository.findActiveByUserId(userId)).thenReturn(Optional.empty());
+        when(orderRepository.getOrCreate(eq(userId), any()))
+                .thenAnswer(inv -> inv.<java.util.function.Supplier<ActiveOrder>>getArgument(1).get());
 
         Result<String> result = orderService.addBatchItemsToCart(
                 token, eventId, "standing1", null, 3);
