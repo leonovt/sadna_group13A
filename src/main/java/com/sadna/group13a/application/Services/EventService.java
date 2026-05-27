@@ -154,7 +154,8 @@ public class EventService
             e.getCategory(),
             e.getLocation(),
             e.isPublished(),
-            e.isPublished() ? e.getTotalAvailable() : 0
+            e.isPublished() ? e.getTotalAvailable() : 0,
+            e.getSaleMode()
         );
         logger.debug("getEvent: event '{}' retrieved by '{}'.", eventId, callerId);
         return Result.success(dto);
@@ -485,7 +486,7 @@ public class EventService
                 .map(e -> new EventDTO(
                         e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
                         e.getEventDate(), e.getCategory(), e.getLocation(),
-                        e.isPublished(), e.isPublished() ? e.getTotalAvailable() : 0))
+                        e.isPublished(), e.isPublished() ? e.getTotalAvailable() : 0, e.getSaleMode()))
                 .collect(Collectors.toList());
         logger.debug("getCompanyEvents: {} event(s) retrieved for company '{}' by '{}'.", dtos.size(), companyId, callerId);
         return Result.success(dtos);
@@ -518,7 +519,7 @@ public class EventService
             })
             .map(e -> new EventDTO(
                 e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
-                e.getEventDate(), e.getCategory(), e.getLocation(), e.isPublished(), e.getTotalAvailable()
+                e.getEventDate(), e.getCategory(), e.getLocation(), e.isPublished(), e.getTotalAvailable(), e.getSaleMode()
             ))
             .collect(Collectors.toList());
         logger.debug("searchEvents: {} result(s) — query='{}' category='{}' location='{}' from='{}' to='{}' minPrice='{}' maxPrice='{}'.",

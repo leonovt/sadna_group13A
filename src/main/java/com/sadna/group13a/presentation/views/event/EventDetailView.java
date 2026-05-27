@@ -5,6 +5,7 @@ import com.sadna.group13a.application.DTO.SeatDTO;
 import com.sadna.group13a.application.DTO.VenueMapDTO;
 import com.sadna.group13a.application.DTO.ZoneDTO;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.Aggregates.Event.SeatStatus;
 import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
 import com.vaadin.flow.component.UI;
@@ -85,28 +86,54 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
         }
         renderEventInfo(event);
 
-        if (token != null) {
-            Result<VenueMapDTO> venueResult = presenter.loadVenueMap(token, eventId);
-            if (venueResult.isSuccess()) {
-                renderVenueMap(venueResult.getOrThrow(), token);
-            } else {
-                add(new Paragraph("Venue map not available: " + venueResult.getErrorMessage()));
-            }
-        } else {
+        if (token == null) {
             add(new Paragraph("Log in to view seating and purchase tickets."));
+            return;
+        }
+
+        if (event.saleMode() == EventSaleMode.QUEUE) {
+            renderQueueGate(token, event);
+        } else {
+            renderVenueSection(token);
         }
     }
 
     private void renderEventInfo(EventDTO event) {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
+        String saleModeLabel = event.saleMode() != null ? event.saleMode().name() : "REGULAR";
         add(
             new H2(event.title()),
             new Paragraph("Date: " + event.eventDate().format(fmt)),
             new Paragraph("Location: " + (event.location() != null ? event.location() : "TBD")),
             new Paragraph("Category: " + event.category()),
+            new Paragraph("Sale type: " + saleModeLabel),
             new Paragraph(event.description()),
             new Paragraph("Available tickets: " + event.totalAvailableTickets())
         );
+    }
+
+    private void renderQueueGate(String token, EventDTO event) {
+        if (presenter.isUserActiveInQueue(token, eventId)) {
+            // User holds an active slot — show the normal purchase UI
+            renderVenueSection(token);
+        } else {
+            // User has not yet joined or is still waiting
+            Paragraph info = new Paragraph(
+                "This event uses a virtual queue. Join the queue and wait for your turn before purchasing.");
+            Button joinBtn = new Button("Join Queue →",
+                e -> UI.getCurrent().navigate("queue/" + eventId));
+            joinBtn.getStyle().set("font-size", "1rem");
+            add(info, joinBtn);
+        }
+    }
+
+    private void renderVenueSection(String token) {
+        Result<VenueMapDTO> venueResult = presenter.loadVenueMap(token, eventId);
+        if (venueResult.isSuccess()) {
+            renderVenueMap(venueResult.getOrThrow(), token);
+        } else {
+            add(new Paragraph("Venue map not available: " + venueResult.getErrorMessage()));
+        }
     }
 
     private void renderVenueMap(VenueMapDTO venueMap, String token) {

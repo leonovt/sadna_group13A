@@ -65,7 +65,7 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void initView(String token) {
-        setSizeFull();
+        setWidthFull();
         setPadding(true);
 
         Result<UserDTO> profileResult = presenter.loadUserProfile(token);
@@ -83,7 +83,7 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         add(buildSearchBar());
         add(buildEventGrid());
 
-        loadEvents(null);
+        loadEvents(null, null, null);
 
         Image easterEgg = new Image("images/image.png", "👑");
         easterEgg.setHeight("200px");
@@ -139,14 +139,20 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         return row;
     }
 
+    private final TextField categoryField = new TextField();
+    private final TextField locationField = new TextField();
+
     private HorizontalLayout buildSearchBar() {
-        searchField.setPlaceholder("Search events...");
-        searchField.setWidth("300px");
-        Button searchButton = new Button("Search", e -> loadEvents(searchField.getValue().isBlank() ? null : searchField.getValue()));
-        searchField.addValueChangeListener(e -> {
-            if (e.getValue().isBlank()) loadEvents(null);
-        });
-        HorizontalLayout bar = new HorizontalLayout(searchField, searchButton);
+        searchField.setPlaceholder("Search by title...");
+        searchField.setWidth("220px");
+        categoryField.setPlaceholder("Category");
+        categoryField.setWidth("150px");
+        locationField.setPlaceholder("Location");
+        locationField.setWidth("150px");
+        Button searchButton = new Button("Search", e -> loadEvents(
+                searchField.getValue().isBlank() ? null : searchField.getValue(),
+                categoryField.getValue(), locationField.getValue()));
+        HorizontalLayout bar = new HorizontalLayout(searchField, categoryField, locationField, searchButton);
         bar.setAlignItems(Alignment.BASELINE);
         return bar;
     }
@@ -166,8 +172,8 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         return eventGrid;
     }
 
-    private void loadEvents(String query) {
-        Result<List<EventDTO>> result = presenter.loadEvents(query);
+    private void loadEvents(String query, String category, String location) {
+        Result<List<EventDTO>> result = presenter.loadEvents(query, category, location);
         List<EventDTO> events = result.isSuccess() ? result.getOrThrow() : Collections.emptyList();
         eventGrid.setItems(events);
     }

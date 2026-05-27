@@ -79,6 +79,10 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
                 statusMessage.setVisible(false);
                 openEditDialog(event);
             });
+            Button settingsBtn = new Button("Settings", click -> {
+                statusMessage.setVisible(false);
+                openEventSettingsDialog(event);
+            });
             Button toggleBtn = event.isPublished()
                     ? new Button("Unpublish", click -> {
                         statusMessage.setVisible(false);
@@ -88,22 +92,27 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
                         statusMessage.setVisible(false);
                         presenter.handlePublishEvent(this, companyId, event.id());
                     });
-            Button settingsBtn = new Button("Settings", click -> {
-                statusMessage.setVisible(false);
-                openEventSettingsDialog(event);
-            });
-            HorizontalLayout actions = new HorizontalLayout(editBtn, settingsBtn);
+
+            HorizontalLayout row1 = new HorizontalLayout(editBtn, settingsBtn);
+            row1.setSpacing(true);
+            row1.setPadding(false);
+
+            HorizontalLayout row2 = new HorizontalLayout(toggleBtn);
+            row2.setSpacing(true);
+            row2.setPadding(false);
             if (!event.isPublished()) {
                 Button venueBtn = new Button("Venue", click -> {
                     statusMessage.setVisible(false);
                     openVenueDialog(event);
                 });
-                actions.add(venueBtn);
+                row2.addComponentAsFirst(venueBtn);
             }
-            actions.add(toggleBtn);
-            actions.setSpacing(true);
+
+            VerticalLayout actions = new VerticalLayout(row1, row2);
+            actions.setPadding(false);
+            actions.setSpacing(false);
             return actions;
-        }).setHeader("Actions");
+        }).setHeader("Actions").setAutoWidth(true).setFlexGrow(0);
         eventsGrid.setWidthFull();
         eventsGrid.setMaxHeight("400px");
 
@@ -190,9 +199,20 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         saleModeSelect.setItems(EventSaleMode.values());
         saleModeSelect.setWidthFull();
 
+        IntegerField queueCapacityField = new IntegerField("Max concurrent users in queue");
+        queueCapacityField.setMin(1);
+        queueCapacityField.setValue(50);
+        queueCapacityField.setWidthFull();
+        queueCapacityField.setVisible(false);
+
+        saleModeSelect.addValueChangeListener(e ->
+                queueCapacityField.setVisible(EventSaleMode.QUEUE == e.getValue()));
+
         Button setSaleModeBtn = new Button("Set Sale Mode", click -> {
-            if (saleModeSelect.getValue() != null) {
-                presenter.handleSetSaleMode(this, companyId, event.id(), saleModeSelect.getValue());
+            EventSaleMode mode = saleModeSelect.getValue();
+            if (mode != null) {
+                Integer queueCap = mode == EventSaleMode.QUEUE ? queueCapacityField.getValue() : null;
+                presenter.handleSetSaleMode(this, companyId, event.id(), mode, queueCap);
                 dialog.close();
             }
         });
@@ -200,17 +220,21 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         // Purchase policy
         Select<String> purchasePolicySelect = new Select<>();
         purchasePolicySelect.setLabel("Purchase Policy Type");
-        purchasePolicySelect.setItems("Allow All", "Max Tickets", "Age Restriction");
+        purchasePolicySelect.setItems("Allow All", "Max Tickets", "Min Tickets", "Age Restriction");
         purchasePolicySelect.setWidthFull();
 
-        IntegerField policyParamField = new IntegerField("Parameter (max tickets / min age)");
+        IntegerField policyParamField = new IntegerField();
         policyParamField.setMin(1);
         policyParamField.setWidthFull();
         policyParamField.setVisible(false);
 
         purchasePolicySelect.addValueChangeListener(e -> {
-            boolean needsParam = "Max Tickets".equals(e.getValue()) || "Age Restriction".equals(e.getValue());
+            String val = e.getValue();
+            boolean needsParam = "Max Tickets".equals(val) || "Min Tickets".equals(val) || "Age Restriction".equals(val);
             policyParamField.setVisible(needsParam);
+            if ("Max Tickets".equals(val)) policyParamField.setLabel("Max tickets per order");
+            else if ("Min Tickets".equals(val)) policyParamField.setLabel("Min tickets per order");
+            else if ("Age Restriction".equals(val)) policyParamField.setLabel("Minimum age");
         });
 
         Button setPurchasePolicyBtn = new Button("Set Purchase Policy", click -> {
@@ -221,6 +245,10 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
                 case "Max Tickets" -> {
                     if (policyParamField.getValue() != null)
                         presenter.handleSetPurchasePolicyMaxTickets(this, companyId, event.id(), policyParamField.getValue());
+                }
+                case "Min Tickets" -> {
+                    if (policyParamField.getValue() != null)
+                        presenter.handleSetPurchasePolicyMinTickets(this, companyId, event.id(), policyParamField.getValue());
                 }
                 case "Age Restriction" -> {
                     if (policyParamField.getValue() != null)
@@ -264,7 +292,7 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         });
 
         VerticalLayout content = new VerticalLayout(
-                new H3("Sale Mode"), saleModeSelect, setSaleModeBtn,
+                new H3("Sale Mode"), saleModeSelect, queueCapacityField, setSaleModeBtn,
                 new H3("Purchase Policy"), purchasePolicySelect, policyParamField, setPurchasePolicyBtn,
                 new H3("Discount Policy"), discountPolicySelect, discountParams, setDiscountPolicyBtn
         );
