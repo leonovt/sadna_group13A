@@ -73,6 +73,11 @@ class DeferredNotificationsTest {
         }
 
         @Override
+        public void notifyUserSuspended(String userId, java.time.LocalDateTime suspendedUntil) {
+            push(userId, "Account suspended until=" + suspendedUntil);
+        }
+
+        @Override
         public void notifyCompanyClosed(java.util.List<String> staffIds, String companyId, String adminId) {
             if (staffIds != null) staffIds.forEach(uid -> push(uid, "Company closed by admin=" + adminId));
         }

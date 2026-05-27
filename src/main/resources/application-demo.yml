@@ -10,6 +10,12 @@
 #            Rock Mega Festival       (REGULAR  — large mixed)
 #            Tech Summit 2026         (RAFFLE   — seated + standing)
 
+# Easter-egg admin override for demo mode
+app:
+  admin:
+    username: yahlitheking
+    password: roee0
+
 logging:
   level:
     com.sadna.group13a.infrastructure.DemoDataSeeder: INFO
