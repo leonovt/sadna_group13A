@@ -35,8 +35,10 @@ public class HomePresenter {
         this.broadcaster = broadcaster;
     }
 
-    public Result<List<EventDTO>> loadEvents(String query) {
-        return eventService.searchEvents(query, null, null, null, null, null, null);
+    public Result<List<EventDTO>> loadEvents(String query, String category, String location) {
+        String cat = (category != null && category.isBlank()) ? null : category;
+        String loc = (location != null && location.isBlank()) ? null : location;
+        return eventService.searchEvents(query, cat, null, null, null, null, loc);
     }
 
     public Result<UserDTO> loadUserProfile(String token) {

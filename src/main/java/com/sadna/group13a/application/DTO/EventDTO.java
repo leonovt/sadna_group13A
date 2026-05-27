@@ -1,5 +1,6 @@
 package com.sadna.group13a.application.DTO;
 
+import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import java.time.LocalDateTime;
 
 /**
@@ -14,5 +15,6 @@ public record EventDTO(
     String category,
     String location,
     boolean isPublished,
-    int totalAvailableTickets
+    int totalAvailableTickets,
+    EventSaleMode saleMode
 ) {}
