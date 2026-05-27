@@ -91,6 +91,12 @@ public class WebSocketNotificationService implements INotificationService {
     }
 
     @Override
+    public void notifyRefundIssued(String userId, String receiptId, double amount, String eventTitle) {
+        broadcaster.send(userId, "You have been refunded " + amount +
+                " for \"" + eventTitle + "\" (receipt " + receiptId + ").");
+    }
+
+    @Override
     public void notifyEventRescheduled(List<String> buyerIds, String eventId, String eventTitle,
                                        LocalDateTime newDate) {
         buyerIds.forEach(uid ->
