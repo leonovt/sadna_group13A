@@ -1,0 +1,22 @@
+# Demo profile — activated via: mvn spring-boot:run -Dspring-boot.run.profiles=demo
+#
+# This profile enables the DemoDataSeeder which populates:
+#   Users  : alice, bob, carol, frank, eve, dave  (password: pass123)
+#   Easter : erez, tkatch, roeelevi, yahlifan      (password: pass123)
+#   Company: SoundWave Entertainment  (alice=founder, bob=manager, carol=manager)
+#   Company: Stellar Experiences      (frank=founder, eve=manager)
+#   Events : Jazz Night 2026          (REGULAR  — seated + standing)
+#            Taylor Swift Tribute     (QUEUE    — standing)
+#            VIP Gala Dinner          (RAFFLE   — seated)
+#            Rock Mega Festival       (REGULAR  — large mixed)
+#            Tech Summit 2026         (RAFFLE   — seated + standing)
+
+# Easter-egg admin override for demo mode
+app:
+  admin:
+    username: yahlitheking
+    password: roeeohayonshit
+
+logging:
+  level:
+    com.sadna.group13a.infrastructure.DemoDataSeeder: INFO
