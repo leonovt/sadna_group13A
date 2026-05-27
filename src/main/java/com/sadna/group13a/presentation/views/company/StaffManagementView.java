@@ -1,8 +1,7 @@
 package com.sadna.group13a.presentation.views.company;
 
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.StaffMemberDTO;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
@@ -27,7 +26,12 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
 
     private final Span statusMessage = new Span();
     private final Grid<StaffMemberDTO> staffGrid = new Grid<>(StaffMemberDTO.class, false);
-    private final TextField usernameField = new TextField("Username");
+
+    // ── Manager actions ───────────────────────────────────────────
+    private final TextField managerUsernameField = new TextField("Username");
+
+    // ── Owner actions ─────────────────────────────────────────────
+    private final TextField ownerUsernameField = new TextField("Username");
 
     public StaffManagementView(StaffManagementPresenter presenter) {
         this.presenter = presenter;
@@ -51,10 +55,9 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         header.setAlignItems(Alignment.CENTER);
-        Button backBtn = new Button("← Back to Dashboard", e -> presenter.handleBack(companyId));
-        header.add(new H2("Staff Management"), backBtn);
+        header.add(new H2("Staff Management"),
+                new Button("← Back to Dashboard", e -> presenter.handleBack(companyId)));
 
-        // ── Status message ────────────────────────────────────────
         statusMessage.setVisible(false);
         statusMessage.getStyle().set("font-weight", "bold");
 
@@ -62,32 +65,59 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
         staffGrid.addColumn(StaffMemberDTO::userId).setHeader("User ID").setFlexGrow(1);
         staffGrid.addColumn(s -> s.role().name()).setHeader("Role").setFlexGrow(1);
         staffGrid.addColumn(s -> s.permissions() == null || s.permissions().isEmpty()
-                ? "—"
-                : s.permissions().toString()).setHeader("Permissions").setFlexGrow(2);
+                ? "—" : s.permissions().toString()).setHeader("Permissions").setFlexGrow(2);
         staffGrid.setWidthFull();
         staffGrid.setMaxHeight("400px");
 
-        // ── Action section ────────────────────────────────────────
+        // ── Manager actions ───────────────────────────────────────
         Button appointManagerBtn = new Button("Appoint Manager", e -> {
             statusMessage.setVisible(false);
-            presenter.handleAppointManager(usernameField.getValue(), companyId, this);
+            presenter.handleAppointManager(managerUsernameField.getValue(), companyId, this);
         });
-        Button fireStaffBtn = new Button("Fire Staff", e -> {
+        Button fireStaffBtn = new Button("Fire", e -> {
             statusMessage.setVisible(false);
-            presenter.handleFireStaff(usernameField.getValue(), companyId, this);
+            presenter.handleFireStaff(managerUsernameField.getValue(), companyId, this);
         });
-        HorizontalLayout actions = new HorizontalLayout(usernameField, appointManagerBtn, fireStaffBtn);
-        actions.setAlignItems(Alignment.BASELINE);
+        HorizontalLayout managerRow = new HorizontalLayout(managerUsernameField, appointManagerBtn, fireStaffBtn);
+        managerRow.setAlignItems(Alignment.BASELINE);
 
-        // ── Resign button ─────────────────────────────────────────
-        Button resignBtn = new Button("Resign from Company", e -> presenter.handleResign(companyId, this));
+        // ── Owner actions ─────────────────────────────────────────
+        Button appointOwnerBtn = new Button("Appoint Owner", e -> {
+            statusMessage.setVisible(false);
+            presenter.handleAppointOwner(ownerUsernameField.getValue(), companyId, this);
+        });
+        Button removeOwnerBtn = new Button("Remove Owner", e -> {
+            statusMessage.setVisible(false);
+            presenter.handleRemoveOwner(ownerUsernameField.getValue(), companyId, this);
+        });
+        HorizontalLayout ownerRow = new HorizontalLayout(ownerUsernameField, appointOwnerBtn, removeOwnerBtn);
+        ownerRow.setAlignItems(Alignment.BASELINE);
+
+        // ── Nomination acceptance (for the logged-in user) ────────
+        Button acceptBtn = new Button("Accept My Nomination", e -> {
+            statusMessage.setVisible(false);
+            presenter.handleAcceptNomination(companyId, this);
+        });
+        Button rejectBtn = new Button("Reject My Nomination", e -> {
+            statusMessage.setVisible(false);
+            presenter.handleRejectNomination(companyId, this);
+        });
+        rejectBtn.getStyle().set("color", "var(--lumo-error-color)");
+        HorizontalLayout nominationRow = new HorizontalLayout(acceptBtn, rejectBtn);
+        nominationRow.setSpacing(true);
+
+        // ── Resign ────────────────────────────────────────────────
+        Button resignBtn = new Button("Resign from Company",
+                e -> presenter.handleResign(companyId, this));
         resignBtn.getStyle().set("color", "var(--lumo-error-color)");
 
         add(
                 header,
                 statusMessage,
                 new H3("Current Staff"), staffGrid,
-                new H3("Staff Actions"), actions,
+                new H3("Manager Actions"), managerRow,
+                new H3("Owner Actions"), ownerRow,
+                new H3("My Nomination"), nominationRow,
                 resignBtn
         );
     }
