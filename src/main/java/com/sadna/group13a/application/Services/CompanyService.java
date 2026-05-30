@@ -21,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.domain.DomainServices.CompanyStaffDomainService;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,17 +50,20 @@ public class CompanyService {
     private final IAuth authGateway;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final CompanyStaffDomainService companyStaffDomainService;
 
     public CompanyService(ICompanyRepository companyRepository, IUserRepository userRepository,
                           IOrderHistoryRepository historyRepository,
                           IAuth authGateway, ObjectMapper objectMapper,
-                          ApplicationEventPublisher eventPublisher) {
+                          ApplicationEventPublisher eventPublisher,
+                          CompanyStaffDomainService companyStaffDomainService) {
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.historyRepository = historyRepository;
         this.authGateway = authGateway;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
+        this.companyStaffDomainService = companyStaffDomainService;
     }
 
     public Result<Boolean> createCompany(String token, String name, String description) {
@@ -248,13 +252,7 @@ public class CompanyService {
         }
         try {
             ProductionCompany company = compOpt.get();
-            Set<String> subtree = company.getStaffSubTree(targetUserId);
-            company.fireStaff(actingUserId, targetUserId);
-            for (String uid : subtree) {
-                if (!uid.equals(targetUserId) && company.getStaff().containsKey(uid)) {
-                    company.fireStaff(actingUserId, uid);
-                }
-            }
+            Set<String> subtree = companyStaffDomainService.cascadeRemove(company, actingUserId, targetUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
 
@@ -303,13 +301,7 @@ public class CompanyService {
         }
 
         try {
-            Set<String> subtree = company.getStaffSubTree(targetUserId);
-            company.fireStaff(actingUserId, targetUserId);
-            for (String uid : subtree) {
-                if (!uid.equals(targetUserId) && company.getStaff().containsKey(uid)) {
-                    company.fireStaff(actingUserId, uid);
-                }
-            }
+            Set<String> subtree = companyStaffDomainService.cascadeRemove(company, actingUserId, targetUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
 
@@ -338,8 +330,7 @@ public class CompanyService {
         }
         try {
             ProductionCompany company = compOpt.get();
-            Set<String> subtree = company.getStaffSubTree(actingUserId);
-            company.resign(actingUserId);
+            Set<String> subtree = companyStaffDomainService.resignAndGetSubtree(company, actingUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
 

@@ -8,6 +8,8 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.DomainServices.EventSearchDomainService;
+import com.sadna.group13a.domain.DomainServices.VenueMapFactory;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
@@ -49,7 +51,7 @@ class EventServiceIntegrationTest {
         auth        = new MultiUserStubAuth();
 
         eventService = new EventService(eventRepo, companyRepo, auth, userRepo,
-                new OrderHistoryRepositoryImpl(), e -> {});
+                new OrderHistoryRepositoryImpl(), e -> {}, new EventSearchDomainService(), new VenueMapFactory());
 
         seedFounderAndCompany();
     }

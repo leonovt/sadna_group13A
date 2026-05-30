@@ -10,6 +10,8 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
+import com.sadna.group13a.domain.DomainServices.EventSearchDomainService;
+import com.sadna.group13a.domain.DomainServices.VenueMapFactory;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
@@ -54,7 +56,7 @@ class EventSearchTest {
         IOrderHistoryRepository historyRepository = mock(IOrderHistoryRepository.class);
         ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository,
-                historyRepository, publisher);
+                historyRepository, publisher, new EventSearchDomainService(), new VenueMapFactory());
     }
 
     @Test
@@ -76,11 +78,12 @@ class EventSearchTest {
         event2.publish();
 
         ProductionCompany company1 = mock(ProductionCompany.class);
+        when(company1.getId()).thenReturn("companyId1");
         when(company1.getStatus()).thenReturn(CompanyStatus.ACTIVE);
         ProductionCompany company2 = mock(ProductionCompany.class);
+        when(company2.getId()).thenReturn("companyId2");
         when(company2.getStatus()).thenReturn(CompanyStatus.ACTIVE);
-        when(companyRepository.findById("companyId1")).thenReturn(Optional.of(company1));
-        when(companyRepository.findById("companyId2")).thenReturn(Optional.of(company2));
+        when(companyRepository.findAll()).thenReturn(List.of(company1, company2));
 
         when(eventRepository.findAll()).thenReturn(Arrays.asList(event1, event2));
         // Pre-condition: both events are published and their companies are active

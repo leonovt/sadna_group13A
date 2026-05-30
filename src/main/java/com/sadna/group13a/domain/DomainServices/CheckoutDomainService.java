@@ -5,6 +5,8 @@ import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.policies.discount.AdditiveDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AndPolicy;
 import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
@@ -109,5 +111,21 @@ public class CheckoutDomainService {
         logger.debug("Checkout complete for order '{}' (user '{}', event '{}'): {} item(s) sold.",
                 order.getId(), order.getUserId(), event.getId(), historyItems.size());
         return historyItems;
+    }
+
+    /**
+     * Combines the event-level and company-level purchase policies using AND
+     * semantics: both must be satisfied for a purchase to proceed.
+     */
+    public PurchasePolicy combinePolicies(PurchasePolicy eventPolicy, PurchasePolicy companyPolicy) {
+        return new AndPolicy(eventPolicy, companyPolicy);
+    }
+
+    /**
+     * Combines the event-level and company-level discount policies so that both
+     * discounts are summed (additive).
+     */
+    public DiscountPolicy combineDiscounts(DiscountPolicy eventDiscount, DiscountPolicy companyDiscount) {
+        return new AdditiveDiscountPolicy(List.of(eventDiscount, companyDiscount));
     }
 }

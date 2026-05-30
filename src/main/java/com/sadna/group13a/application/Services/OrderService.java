@@ -33,8 +33,6 @@ import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IQueueRepository;
 import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
-import com.sadna.group13a.domain.policies.discount.AdditiveDiscountPolicy;
-import com.sadna.group13a.domain.policies.purchase.AndPolicy;
 import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
@@ -326,12 +324,12 @@ public class OrderService {
             }
 
             // Combine purchase policies: both event AND company rules must pass
-            PurchasePolicy combinedPurchase = new AndPolicy(
+            PurchasePolicy combinedPurchase = checkoutDomainService.combinePolicies(
                     event.getPurchasePolicy(), company.getPurchasePolicy());
 
             // Combine discount policies: sum discounts from event and company (additive by default)
-            DiscountPolicy combinedDiscount = new AdditiveDiscountPolicy(
-                    List.of(event.getDiscountPolicy(), company.getDiscountPolicy()));
+            DiscountPolicy combinedDiscount = checkoutDomainService.combineDiscounts(
+                    event.getDiscountPolicy(), company.getDiscountPolicy());
 
             // Build checkout contexts — userAge defaults to 0 until user age storage is added.
             // optionalAuthCode doubles as coupon code for non-raffle events.

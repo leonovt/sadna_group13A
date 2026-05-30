@@ -13,12 +13,15 @@ import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
+import com.sadna.group13a.domain.DomainServices.EventSearchDomainService;
+import com.sadna.group13a.domain.DomainServices.VenueMapFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -38,6 +41,8 @@ class EventServiceTest {
     @Mock private IUserRepository userRepository;
     @Mock private IOrderHistoryRepository historyRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Spy  private EventSearchDomainService eventSearchDomainService = new EventSearchDomainService();
+    @Spy  private VenueMapFactory venueMapFactory = new VenueMapFactory();
 
     @InjectMocks
     private EventService eventService;
@@ -57,6 +62,7 @@ class EventServiceTest {
         lenient().when(authGateway.validateToken(TOKEN)).thenReturn(true);
         lenient().when(authGateway.extractUserId(TOKEN)).thenReturn(FOUNDER_ID);
         lenient().when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+        lenient().when(companyRepository.findAll()).thenReturn(List.of(company));
     }
 
     // ── createEvent ───────────────────────────────────────────────
