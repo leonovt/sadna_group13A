@@ -15,6 +15,7 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
@@ -183,7 +184,8 @@ class SubscriberNotificationTest {
         OrderService orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier,
-                userRepository, authGateway, checkoutService, accessService, eventPublisher);
+                userRepository, authGateway, checkoutService, accessService, eventPublisher,
+                mock(CartDomainService.class));
 
         String token     = "tok";
         String userId    = "user1";

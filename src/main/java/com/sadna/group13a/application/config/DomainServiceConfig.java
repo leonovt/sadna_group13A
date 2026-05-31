@@ -1,5 +1,6 @@
 package com.sadna.group13a.application.config;
 
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.CompanyStaffDomainService;
 import com.sadna.group13a.domain.DomainServices.EventSearchDomainService;
@@ -19,6 +20,11 @@ public class DomainServiceConfig {
     @Bean
     public TicketingAccessDomainService ticketingAccessDomainService() {
         return new TicketingAccessDomainService();
+    }
+
+    @Bean
+    public CartDomainService cartDomainService() {
+        return new CartDomainService();
     }
 
     @Bean

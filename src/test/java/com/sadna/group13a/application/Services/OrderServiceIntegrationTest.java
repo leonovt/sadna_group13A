@@ -15,6 +15,7 @@ import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.SeatStatus;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
@@ -85,6 +86,7 @@ class OrderServiceIntegrationTest {
 
     private CheckoutDomainService        checkoutDomainService;
     private TicketingAccessDomainService ticketingAccessDomainService;
+    private CartDomainService            cartDomainService;
 
     // ── External-port test doubles ────────────────────────────────────────────────
 
@@ -110,6 +112,7 @@ class OrderServiceIntegrationTest {
 
         checkoutDomainService        = new CheckoutDomainService();
         ticketingAccessDomainService = new TicketingAccessDomainService();
+        cartDomainService            = new CartDomainService();
 
         paymentGateway      = new SpyPaymentGateway();
         ticketSupplier      = new StubTicketSupplier();
@@ -142,7 +145,8 @@ class OrderServiceIntegrationTest {
                         auth,                         // 10. IAuth
                         checkoutDomainService,        // 11. CheckoutDomainService
                         ticketingAccessDomainService, // 12. TicketingAccessDomainService
-                        eventPublisher                // 13. ApplicationEventPublisher
+                        eventPublisher,               // 13. ApplicationEventPublisher
+                        cartDomainService             // 14. CartDomainService
                 );
 
         seedEventAndCompany();

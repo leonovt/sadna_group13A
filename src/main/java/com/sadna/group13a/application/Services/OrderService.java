@@ -20,6 +20,7 @@ import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyStaffMember;
@@ -75,6 +76,7 @@ public class OrderService {
     private final IAuth authGateway;
     private final CheckoutDomainService checkoutDomainService;
     private final TicketingAccessDomainService ticketingAccessDomainService;
+    private final CartDomainService cartDomainService;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
@@ -92,7 +94,8 @@ public class OrderService {
             IAuth authGateway,
             CheckoutDomainService checkoutDomainService,
             TicketingAccessDomainService ticketingAccessDomainService,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            CartDomainService cartDomainService) {
         this.orderRepository = orderRepository;
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
@@ -106,6 +109,7 @@ public class OrderService {
         this.checkoutDomainService = checkoutDomainService;
         this.ticketingAccessDomainService = ticketingAccessDomainService;
         this.eventPublisher = eventPublisher;
+        this.cartDomainService = cartDomainService;
     }
 
     /**
@@ -175,24 +179,10 @@ public class OrderService {
             seatsToReserve = new ArrayList<>(Collections.nCopies(quantity, null));
         }
 
-        List<String> reservedSeats = new ArrayList<>();
         try {
-            for (String seatId : seatsToReserve) {
-                event.reserveSeat(zoneId, seatId, userId);
-                reservedSeats.add(seatId);
-            }
+            cartDomainService.reserveSeatsAtomically(event, zoneId, seatsToReserve, userId);
             eventRepository.save(event);
         } catch (Exception e) {
-            for (String reservedSeatId : reservedSeats) {
-                try {
-                    event.releaseItem(zoneId, reservedSeatId, userId);
-                } catch (Exception re) {
-                    logger.warn("Failed to release seat {} during batch rollback: {}",
-                            reservedSeatId, re.getMessage());
-                }
-            }
-            logger.warn("Batch reservation failed for user {} in zone {}: {}",
-                    userId, zoneId, e.getMessage());
             return Result.failure("Failed to reserve seats: " + e.getMessage());
         }
 
@@ -305,11 +295,8 @@ public class OrderService {
             if (event.getSaleMode() == EventSaleMode.QUEUE) {
                 queue = queueRepository.findByEventId(eventId).orElse(null);
             } else if (event.getSaleMode() == EventSaleMode.RAFFLE) {
-                final String eid = eventId;
-                authCode = raffleRepository.findByEventId(eid).stream()
-                        .findFirst()
-                        .flatMap(r -> r.getAuthorizationCodeFor(userId))
-                        .filter(c -> c.isValidFor(userId, eid))
+                authCode = ticketingAccessDomainService
+                        .resolveRaffleAuthCode(raffleRepository.findByEventId(eventId), userId, eventId)
                         .orElse(null);
             }
 
@@ -536,20 +523,8 @@ public class OrderService {
 
     // ── Private helpers ───────────────────────────────────────────────────────────
 
-    /**
-     * Rolls back all sold seats for the given processed events.
-     * Best-effort: logs but swallows individual rollback errors so all seats are attempted.
-     */
     private void rollbackSoldSeats(Map<String, Event> processedEvents, List<OrderItem> items) {
-        for (OrderItem item : items) {
-            Event event = processedEvents.get(item.getEventId());
-            if (event == null) continue;
-            try {
-                event.unsellItem(item.getZoneId(), item.getSeatId());
-            } catch (Exception e) {
-                logger.warn("Rollback failed for seat {} zone {}: {}", item.getSeatId(), item.getZoneId(), e.getMessage());
-            }
-        }
+        checkoutDomainService.unsellSeats(processedEvents, items);
         for (Event event : processedEvents.values()) {
             try {
                 eventRepository.save(event);
