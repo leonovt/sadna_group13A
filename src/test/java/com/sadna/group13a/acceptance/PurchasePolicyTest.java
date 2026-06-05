@@ -3,6 +3,7 @@ package com.sadna.group13a.acceptance;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Services.CompanyService;
+import com.sadna.group13a.domain.DomainServices.CompanyStaffDomainService;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
@@ -41,7 +42,7 @@ class PurchasePolicyTest {
         objectMapper = new ObjectMapper();
 
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
-                objectMapper, e -> {});
+                objectMapper, e -> {}, new CompanyStaffDomainService());
     }
 
     class MaxTicketsPolicy implements PurchasePolicy {

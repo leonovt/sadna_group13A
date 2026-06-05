@@ -5,6 +5,7 @@ import com.sadna.group13a.application.DTO.CompanyDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import com.sadna.group13a.domain.DomainServices.CompanyStaffDomainService;
 import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
@@ -13,7 +14,6 @@ import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -50,7 +50,7 @@ class CompanyCreationTest {
 
         ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
-                objectMapper, publisher);
+                objectMapper, publisher, new CompanyStaffDomainService());
     }
 
     @Nested
@@ -180,9 +180,15 @@ class CompanyCreationTest {
         }
 
         @Test
-        @Disabled("Requires CompanyAppService")
         @DisplayName("Given unauthenticated guest — When trying to create company — Then access denied")
         void GivenGuest_WhenCreatingCompany_ThenAccessDenied() {
+            String guestToken = "guest-token";
+            when(authGateway.validateToken(guestToken)).thenReturn(false);
+
+            Result<Boolean> result = companyService.createCompany(guestToken, "NewCo", "Desc");
+
+            assertFalse(result.isSuccess(), "Post: unauthenticated guest must be denied company creation");
+            verify(companyRepository, never()).save(any());
         }
     }
 }

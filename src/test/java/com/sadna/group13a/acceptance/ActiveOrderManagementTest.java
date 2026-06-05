@@ -11,6 +11,7 @@ import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Interfaces.*;
@@ -71,7 +72,7 @@ class ActiveOrderManagementTest {
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
-                checkoutDomainService, ticketingAccessDomainService, eventPublisher
+                checkoutDomainService, ticketingAccessDomainService, eventPublisher, new CartDomainService()
         );
 
         // Default: any userId resolves to an active member so user-guard tests pass through
