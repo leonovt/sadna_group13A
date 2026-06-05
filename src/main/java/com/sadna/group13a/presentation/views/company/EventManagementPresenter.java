@@ -6,6 +6,7 @@ import com.sadna.group13a.application.DTO.ZoneCreationDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.EventService;
 import com.sadna.group13a.application.Services.QueueService;
+import com.sadna.group13a.application.Services.RaffleService;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
 import com.sadna.group13a.domain.policies.discount.SimpleDiscount;
@@ -26,10 +27,13 @@ public class EventManagementPresenter {
 
     private final EventService eventService;
     private final QueueService queueService;
+    private final RaffleService raffleService;
 
-    public EventManagementPresenter(EventService eventService, QueueService queueService) {
+    public EventManagementPresenter(EventService eventService, QueueService queueService,
+                                    RaffleService raffleService) {
         this.eventService = eventService;
         this.queueService = queueService;
+        this.raffleService = raffleService;
     }
 
     private String getToken() {
@@ -65,12 +69,22 @@ public class EventManagementPresenter {
         String token = getToken();
         if (token == null) { UI.getCurrent().navigate("login"); return; }
         Result<Void> result = eventService.publishEvent(token, eventId);
-        if (result.isSuccess()) {
-            view.showSuccess("Event published.");
-            loadEvents(view, companyId);
-        } else {
-            view.showError(result.getErrorMessage());
+        if (!result.isSuccess()) { view.showError(result.getErrorMessage()); return; }
+
+        // If the event is RAFFLE mode, ensure the raffle exists
+        Result<com.sadna.group13a.application.DTO.EventDTO> eventResult =
+                eventService.getEvent(token, eventId);
+        if (eventResult.isSuccess() &&
+                eventResult.getOrThrow().saleMode() == com.sadna.group13a.domain.Aggregates.Event.EventSaleMode.RAFFLE) {
+            Result<com.sadna.group13a.application.DTO.RaffleDTO> existing =
+                    raffleService.getRaffleByEventId(token, eventId);
+            if (!existing.isSuccess()) {
+                raffleService.createRaffle(token, eventId, companyId);
+            }
         }
+
+        view.showSuccess("Event published.");
+        loadEvents(view, companyId);
     }
 
     public void handleUnpublishEvent(EventManagementView view, String companyId, String eventId) {
@@ -127,12 +141,10 @@ public class EventManagementPresenter {
 
         if (mode == EventSaleMode.QUEUE) {
             int capacity = (queueCapacity != null && queueCapacity > 0) ? queueCapacity : 50;
-            // createQueue internally sets the sale mode AND creates the queue in one transaction
             Result<Void> result = queueService.createQueue(token, eventId, capacity);
             if (!result.isSuccess()) {
                 String err = result.getErrorMessage();
                 if (err != null && err.contains("already exists")) {
-                    // Queue already exists — event is already in QUEUE mode; not an error
                     view.showSuccess("Event is already in QUEUE mode (existing queue kept).");
                 } else {
                     view.showError(err);
@@ -141,7 +153,33 @@ public class EventManagementPresenter {
             } else {
                 view.showSuccess("Sale mode set to QUEUE. Queue created with " + capacity + " concurrent slots.");
             }
+
+        } else if (mode == EventSaleMode.RAFFLE) {
+            Result<Void> modeResult = eventService.setSaleMode(token, eventId, mode);
+            if (!modeResult.isSuccess()) { view.showError(modeResult.getErrorMessage()); return; }
+
+            Result<String> raffleResult = raffleService.createRaffle(token, eventId, companyId);
+            if (!raffleResult.isSuccess()) {
+                String err = raffleResult.getErrorMessage();
+                // Raffle may already exist if mode was already RAFFLE
+                if (err != null && err.toLowerCase().contains("already")) {
+                    view.showSuccess("Event is already in RAFFLE mode (existing raffle kept).");
+                } else {
+                    view.showError(err);
+                    return;
+                }
+            } else {
+                view.showSuccess("Sale mode set to RAFFLE. Raffle created automatically.");
+            }
+
         } else {
+            // Close any existing raffle before switching away from RAFFLE mode
+            Result<com.sadna.group13a.application.DTO.RaffleDTO> existingRaffle =
+                    raffleService.getRaffleByEventId(token, eventId);
+            if (existingRaffle.isSuccess()) {
+                raffleService.closeRaffle(token, existingRaffle.getOrThrow().id());
+            }
+
             Result<Void> result = eventService.setSaleMode(token, eventId, mode);
             if (!result.isSuccess()) { view.showError(result.getErrorMessage()); return; }
             view.showSuccess("Sale mode set to " + mode.name() + ".");

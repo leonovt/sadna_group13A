@@ -8,6 +8,8 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 public class CompanyRafflePresenter {
 
@@ -26,6 +28,17 @@ public class CompanyRafflePresenter {
         return getToken() != null;
     }
 
+    public void handleLoadCompanyRaffles(String companyId, CompanyRaffleView view) {
+        String token = getToken();
+        if (token == null) { UI.getCurrent().navigate("login"); return; }
+        Result<List<RaffleDTO>> result = raffleService.getRafflesForCompany(token, companyId);
+        if (result.isSuccess()) {
+            view.showRaffleList(result.getOrThrow());
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
     public void handleCreateRaffle(String eventId, String companyId, CompanyRaffleView view) {
         if (eventId.isBlank()) { view.showError("Please enter an Event ID."); return; }
         String token = getToken();
@@ -33,24 +46,26 @@ public class CompanyRafflePresenter {
         Result<String> result = raffleService.createRaffle(token, eventId.trim(), companyId);
         if (result.isSuccess()) {
             view.showSuccess("Raffle created. Raffle ID: " + result.getOrThrow());
+            handleLoadCompanyRaffles(companyId, view);
         } else {
             view.showError(result.getErrorMessage());
         }
     }
 
-    public void handleCloseRaffle(String raffleId, CompanyRaffleView view) {
+    public void handleCloseRaffle(String raffleId, String companyId, CompanyRaffleView view) {
         if (raffleId.isBlank()) { view.showError("Please enter a Raffle ID."); return; }
         String token = getToken();
         if (token == null) { UI.getCurrent().navigate("login"); return; }
         Result<Void> result = raffleService.closeRaffle(token, raffleId.trim());
         if (result.isSuccess()) {
             view.showSuccess("Raffle '" + raffleId.trim() + "' closed.");
+            handleLoadCompanyRaffles(companyId, view);
         } else {
             view.showError(result.getErrorMessage());
         }
     }
 
-    public void handleDrawWinners(String raffleId, String winnersCountStr, String validMinutesStr, CompanyRaffleView view) {
+    public void handleDrawWinners(String raffleId, String companyId, String winnersCountStr, String validMinutesStr, CompanyRaffleView view) {
         if (raffleId.isBlank()) { view.showError("Please enter a Raffle ID."); return; }
         int winnersCount;
         int validMinutes;
@@ -72,6 +87,7 @@ public class CompanyRafflePresenter {
         if (result.isSuccess()) {
             RaffleResultDTO dto = result.getOrThrow();
             view.showSuccess("Draw complete — " + dto.expectedWinnersDrawn() + " winner(s) selected. Codes valid for " + validMinutes + " min.");
+            handleLoadCompanyRaffles(companyId, view);
         } else {
             view.showError(result.getErrorMessage());
         }

@@ -68,10 +68,11 @@ class WebSocketNotificationServiceTest {
     }
 
     @Test
-    @DisplayName("notifyRaffleDrawn — sends with event ID")
-    void notifyRaffleDrawn_sendsWithEventId() {
-        service.notifyRaffleDrawn("e1", 3);
-        verify(broadcaster).send(eq("e1"), anyString());
+    @DisplayName("notifyRaffleDrawn — sends to each loser")
+    void notifyRaffleDrawn_sendsToLosers() {
+        service.notifyRaffleDrawn(List.of("loser1", "loser2"), "e1", 3);
+        verify(broadcaster).send(eq("loser1"), anyString());
+        verify(broadcaster).send(eq("loser2"), anyString());
     }
 
     @Test

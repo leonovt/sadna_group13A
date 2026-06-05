@@ -45,9 +45,11 @@ public class InMemoryNotificationService implements INotificationService {
     }
 
     @Override
-    public void notifyRaffleDrawn(String eventId, int winnerCount) {
-        logger.info("[NOTIFY] Raffle draw complete for event {}. {} winner(s) selected.",
-                eventId, winnerCount);
+    public void notifyRaffleDrawn(List<String> participantUserIds, String eventId, int winnerCount) {
+        logger.info("[NOTIFY] Raffle draw complete for event {}. {} winner(s) selected. {} participant(s) notified.",
+                eventId, winnerCount, participantUserIds.size());
+        participantUserIds.forEach(uid ->
+            logger.info("[NOTIFY] User {} — the raffle for event {} has been drawn.", uid, eventId));
     }
 
     @Override

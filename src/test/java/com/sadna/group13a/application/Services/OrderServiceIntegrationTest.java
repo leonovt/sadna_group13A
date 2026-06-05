@@ -574,7 +574,7 @@ class OrderServiceIntegrationTest {
         @Override public void notifyUserBanned(String u, String adminId) {}
         @Override public void notifyUserSuspended(String u, java.time.LocalDateTime suspendedUntil) {}
         @Override public void notifyCompanyClosed(java.util.List<String> staffIds, String c, String adminId) {}
-        @Override public void notifyRaffleDrawn(String e, int w) {}
+        @Override public void notifyRaffleDrawn(java.util.List<String> participantUserIds, String e, int w) {}
         @Override public void notifyActionFailed(String userId, String reason) {}
         @Override public void notifyCompanySuspended(java.util.List<String> staffIds, String companyId) {}
         @Override public void notifyCompanyReopened(java.util.List<String> staffIds, String companyId) {}

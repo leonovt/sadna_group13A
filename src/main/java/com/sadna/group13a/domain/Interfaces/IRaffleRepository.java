@@ -27,4 +27,8 @@ public interface IRaffleRepository {
      * (Optional but helpful) Retrieves all raffles for a specific event.
      */
     List<Raffle> findByEventId(String eventId);
+
+    List<Raffle> findByUserId(String userId);
+
+    List<Raffle> findByCompanyId(String companyId);
 }

@@ -20,7 +20,7 @@ public interface INotificationService {
     /** Notifies every staff member of the company that it has been force-closed. */
     void notifyCompanyClosed(List<String> staffIds, String companyId, String adminId);
 
-    void notifyRaffleDrawn(String eventId, int winnerCount);
+    void notifyRaffleDrawn(List<String> participantUserIds, String eventId, int winnerCount);
 
     void notifyActionFailed(String userId, String reason);
 

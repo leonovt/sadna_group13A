@@ -64,7 +64,7 @@ public class NotificationEventListener {
 
     @EventListener
     public void onRaffleDrawn(RaffleDrawnEvent event) {
-        notificationService.notifyRaffleDrawn(event.eventId(), event.winnerCount());
+        notificationService.notifyRaffleDrawn(event.participantUserIds(), event.eventId(), event.winnerCount());
     }
 
     @EventListener
