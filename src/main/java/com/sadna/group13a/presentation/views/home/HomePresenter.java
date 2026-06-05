@@ -8,7 +8,7 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
 import com.sadna.group13a.application.Services.EventService;
 import com.sadna.group13a.application.Services.UserService;
-import com.sadna.group13a.presentation.notification.NotificationBroadcaster;
+import com.sadna.group13a.infrastructure.notification.NotificationBroadcaster;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;

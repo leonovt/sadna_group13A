@@ -1,4 +1,4 @@
-package com.sadna.group13a.presentation.notification;
+package com.sadna.group13a.infrastructure.notification;
 
 import com.sadna.group13a.application.Interfaces.INotificationService;
 import org.springframework.context.annotation.Primary;
