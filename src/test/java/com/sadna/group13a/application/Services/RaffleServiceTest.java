@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -226,5 +227,50 @@ class RaffleServiceTest {
 
         // USER_ID never entered, so no code exists for them
         assertFalse(result.isSuccess());
+    }
+
+    // ── getRafflesForUser ──────────────────────────────────────────
+
+    @Test
+    void givenUserWithOpenRaffle_whenGetRafflesForUser_thenReturnsIt() {
+        raffle.registerParticipant(USER_ID);
+        when(raffleRepository.findByUserId(USER_ID)).thenReturn(List.of(raffle));
+
+        Result<?> result = raffleService.getRafflesForUser(TOKEN);
+
+        assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void givenInvalidToken_whenGetRafflesForUser_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+
+        assertFalse(raffleService.getRafflesForUser("bad").isSuccess());
+    }
+
+    // ── getRafflesForCompany ───────────────────────────────────────
+
+    @Test
+    void givenOwner_whenGetRafflesForCompany_thenReturnsList() {
+        when(raffleRepository.findByCompanyId(COMPANY_ID)).thenReturn(List.of(raffle));
+
+        Result<?> result = raffleService.getRafflesForCompany(TOKEN, COMPANY_ID);
+
+        assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void givenNonMember_whenGetRafflesForCompany_thenReturnsFailure() {
+        ProductionCompany otherCompany = new ProductionCompany("other-co", "Other", "Desc", "other-owner");
+        when(companyRepository.findById("other-co")).thenReturn(Optional.of(otherCompany));
+
+        assertFalse(raffleService.getRafflesForCompany(TOKEN, "other-co").isSuccess());
+    }
+
+    @Test
+    void givenInvalidToken_whenGetRafflesForCompany_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+
+        assertFalse(raffleService.getRafflesForCompany("bad", COMPANY_ID).isSuccess());
     }
 }

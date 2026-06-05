@@ -58,7 +58,7 @@ class InMemoryNotificationServiceTest {
     @Test
     @DisplayName("notifyRaffleDrawn — logs without throwing")
     void notifyRaffleDrawn_doesNotThrow() {
-        assertDoesNotThrow(() -> service.notifyRaffleDrawn("e1", 3));
+        assertDoesNotThrow(() -> service.notifyRaffleDrawn(List.of("loser1", "loser2"), "e1", 3));
     }
 
     @Test

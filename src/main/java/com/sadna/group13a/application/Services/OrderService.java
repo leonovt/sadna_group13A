@@ -298,9 +298,18 @@ public class OrderService {
             if (event.getSaleMode() == EventSaleMode.QUEUE) {
                 queue = queueRepository.findByEventId(eventId).orElse(null);
             } else if (event.getSaleMode() == EventSaleMode.RAFFLE) {
-                authCode = ticketingAccessDomainService
-                        .resolveRaffleAuthCode(raffleRepository.findByEventId(eventId), userId, eventId)
-                        .orElse(null);
+                if (optionalAuthCode == null || optionalAuthCode.isBlank()) {
+                    rollbackSoldSeats(processedEvents, order.getItems());
+                    return Result.failure("A raffle authorization code is required to complete this purchase.");
+                }
+                java.util.Optional<AuthorizationCode> resolvedCode = ticketingAccessDomainService
+                        .resolveRaffleAuthCode(raffleRepository.findByEventId(eventId), userId, eventId);
+                if (resolvedCode.isEmpty() || !resolvedCode.get().getCode().equals(optionalAuthCode.trim())) {
+                    rollbackSoldSeats(processedEvents, order.getItems());
+                    eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Invalid raffle authorization code."));
+                    return Result.failure("Invalid raffle authorization code.");
+                }
+                authCode = resolvedCode.get();
             }
 
             try {

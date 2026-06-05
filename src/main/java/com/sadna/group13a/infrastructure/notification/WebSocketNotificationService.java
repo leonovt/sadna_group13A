@@ -81,9 +81,10 @@ public class WebSocketNotificationService implements INotificationService {
     }
 
     @Override
-    public void notifyRaffleDrawn(String eventId, int winnerCount) {
-        broadcaster.send(eventId, "Raffle results for \"" + eventName(eventId) +
-                "\" are in — " + winnerCount + " winner(s) selected.");
+    public void notifyRaffleDrawn(List<String> participantUserIds, String eventId, int winnerCount) {
+        String msg = "The raffle for \"" + eventName(eventId) +
+                "\" has been drawn — " + winnerCount + " winner(s) selected.";
+        participantUserIds.forEach(uid -> broadcaster.send(uid, msg));
     }
 
     @Override
