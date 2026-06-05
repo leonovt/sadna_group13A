@@ -185,7 +185,7 @@ class SubscriberNotificationTest {
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier,
                 userRepository, authGateway, checkoutService, accessService, eventPublisher,
-                mock(CartDomainService.class));
+                mock(CartDomainService.class), null);
 
         String token     = "tok";
         String userId    = "user1";

@@ -5,7 +5,6 @@ import com.sadna.group13a.application.DTO.EventDTO;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.User.UserRole;
-import com.sadna.group13a.presentation.views.admin.AdminDashboardView;
 import com.sadna.group13a.presentation.views.auth.LoginView;
 import com.sadna.group13a.presentation.views.cart.CartView;
 import com.sadna.group13a.presentation.views.company.CompanyDashboardView;
@@ -111,8 +110,11 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
             header.add(new RouterLink("My Profile", ProfileView.class));
             header.add(new RouterLink("My Raffles", RaffleView.class));
         }
-        if (role == UserRole.ADMIN) {
-            header.add(new RouterLink("Admin", AdminDashboardView.class));
+        if (presenter.isAdmin(token)) {
+            Button adminBtn = new Button("Admin Panel", e -> UI.getCurrent().navigate("admin"));
+            adminBtn.getStyle().set("background-color", "var(--lumo-error-color)")
+                               .set("color", "white");
+            header.add(adminBtn);
         }
         header.add(new RouterLink("Cart", CartView.class));
         header.add(new Button("Logout", e -> presenter.handleLogout(token)));

@@ -78,6 +78,7 @@ public class OrderService {
     private final TicketingAccessDomainService ticketingAccessDomainService;
     private final CartDomainService cartDomainService;
     private final ApplicationEventPublisher eventPublisher;
+    private final QueueService queueService;
 
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
@@ -95,7 +96,8 @@ public class OrderService {
             CheckoutDomainService checkoutDomainService,
             TicketingAccessDomainService ticketingAccessDomainService,
             ApplicationEventPublisher eventPublisher,
-            CartDomainService cartDomainService) {
+            CartDomainService cartDomainService,
+            QueueService queueService) {
         this.orderRepository = orderRepository;
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
@@ -110,6 +112,7 @@ public class OrderService {
         this.ticketingAccessDomainService = ticketingAccessDomainService;
         this.eventPublisher = eventPublisher;
         this.cartDomainService = cartDomainService;
+        this.queueService = queueService;
     }
 
     /**
@@ -405,9 +408,8 @@ public class OrderService {
         historyRepository.save(history);
         orderRepository.deleteById(activeOrderId);
 
-        for (Map.Entry<String, TicketQueue> qe : processedQueues.entrySet()) {
-            qe.getValue().removeActiveUser(userId);
-            queueRepository.save(qe.getValue());
+        for (String queueEventId : processedQueues.keySet()) {
+            queueService.releaseAndAdvance(userId, queueEventId);
         }
 
         eventPublisher.publishEvent(new OrderCompletedEvent(history.getReceiptId(), userId, history.getTotalPaid()));

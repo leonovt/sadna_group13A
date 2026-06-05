@@ -72,7 +72,7 @@ class ActiveOrderManagementTest {
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
-                checkoutDomainService, ticketingAccessDomainService, eventPublisher, new CartDomainService()
+                checkoutDomainService, ticketingAccessDomainService, eventPublisher, new CartDomainService(), null
         );
 
         // Default: any userId resolves to an active member so user-guard tests pass through

@@ -1,6 +1,5 @@
 package com.sadna.group13a.application.Services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.DTO.RaffleDTO;
 import com.sadna.group13a.application.DTO.RaffleRegistrationDTO;
@@ -38,21 +37,19 @@ public class RaffleService {
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
     private final IAuth authGateway;
-    private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
 
     public RaffleService(IRaffleRepository raffleRepository,
                          IEventRepository eventRepository,
                          ICompanyRepository companyRepository,
                          IUserRepository userRepository,
-                         IAuth authGateway, ObjectMapper objectMapper,
+                         IAuth authGateway,
                          ApplicationEventPublisher eventPublisher) {
         this.raffleRepository = raffleRepository;
         this.eventRepository = eventRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.authGateway = authGateway;
-        this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
     }
 
@@ -258,25 +255,16 @@ public class RaffleService {
 
         Raffle raffle = raffleOpt.get();
 
-        try {
-            RaffleDTO baseDto = objectMapper.convertValue(raffle, RaffleDTO.class);
+        RaffleDTO dto = new RaffleDTO(
+            raffle.getId(),
+            raffle.getEventId(),
+            raffle.getCompanyId(),
+            raffle.getStatus(),
+            raffle.getParticipantUserIds().size()
+        );
 
-            // Inject the manual calculation for privacy (so we don't expose the user IDs list)
-            RaffleDTO finalDto = new RaffleDTO(
-                baseDto.id(),
-                baseDto.eventId(),
-                baseDto.companyId(),
-                baseDto.status(),
-                raffle.getParticipantUserIds().size()
-            );
-
-            logger.debug("getRaffleDetails: raffle '{}' retrieved by '{}' ({} participant(s)).", raffleId, callerId, finalDto.totalParticipants());
-            return Result.success(finalDto);
-
-        } catch (Exception e) {
-            logger.error("Failed to map raffle '{}' to DTO: {}", raffleId, e.getMessage(), e);
-            return Result.failure("Internal mapping error.");
-        }
+        logger.debug("getRaffleDetails: raffle '{}' retrieved by '{}' ({} participant(s)).", raffleId, callerId, dto.totalParticipants());
+        return Result.success(dto);
     }
 
     /**
