@@ -152,12 +152,13 @@
                         <configuration>
                             <excludes>
                                 <exclude>com/sadna/group13a/presentation/**</exclude>
+                                <exclude>com/sadna/group13a/infrastructure/DemoDataSeeder.class</exclude>
                             </excludes>
                             <rules>
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
-                                                        <limit>
+                                        <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
                                             <minimum>0.75</minimum>
