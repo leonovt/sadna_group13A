@@ -78,7 +78,7 @@ class PurchaseCompletionTest {
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
-                checkoutDomainService, ticketingAccessDomainService, eventPublisher, mock(CartDomainService.class));
+                checkoutDomainService, ticketingAccessDomainService, eventPublisher, mock(CartDomainService.class), null);
 
         // Default: any userId resolves to an active member so user-guard tests pass through
         when(userRepository.findById(anyString()))

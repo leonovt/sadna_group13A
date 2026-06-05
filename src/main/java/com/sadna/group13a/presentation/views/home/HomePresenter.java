@@ -5,6 +5,7 @@ import com.sadna.group13a.application.DTO.EventDTO;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.application.Services.AdminService;
 import com.sadna.group13a.application.Services.CompanyService;
 import com.sadna.group13a.application.Services.EventService;
 import com.sadna.group13a.application.Services.UserService;
@@ -22,17 +23,24 @@ public class HomePresenter {
     private final EventService eventService;
     private final UserService userService;
     private final CompanyService companyService;
+    private final AdminService adminService;
     private final IAuth authGateway;
     private final NotificationBroadcaster broadcaster;
 
     public HomePresenter(EventService eventService, UserService userService,
-                         CompanyService companyService, IAuth authGateway,
-                         NotificationBroadcaster broadcaster) {
+                         CompanyService companyService, AdminService adminService,
+                         IAuth authGateway, NotificationBroadcaster broadcaster) {
         this.eventService = eventService;
         this.userService = userService;
         this.companyService = companyService;
+        this.adminService = adminService;
         this.authGateway = authGateway;
         this.broadcaster = broadcaster;
+    }
+
+    public boolean isAdmin(String token) {
+        if (token == null) return false;
+        return adminService.getSystemAnalytics(token).isSuccess();
     }
 
     public Result<List<EventDTO>> loadEvents(String query, String category, String location) {

@@ -62,7 +62,7 @@ class TicketReservationTest {
                 queueRepository, raffleRepository, paymentGateway, mock(ITicketSupplier.class), userRepository, authGateway,
                 new com.sadna.group13a.domain.DomainServices.CheckoutDomainService(),
                 new com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService(), eventPublisher,
-                new com.sadna.group13a.domain.DomainServices.CartDomainService());
+                new com.sadna.group13a.domain.DomainServices.CartDomainService(), null);
     }
 
     private void setupData(String eventId, String companyId, String zoneId, String seatId, EventSaleMode mode) {

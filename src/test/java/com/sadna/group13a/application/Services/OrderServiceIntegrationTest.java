@@ -146,7 +146,8 @@ class OrderServiceIntegrationTest {
                         checkoutDomainService,        // 11. CheckoutDomainService
                         ticketingAccessDomainService, // 12. TicketingAccessDomainService
                         eventPublisher,               // 13. ApplicationEventPublisher
-                        cartDomainService             // 14. CartDomainService
+                        cartDomainService,            // 14. CartDomainService
+                        null                          // 15. QueueService (queue advancement not under test here)
                 );
 
         seedEventAndCompany();

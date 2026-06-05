@@ -1,11 +1,14 @@
 package com.sadna.group13a.infrastructure.notification;
 
+import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
+import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -14,12 +17,18 @@ import static org.mockito.Mockito.*;
 class WebSocketNotificationServiceTest {
 
     private NotificationBroadcaster broadcaster;
+    private IEventRepository eventRepository;
+    private ICompanyRepository companyRepository;
     private WebSocketNotificationService service;
 
     @BeforeEach
     void setUp() {
         broadcaster = mock(NotificationBroadcaster.class);
-        service = new WebSocketNotificationService(broadcaster);
+        eventRepository = mock(IEventRepository.class);
+        companyRepository = mock(ICompanyRepository.class);
+        when(eventRepository.findById(anyString())).thenReturn(Optional.empty());
+        when(companyRepository.findById(anyString())).thenReturn(Optional.empty());
+        service = new WebSocketNotificationService(broadcaster, eventRepository, companyRepository);
     }
 
     @Test

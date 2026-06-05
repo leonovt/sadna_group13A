@@ -307,6 +307,24 @@ public class QueueService {
     }
 
     /**
+     * Internal: called by OrderService after a successful checkout to free the active
+     * slot and admit the next waiting user without requiring a token.
+     */
+    void releaseAndAdvance(String userId, String eventId) {
+        Optional<TicketQueue> queueOpt = queueRepository.findByEventId(eventId);
+        if (queueOpt.isEmpty()) {
+            return;
+        }
+        TicketQueue queue = queueOpt.get();
+        queue.removeActiveUser(userId);
+        List<QueueTicket> admitted = queue.processBatch(1, DEFAULT_ACCESS_MINUTES);
+        queueRepository.save(queue);
+        admitted.forEach(t -> eventPublisher.publishEvent(
+                new QueueTurnArrivedEvent(eventId, t.getUserId(), t.getExpiresAt())));
+        logger.info("Checkout-triggered release: user '{}' freed slot for event '{}'; {} user(s) admitted.", userId, eventId, admitted.size());
+    }
+
+    /**
      * Removes a user from the active set when they finish or abandon the checkout process.
      */
     public Result<Void> releaseAccess(String token, String eventId) {
