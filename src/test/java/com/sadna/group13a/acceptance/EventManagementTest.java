@@ -177,7 +177,7 @@ class EventManagementTest {
         assertFalse(company.hasPermission("unauthorized_user", CompanyPermission.MANAGE_EVENTS), "Pre: user must not have MANAGE_EVENTS permission");
 
         Result<Void> result = eventService.updateEventDetails(token, eventId, "New Title", "New Desc",
-                LocalDateTime.now(), "Concerts");
+                LocalDateTime.now(), "Concerts", null);
 
         // Post-condition: editing is denied and event is not saved
         assertFalse(result.isSuccess(), "Post: user must be denied to edit event without permission");

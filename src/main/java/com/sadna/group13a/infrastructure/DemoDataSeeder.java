@@ -225,7 +225,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     private String createEvent(String token, String companyId,
                                String title, String description,
                                LocalDateTime date, String category, String location) {
-        Result<String> r = eventService.createEvent(token, companyId, title, description, date, category, location);
+        Result<String> r = eventService.createEvent(token, companyId, title, description, date, category, null, location);
         if (!r.isSuccess()) throw new IllegalStateException("Failed to create event '" + title + "': " + r.getErrorMessage());
         return r.getData().orElseThrow();
     }
