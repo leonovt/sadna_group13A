@@ -265,6 +265,14 @@ public class OrderService {
         Map<String, List<OrderItem>> itemsByEvent = order.getItems().stream()
                 .collect(Collectors.groupingBy(OrderItem::getEventId));
 
+        // Pre-compute per-company ticket totals so company-level policies see the
+        // full company count across all events in the cart, not just the current event.
+        Map<String, Integer> companyTicketCounts = new java.util.HashMap<>();
+        for (Map.Entry<String, List<OrderItem>> e : itemsByEvent.entrySet()) {
+            eventRepository.findById(e.getKey())
+                    .ifPresent(ev -> companyTicketCounts.merge(ev.getCompanyId(), e.getValue().size(), Integer::sum));
+        }
+
         // Track processed events for rollback
         Map<String, Event> processedEvents = new LinkedHashMap<>();
         Map<String, TicketQueue> processedQueues = new LinkedHashMap<>();
@@ -322,20 +330,28 @@ public class OrderService {
                 return Result.failure(e.getMessage());
             }
 
-            // Combine purchase policies: both event AND company rules must pass
-            PurchasePolicy combinedPurchase = checkoutDomainService.combinePolicies(
-                    event.getPurchasePolicy(), company.getPurchasePolicy());
-
             // Combine discount policies: sum discounts from event and company (additive by default)
             DiscountPolicy combinedDiscount = checkoutDomainService.combineDiscounts(
                     event.getDiscountPolicy(), company.getDiscountPolicy());
 
-            // Build checkout contexts — userAge defaults to 0 until user age storage is added.
-            // optionalAuthCode doubles as coupon code for non-raffle events.
-            int ticketCount = eventItems.size();
+            // Event-level ticket count: items in this event only.
+            // Company-level ticket count: all items in the cart that belong to this company.
+            int eventTicketCount   = eventItems.size();
+            int companyTicketCount = companyTicketCounts.getOrDefault(event.getCompanyId(), eventTicketCount);
             int userAge = (checkoutUserOpt.get() instanceof Member m) ? m.getAge() : 0;
-            PurchaseContext purchaseCtx = new PurchaseContext(userId, ticketCount, userAge, optionalAuthCode);
-            DiscountContext  discountCtx = new DiscountContext(userId, ticketCount, optionalAuthCode);
+
+            PurchaseContext eventPurchaseCtx   = new PurchaseContext(userId, eventTicketCount, userAge, optionalAuthCode);
+            PurchaseContext companyPurchaseCtx = new PurchaseContext(userId, companyTicketCount, userAge, optionalAuthCode);
+            DiscountContext discountCtx        = new DiscountContext(userId, eventTicketCount, optionalAuthCode);
+
+            // Check company-level policy first using the company-total count.
+            if (!company.getPurchasePolicy().isSatisfied(companyPurchaseCtx)) {
+                logger.warn("Checkout blocked for order '{}' (user '{}', company '{}'): company purchase policy not satisfied.",
+                        order.getId(), userId, event.getCompanyId());
+                rollbackSoldSeats(processedEvents, order.getItems());
+                eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Purchase not permitted by the company's purchase policy."));
+                return Result.failure("Purchase not permitted by the company's purchase policy.");
+            }
 
             // Seat-level synchronization (on Seat and StandingZone methods) ensures
             // that two users competing for the same seat get correct all-or-nothing
@@ -343,7 +359,7 @@ public class OrderService {
             try {
                 List<OrderHistoryItem> items = checkoutDomainService.checkoutItemsForEvent(
                         eventItems, order, event, company,
-                        combinedPurchase, combinedDiscount, purchaseCtx, discountCtx);
+                        event.getPurchasePolicy(), combinedDiscount, eventPurchaseCtx, discountCtx);
                 allHistoryItems.addAll(items);
                 totalPaid += items.stream().mapToDouble(OrderHistoryItem::getPricePaid).sum();
                 processedEvents.put(eventId, event);

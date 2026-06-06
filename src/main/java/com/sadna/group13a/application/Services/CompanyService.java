@@ -606,6 +606,20 @@ public class CompanyService {
         }
     }
 
+    public Result<String> getPurchasePolicyDescription(String token, String companyId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return companyRepository.findById(companyId)
+                .map(c -> Result.success(com.sadna.group13a.application.PolicyFormatter.describe(c.getPurchasePolicy())))
+                .orElse(Result.failure("Company not found."));
+    }
+
+    public Result<String> getDiscountPolicyDescription(String token, String companyId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return companyRepository.findById(companyId)
+                .map(c -> Result.success(com.sadna.group13a.application.PolicyFormatter.describe(c.getDiscountPolicy())))
+                .orElse(Result.failure("Company not found."));
+    }
+
     // ── Private helpers ───────────────────────────────────────────
 
     private void removeRolesForSubtree(Set<String> userIds, String companyId) {

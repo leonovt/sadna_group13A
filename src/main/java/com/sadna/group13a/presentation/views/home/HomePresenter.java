@@ -43,10 +43,11 @@ public class HomePresenter {
         return adminService.getSystemAnalytics(token).isSuccess();
     }
 
-    public Result<List<EventDTO>> loadEvents(String query, String category, String location) {
+    public Result<List<EventDTO>> loadEvents(String query, String category, String location, String artist) {
         String cat = (category != null && category.isBlank()) ? null : category;
         String loc = (location != null && location.isBlank()) ? null : location;
-        return eventService.searchEvents(query, cat, null, null, null, null, loc);
+        String art = (artist != null && artist.isBlank()) ? null : artist;
+        return eventService.searchEvents(query, cat, null, null, null, null, loc, art);
     }
 
     public Result<UserDTO> loadUserProfile(String token) {

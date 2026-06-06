@@ -225,4 +225,39 @@ class CompanyServiceTest {
 
         assertFalse(companyService.updatePermissions(TOKEN, COMPANY_ID, "ghost", Set.of()).isSuccess());
     }
+
+    // ── getPurchasePolicyDescription ──────────────────────────────
+
+    @Test
+    void givenOwner_whenGetPurchasePolicyDescription_thenReturnsDescription() {
+        Result<String> result = companyService.getPurchasePolicyDescription(TOKEN, COMPANY_ID);
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData().get());
+    }
+
+    @Test
+    void givenInvalidToken_whenGetPurchasePolicyDescription_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+        assertFalse(companyService.getPurchasePolicyDescription("bad", COMPANY_ID).isSuccess());
+    }
+
+    @Test
+    void givenUnknownCompany_whenGetPurchasePolicyDescription_thenReturnsFailure() {
+        assertFalse(companyService.getPurchasePolicyDescription(TOKEN, "unknown").isSuccess());
+    }
+
+    // ── getDiscountPolicyDescription ──────────────────────────────
+
+    @Test
+    void givenOwner_whenGetDiscountPolicyDescription_thenReturnsDescription() {
+        Result<String> result = companyService.getDiscountPolicyDescription(TOKEN, COMPANY_ID);
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData().get());
+    }
+
+    @Test
+    void givenInvalidToken_whenGetDiscountPolicyDescription_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+        assertFalse(companyService.getDiscountPolicyDescription("bad", COMPANY_ID).isSuccess());
+    }
 }

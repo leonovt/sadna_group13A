@@ -53,10 +53,10 @@ public class EventManagementPresenter {
 
     public void handleCreateEvent(EventManagementView view, String companyId,
                                   String title, String description,
-                                  LocalDateTime date, String category, String location) {
+                                  LocalDateTime date, String category, String artist, String location) {
         String token = getToken();
         if (token == null) { UI.getCurrent().navigate("login"); return; }
-        Result<String> result = eventService.createEvent(token, companyId, title, description, date, category, location);
+        Result<String> result = eventService.createEvent(token, companyId, title, description, date, category, artist, location);
         if (result.isSuccess()) {
             view.showSuccess("Event created successfully.");
             loadEvents(view, companyId);
@@ -101,10 +101,10 @@ public class EventManagementPresenter {
 
     public void handleUpdateEvent(EventManagementView view, String companyId, String eventId,
                                    String title, String description,
-                                   LocalDateTime date, String category) {
+                                   LocalDateTime date, String category, String artist) {
         String token = getToken();
         if (token == null) { UI.getCurrent().navigate("login"); return; }
-        Result<Void> result = eventService.updateEventDetails(token, eventId, title, description, date, category);
+        Result<Void> result = eventService.updateEventDetails(token, eventId, title, description, date, category, artist);
         if (result.isSuccess()) {
             view.showSuccess("Event updated.");
             loadEvents(view, companyId);

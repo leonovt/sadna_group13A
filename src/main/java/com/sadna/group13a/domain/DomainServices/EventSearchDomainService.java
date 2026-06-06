@@ -36,6 +36,7 @@ public class EventSearchDomainService {
      * @param minPrice       optional minimum price filter (applied to cheapest zone)
      * @param maxPrice       optional maximum price filter (applied to cheapest zone)
      * @param location       optional partial location match (case-insensitive)
+     * @param artist         optional partial artist name match (case-insensitive)
      * @return matching events in encounter order
      */
     public List<Event> search(
@@ -47,7 +48,8 @@ public class EventSearchDomainService {
             LocalDateTime toDate,
             Double minPrice,
             Double maxPrice,
-            String location) {
+            String location,
+            String artist) {
 
         List<Event> results = allEvents.stream()
             .filter(Event::isPublished)
@@ -59,6 +61,8 @@ public class EventSearchDomainService {
                     || e.getTitle().toLowerCase().contains(query.toLowerCase())
                     || e.getDescription().toLowerCase().contains(query.toLowerCase()))
             .filter(e -> category == null || e.getCategory().equalsIgnoreCase(category))
+            .filter(e -> artist == null || (e.getArtist() != null
+                    && e.getArtist().toLowerCase().contains(artist.toLowerCase())))
             .filter(e -> location == null || (e.getLocation() != null
                     && e.getLocation().toLowerCase().contains(location.toLowerCase())))
             .filter(e -> fromDate == null || !e.getEventDate().isBefore(fromDate))
@@ -73,8 +77,8 @@ public class EventSearchDomainService {
             })
             .collect(Collectors.toList());
 
-        logger.debug("search: {} result(s) — query='{}' category='{}' location='{}' from='{}' to='{}' minPrice='{}' maxPrice='{}'.",
-                results.size(), query, category, location, fromDate, toDate, minPrice, maxPrice);
+        logger.debug("search: {} result(s) — query='{}' category='{}' artist='{}' location='{}' from='{}' to='{}' minPrice='{}' maxPrice='{}'.",
+                results.size(), query, category, artist, location, fromDate, toDate, minPrice, maxPrice);
         return results;
     }
 }

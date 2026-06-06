@@ -71,7 +71,7 @@ class EventServiceTest {
     void givenInvalidToken_whenCreateEvent_thenReturnsFailure() {
         when(authGateway.validateToken("bad")).thenReturn(false);
 
-        Result<String> result = eventService.createEvent("bad", COMPANY_ID, "Concert", "Desc", FUTURE, "Music", null);
+        Result<String> result = eventService.createEvent("bad", COMPANY_ID, "Concert", "Desc", FUTURE, "Music", null, null);
 
         assertFalse(result.isSuccess());
         verify(eventRepository, never()).save(any());
@@ -81,7 +81,7 @@ class EventServiceTest {
     void givenCompanyNotFound_whenCreateEvent_thenReturnsFailure() {
         when(companyRepository.findById("missing")).thenReturn(Optional.empty());
 
-        Result<String> result = eventService.createEvent(TOKEN, "missing", "Concert", "Desc", FUTURE, "Music", null);
+        Result<String> result = eventService.createEvent(TOKEN, "missing", "Concert", "Desc", FUTURE, "Music", null, null);
 
         assertFalse(result.isSuccess());
         verify(eventRepository, never()).save(any());
@@ -92,7 +92,7 @@ class EventServiceTest {
         when(authGateway.extractUserId(TOKEN)).thenReturn("outsider");
 
         // outsider is not in the company — hasPermission returns false
-        Result<String> result = eventService.createEvent(TOKEN, COMPANY_ID, "Concert", "Desc", FUTURE, "Music", null);
+        Result<String> result = eventService.createEvent(TOKEN, COMPANY_ID, "Concert", "Desc", FUTURE, "Music", null, null);
 
         assertFalse(result.isSuccess());
         verify(eventRepository, never()).save(any());
@@ -100,7 +100,7 @@ class EventServiceTest {
 
     @Test
     void givenFounderWithPermission_whenCreateEvent_thenEventSavedAndIdReturned() {
-        Result<String> result = eventService.createEvent(TOKEN, COMPANY_ID, "Rock Night", "Desc", FUTURE, "Music", null);
+        Result<String> result = eventService.createEvent(TOKEN, COMPANY_ID, "Rock Night", "Desc", FUTURE, "Music", null, null);
 
         assertTrue(result.isSuccess());
         assertNotNull(result.getData().get()); // event ID returned
@@ -203,7 +203,7 @@ class EventServiceTest {
 
         when(eventRepository.findAll()).thenReturn(List.of(jazz, rock));
 
-        Result<List<EventDTO>> result = eventService.searchEvents("jazz", null, null, null, null, null, null);
+        Result<List<EventDTO>> result = eventService.searchEvents("jazz", null, null, null, null, null, null, null);
 
         assertTrue(result.isSuccess());
         assertEquals(1, result.getData().get().size());
@@ -215,7 +215,7 @@ class EventServiceTest {
         jazz.publish();
         when(eventRepository.findAll()).thenReturn(List.of(jazz));
 
-        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, null, null, null);
+        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, null, null, null, null);
 
         assertTrue(result.isSuccess());
         assertEquals(1, result.getData().get().size());
@@ -236,7 +236,7 @@ class EventServiceTest {
 
         LocalDateTime from = past;
         LocalDateTime to   = LocalDateTime.now().plusDays(10);
-        Result<List<EventDTO>> result = eventService.searchEvents(null, null, from, to, null, null, null);
+        Result<List<EventDTO>> result = eventService.searchEvents(null, null, from, to, null, null, null, null);
 
         assertTrue(result.isSuccess());
         assertEquals(1, result.getData().get().size());
@@ -252,7 +252,7 @@ class EventServiceTest {
 
         when(eventRepository.findAll()).thenReturn(List.of(cheap, expensive));
 
-        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, 0.0, 100.0, null);
+        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, 0.0, 100.0, null, null);
 
         assertTrue(result.isSuccess());
         assertEquals(1, result.getData().get().size());
@@ -266,7 +266,7 @@ class EventServiceTest {
 
         when(eventRepository.findAll()).thenReturn(List.of(expensive));
 
-        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, null, 100.0, null);
+        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, null, 100.0, null, null);
 
         assertTrue(result.isSuccess());
         assertEquals(0, result.getData().get().size());
@@ -283,7 +283,7 @@ class EventServiceTest {
 
         when(eventRepository.findAll()).thenReturn(List.of(tlv, haifa));
 
-        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, null, null, "tel aviv");
+        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, null, null, "tel aviv", null);
 
         assertTrue(result.isSuccess());
         assertEquals(1, result.getData().get().size());
@@ -298,7 +298,7 @@ class EventServiceTest {
 
         when(eventRepository.findAll()).thenReturn(List.of(event));
 
-        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, null, null, null);
+        Result<List<EventDTO>> result = eventService.searchEvents(null, null, null, null, null, null, null, null);
 
         assertTrue(result.isSuccess());
         assertEquals(0, result.getData().get().size());
@@ -324,5 +324,46 @@ class EventServiceTest {
         vm.addZone(new SeatedZone("z-" + id, "Zone", price, List.of(new Seat("s-" + id, "A-1"))));
         event.setVenueMap(vm);
         return event;
+    }
+
+    // ── getPurchasePolicyDescription ──────────────────────────────
+
+    @Test
+    void givenExistingEvent_whenGetPurchasePolicyDescription_thenReturnsDescription() {
+        Event event = new Event("ev-pol", "Concert", "Desc", COMPANY_ID, FUTURE, "Music");
+        when(eventRepository.findById("ev-pol")).thenReturn(Optional.of(event));
+
+        Result<String> result = eventService.getPurchasePolicyDescription(TOKEN, "ev-pol");
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData().get());
+    }
+
+    @Test
+    void givenInvalidToken_whenGetPurchasePolicyDescription_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+        assertFalse(eventService.getPurchasePolicyDescription("bad", "ev-pol").isSuccess());
+    }
+
+    @Test
+    void givenUnknownEvent_whenGetPurchasePolicyDescription_thenReturnsFailure() {
+        assertFalse(eventService.getPurchasePolicyDescription(TOKEN, "unknown").isSuccess());
+    }
+
+    // ── getDiscountPolicyDescription ──────────────────────────────
+
+    @Test
+    void givenExistingEvent_whenGetDiscountPolicyDescription_thenReturnsDescription() {
+        Event event = new Event("ev-disc", "Concert", "Desc", COMPANY_ID, FUTURE, "Music");
+        when(eventRepository.findById("ev-disc")).thenReturn(Optional.of(event));
+
+        Result<String> result = eventService.getDiscountPolicyDescription(TOKEN, "ev-disc");
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData().get());
+    }
+
+    @Test
+    void givenInvalidToken_whenGetDiscountPolicyDescription_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+        assertFalse(eventService.getDiscountPolicyDescription("bad", "ev-disc").isSuccess());
     }
 }

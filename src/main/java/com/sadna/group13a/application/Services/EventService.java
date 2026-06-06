@@ -76,7 +76,7 @@ public class EventService
      * Creates a new Event under a company.
      */
     public Result<String> createEvent(String tokenString, String companyId, String title, String description,
-                                      LocalDateTime date, String category, String location)
+                                      LocalDateTime date, String category, String artist, String location)
     {
         if(!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized createEvent attempt for company '{}'.", companyId);
@@ -96,6 +96,7 @@ public class EventService
         }
 
         Event event = new Event(UUID.randomUUID().toString(), title, description, companyId, date, category);
+        event.setArtist(artist);
         event.setLocation(location);
         eventRepository.save(event);
         logger.info("User '{}' created event '{}' ('{}') under company '{}'.", initiatorId, event.getId(), title, companyId);
@@ -162,6 +163,7 @@ public class EventService
             e.getCompanyId(),
             e.getEventDate(),
             e.getCategory(),
+            e.getArtist(),
             e.getLocation(),
             e.isPublished(),
             e.isPublished() ? e.getTotalAvailable() : 0,
@@ -268,7 +270,7 @@ public class EventService
         return Result.success();
     }
 
-    public Result<Void> updateEventDetails(String tokenString, String eventId, String title, String description, LocalDateTime date, String category) {
+    public Result<Void> updateEventDetails(String tokenString, String eventId, String title, String description, LocalDateTime date, String category, String artist) {
         if(!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized updateEventDetails attempt for event '{}'.", eventId);
             return Result.failure("Unauthorized: Invalid token.");
@@ -295,6 +297,7 @@ public class EventService
             if (title != null) event.setTitle(title);
             if (description != null) event.setDescription(description);
             if (category != null) event.setCategory(category);
+            if (artist != null) event.setArtist(artist);
             if (date != null) {
                 LocalDateTime oldDate = event.getEventDate();
                 event.setEventDate(date);
@@ -445,6 +448,20 @@ public class EventService
         }
     }
 
+    public Result<String> getPurchasePolicyDescription(String token, String eventId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return eventRepository.findById(eventId)
+                .map(e -> Result.success(com.sadna.group13a.application.PolicyFormatter.describe(e.getPurchasePolicy())))
+                .orElse(Result.failure("Event not found."));
+    }
+
+    public Result<String> getDiscountPolicyDescription(String token, String eventId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return eventRepository.findById(eventId)
+                .map(e -> Result.success(com.sadna.group13a.application.PolicyFormatter.describe(e.getDiscountPolicy())))
+                .orElse(Result.failure("Event not found."));
+    }
+
     private ZoneDTO toZoneDTO(Zone zone) {
         if (zone instanceof SeatedZone sz) {
             List<SeatDTO> seatDTOs = sz.getSeats().stream()
@@ -479,7 +496,7 @@ public class EventService
         List<EventDTO> dtos = eventRepository.findByCompanyId(companyId).stream()
                 .map(e -> new EventDTO(
                         e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
-                        e.getEventDate(), e.getCategory(), e.getLocation(),
+                        e.getEventDate(), e.getCategory(), e.getArtist(), e.getLocation(),
                         e.isPublished(), e.isPublished() ? e.getTotalAvailable() : 0, e.getSaleMode()))
                 .collect(Collectors.toList());
         logger.debug("getCompanyEvents: {} event(s) retrieved for company '{}' by '{}'.", dtos.size(), companyId, callerId);
@@ -489,16 +506,17 @@ public class EventService
     public Result<List<EventDTO>> searchEvents(String query, String category,
                                                LocalDateTime fromDate, LocalDateTime toDate,
                                                Double minPrice, Double maxPrice,
-                                               String location) {
+                                               String location, String artist) {
         Map<String, ProductionCompany> companiesById = companyRepository.findAll().stream()
                 .collect(Collectors.toMap(ProductionCompany::getId, c -> c));
 
         List<EventDTO> dtos = eventSearchDomainService
-                .search(eventRepository.findAll(), companiesById, query, category, fromDate, toDate, minPrice, maxPrice, location)
+                .search(eventRepository.findAll(), companiesById, query, category, fromDate, toDate, minPrice, maxPrice, location, artist)
                 .stream()
                 .map(e -> new EventDTO(
                         e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
-                        e.getEventDate(), e.getCategory(), e.getLocation(), e.isPublished(), e.getTotalAvailable(), e.getSaleMode()))
+                        e.getEventDate(), e.getCategory(), e.getArtist(), e.getLocation(),
+                        e.isPublished(), e.getTotalAvailable(), e.getSaleMode()))
                 .collect(Collectors.toList());
 
         return Result.success(dtos);
