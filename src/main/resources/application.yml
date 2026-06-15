@@ -12,6 +12,10 @@ app:
   seat:
     hold-duration-minutes: 10
 
+  # External ticket-issuance system (issue #226)
+  ticketing:
+    url: https://damp-lynna-wsep-1984852e.koyeb.app/
+
   # Bootstrap admin credentials
   admin:
     username: admin
