@@ -248,7 +248,7 @@ class OrderServiceTest {
                 .thenReturn(buildHistoryItems());
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.success("TXN-123"));
-        when(ticketSupplier.issueTickets(anyString(), anyInt()))
+        when(ticketSupplier.issueTickets(anyString(), any()))
                 .thenReturn(Result.success(List.of("TICKET-001")));
 
         Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, "card");
@@ -268,7 +268,7 @@ class OrderServiceTest {
                 .thenReturn(buildHistoryItems());
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.success("TXN-123"));
-        when(ticketSupplier.issueTickets(anyString(), anyInt()))
+        when(ticketSupplier.issueTickets(anyString(), any()))
                 .thenReturn(Result.failure("Ticket service unavailable"));
 
         Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, "card");
