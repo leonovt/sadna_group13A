@@ -1,19 +1,34 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
+import jakarta.persistence.*;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A zone based on total capacity (e.g., General Admission), rather than assigned seats.
- */
+@Entity
+@Table(name = "standing_zones")
+@DiscriminatorValue("STANDING")
 public class StandingZone extends Zone {
 
-    private final int maxCapacity;
-    private final List<StandingHold> standingHolds;
+    @Column(name = "max_capacity", nullable = false)
+    private int maxCapacity;
+
+    @Column(name = "sold_count", nullable = false)
     private int soldCount;
+
+    // Ephemeral — holds expire and are not persisted across restarts
+    @Transient
+    private List<StandingHold> standingHolds;
+
+    protected StandingZone() {}
+
+    @PostLoad
+    private void onLoad() {
+        this.standingHolds = new ArrayList<>();
+    }
 
     public StandingZone(String id, String name, double basePrice, int maxCapacity) {
         super(id, name, ZoneType.STANDING, basePrice);
@@ -78,11 +93,6 @@ public class StandingZone extends Zone {
         throw new SeatUnavailableException(getId(), "user does not have an active hold in this zone");
     }
 
-    /**
-     * Reverses a completed sale — decrements soldCount.
-     * Used for transactional rollback when payment or persistence fails.
-     * No-op if soldCount is already 0.
-     */
     public synchronized void unsellStandingSpot() {
         if (soldCount > 0) soldCount--;
     }
@@ -91,7 +101,7 @@ public class StandingZone extends Zone {
         for (int i = 0; i < standingHolds.size(); i++) {
             if (standingHolds.get(i).userId.equals(userId)) {
                 standingHolds.remove(i);
-                return; // Release exactly one hold
+                return;
             }
         }
     }

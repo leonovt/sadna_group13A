@@ -1,17 +1,27 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+import jakarta.persistence.*;
 
-/**
- * Abstract entity within the Event aggregate — represents a zone in a venue.
- *
- * Subclasses handle specific logic for SEATED vs STANDING capacity.
- */
+@Entity
+@Table(name = "zones")
+@Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn(name = "zone_type", discriminatorType = DiscriminatorType.STRING)
 public abstract class Zone {
 
-    private final String id;
-    private final String name;
-    private final ZoneType type;
-    private final double basePrice;
+    @Id
+    private String id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ZoneType type;
+
+    @Column(name = "base_price", nullable = false)
+    private double basePrice;
+
+    protected Zone() {}
 
     protected Zone(String id, String name, ZoneType type, double basePrice) {
         if (id == null || id.isBlank()) {

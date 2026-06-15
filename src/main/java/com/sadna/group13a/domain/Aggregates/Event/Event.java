@@ -5,41 +5,66 @@ import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
+import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Aggregate Root for the Event aggregate.
- * From UML: Event (Root) → VenueMap → Zone → Seat.
- *
- * An Event represents a scheduled occurrence managed by a ProductionCompany.
- * It owns a VenueMap that defines the venue layout and seat/standing capacity.
- * Both Event and Company carry a single PurchasePolicy and DiscountPolicy root
- * (Composite pattern) that are evaluated during checkout.
- *
- * The {@code version} field is incremented on every mutation and is used for
- * optimistic-locking conflict detection (analogous to JPA {@code @Version}).
- */
+@Entity
+@Table(name = "events")
 public class Event {
 
-    private final String id;
+    @Id
+    private String id;
+
+    @Column(nullable = false)
     private String title;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
-    private String companyId;       // owning ProductionCompany
+
+    @Column(name = "company_id", nullable = false)
+    private String companyId;
+
+    @Column(name = "event_date", nullable = false)
     private LocalDateTime eventDate;
+
+    @Column
     private String category;
-    private String artist;          // performing artist / headliner, nullable
-    private String location;        // physical venue / city, nullable
+
+    @Column
+    private String artist;
+
+    @Column
+    private String location;
+
+    @Column(nullable = false)
+    private boolean published;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sale_mode", nullable = false)
+    private EventSaleMode saleMode;
+
+    @Version
+    private long version;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "venue_map_id")
     private VenueMap venueMap;
-    private boolean published;      // whether the event is visible to buyers
-    private EventSaleMode saleMode; // REGULAR, QUEUE, or RAFFLE
 
-    private volatile long version = 0L;
-
-    // Single composite-pattern root nodes — defaults are AllowAll / NoDiscount
+    @Transient
     private PurchasePolicy purchasePolicy;
+
+    @Transient
     private DiscountPolicy discountPolicy;
+
+    protected Event() {}
+
+    @PostLoad
+    private void onLoad() {
+        if (purchasePolicy == null) purchasePolicy = new AllowAllPolicy();
+        if (discountPolicy == null) discountPolicy = new NoDiscountPolicy();
+    }
 
     public Event(String id, String title, String description,
                  String companyId, LocalDateTime eventDate, String category) {
@@ -132,7 +157,7 @@ public class Event {
         version++;
     }
 
-    // ── Sale Mode (Raffle/Lottery) ────────────────────────────────
+    // ── Sale Mode ────────────────────────────────────────────────
 
     public EventSaleMode getSaleMode() { return saleMode; }
 
@@ -148,12 +173,6 @@ public class Event {
 
     public boolean isPublished() { return published; }
 
-    /**
-     * Publishes the event, making it visible to buyers.
-     * Requires a venue map to be configured first.
-     *
-     * @throws DomainException if no venue map is set
-     */
     public void publish() {
         if (venueMap == null) {
             throw new DomainException("Cannot publish event without a venue map");
@@ -171,15 +190,9 @@ public class Event {
 
     public VenueMap getVenueMap() { return venueMap; }
 
-    /**
-     * Assigns or replaces the venue map configuration for this event.
-     *
-     * @throws DomainException if the event is already published
-     */
     public void setVenueMap(VenueMap venueMap) {
         if (published) {
-            throw new DomainException(
-                    "Cannot change venue map of a published event");
+            throw new DomainException("Cannot change venue map of a published event");
         }
         this.venueMap = venueMap;
         version++;
@@ -191,7 +204,6 @@ public class Event {
         return purchasePolicy;
     }
 
-    /** Replaces the event-level purchase policy root. Pass AllowAllPolicy to remove restrictions. */
     public void setPurchasePolicy(PurchasePolicy policy) {
         if (policy == null) throw new IllegalArgumentException("Purchase policy cannot be null");
         this.purchasePolicy = policy;
@@ -202,7 +214,6 @@ public class Event {
         return discountPolicy;
     }
 
-    /** Replaces the event-level discount policy root. Pass NoDiscountPolicy to remove discounts. */
     public void setDiscountPolicy(DiscountPolicy policy) {
         if (policy == null) throw new IllegalArgumentException("Discount policy cannot be null");
         this.discountPolicy = policy;
@@ -223,7 +234,6 @@ public class Event {
         version++;
     }
 
-    /** Transitions a held item to SOLD. Returns seat label for seated zones, null for standing. */
     public String sellItem(String zoneId, String seatId, String userId) {
         Zone zone = getZoneById(zoneId);
         if (zone instanceof SeatedZone sz) {
@@ -282,8 +292,7 @@ public class Event {
 
     private void requireVenueMap() {
         if (venueMap == null) {
-            throw new DomainException(
-                    "Event does not have a venue map configured");
+            throw new DomainException("Event does not have a venue map configured");
         }
     }
 }

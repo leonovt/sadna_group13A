@@ -1,15 +1,22 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+import jakarta.persistence.*;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-/**
- * A zone composed of individual assigned seats.
- */
+
+@Entity
+@Table(name = "seated_zones")
+@DiscriminatorValue("SEATED")
 public class SeatedZone extends Zone {
 
-    private final List<Seat> seats;
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JoinColumn(name = "zone_id")
+    private List<Seat> seats = new ArrayList<>();
+
+    protected SeatedZone() {}
 
     public SeatedZone(String id, String name, double basePrice, List<Seat> seats) {
         super(id, name, ZoneType.SEATED, basePrice);

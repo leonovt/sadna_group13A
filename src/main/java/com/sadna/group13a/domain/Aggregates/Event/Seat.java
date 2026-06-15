@@ -1,35 +1,35 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
+import jakarta.persistence.*;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
-/**
- * Entity within the Event aggregate — represents a single numbered seat
- * in a SEATED zone.
- *
- * Implements the 10-minute hold mechanism:
- * <ol>
- *   <li>{@code hold(userId)} — transitions AVAILABLE → HELD with a TTL</li>
- *   <li>{@code release()} — manually releases the hold (user cancelled)</li>
- *   <li>{@code sell()} — transitions HELD → SOLD (payment completed)</li>
- *   <li>Lazy expiry — a HELD seat whose {@code holdExpiresAt} is in the past
- *       is treated as AVAILABLE by {@link #getEffectiveStatus()}</li>
- * </ol>
- *
- * From UML: Zone → Seat composition.
- */
+
+@Entity
+@Table(name = "seats")
 public class Seat {
 
-    /** Default hold duration. */
     public static final Duration DEFAULT_HOLD_DURATION = Duration.ofMinutes(10);
 
-    private final String id;
-    private final String label;  // e.g. "A-12", "B-5"
+    @Id
+    private String id;
+
+    @Column(nullable = false)
+    private String label;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private SeatStatus status;
+
+    @Column(name = "held_by_user_id")
     private String heldByUserId;
+
+    @Column(name = "hold_expires_at")
     private Instant holdExpiresAt;
+
+    protected Seat() {}
 
     public Seat(String id, String label) {
         if (id == null || id.isBlank()) {
@@ -61,17 +61,10 @@ public class Seat {
 
     // ── Status ────────────────────────────────────────────────────
 
-    /**
-     * Returns the raw persisted status (may be stale if hold expired).
-     */
     public synchronized SeatStatus getStatus() {
         return status;
     }
 
-    /**
-     * Returns the effective status applying lazy expiry.
-     * If the seat is HELD but the hold has expired, returns AVAILABLE.
-     */
     public synchronized SeatStatus getEffectiveStatus() {
         if (status == SeatStatus.HELD && holdExpiresAt != null
                 && Instant.now().isAfter(holdExpiresAt)) {
@@ -90,23 +83,10 @@ public class Seat {
 
     // ── Hold / Release / Sell ─────────────────────────────────────
 
-    /**
-     * Attempts to hold this seat for the given user for the default duration.
-     *
-     * @param userId the user requesting the hold
-     * @throws SeatUnavailableException if the seat is currently held or sold
-     */
     public synchronized void hold(String userId) {
         hold(userId, DEFAULT_HOLD_DURATION);
     }
 
-    /**
-     * Attempts to hold this seat for the given user for a custom duration.
-     *
-     * @param userId   the user requesting the hold
-     * @param duration how long the hold should last
-     * @throws SeatUnavailableException if the seat is currently held or sold
-     */
     public synchronized void hold(String userId, Duration duration) {
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("userId cannot be null or blank");
@@ -124,18 +104,11 @@ public class Seat {
             throw new SeatUnavailableException(id, "seat is currently held by another user");
         }
 
-        // AVAILABLE → HELD
         this.status = SeatStatus.HELD;
         this.heldByUserId = userId;
         this.holdExpiresAt = Instant.now().plus(duration);
     }
 
-    /**
-     * Manually releases the hold, returning the seat to AVAILABLE.
-     * No-op if the seat is already AVAILABLE (or hold expired).
-     *
-     * @throws SeatUnavailableException if the seat is SOLD (cannot un-sell)
-     */
     public synchronized void release() {
         if (status == SeatStatus.SOLD) {
             throw new SeatUnavailableException(id, "cannot release a sold seat");
@@ -143,12 +116,6 @@ public class Seat {
         clearHold();
     }
 
-    /**
-     * Completes the purchase — transitions from HELD → SOLD.
-     *
-     * @param userId the user completing the purchase (must match holder)
-     * @throws SeatUnavailableException if the seat is not held, or held by another user, or hold expired
-     */
     public synchronized void sell(String userId) {
         if (getEffectiveStatus() != SeatStatus.HELD) {
             throw new SeatUnavailableException(id, "seat is not currently held");
@@ -157,15 +124,9 @@ public class Seat {
             throw new SeatUnavailableException(id, "seat is held by a different user");
         }
         this.status = SeatStatus.SOLD;
-        // keep heldByUserId as the buyer reference
-        this.holdExpiresAt = null;  // no longer relevant
+        this.holdExpiresAt = null;
     }
 
-    /**
-     * Reverses a completed sale — transitions SOLD → AVAILABLE.
-     * Used for transactional rollback when payment or persistence fails.
-     * No-op if the seat is not currently sold.
-     */
     public synchronized void unsell() {
         if (status != SeatStatus.SOLD) return;
         clearHold();

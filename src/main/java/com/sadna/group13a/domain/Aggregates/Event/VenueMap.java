@@ -1,19 +1,25 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
 import com.sadna.group13a.domain.shared.EntityNotFoundException;
+import jakarta.persistence.*;
 
 import java.util.*;
-/**
- * Entity within the Event aggregate — represents the physical layout
- * of a venue, composed of {@link Zone}s.
- *
- * From UML: Event → VenueMap → Zone composition.
- */
+
+@Entity
+@Table(name = "venue_maps")
 public class VenueMap {
 
-    private final String id;
-    private final String venueName;
-    private final List<Zone> zones;
+    @Id
+    private String id;
+
+    @Column(name = "venue_name", nullable = false)
+    private String venueName;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JoinColumn(name = "venue_map_id")
+    private List<Zone> zones = new ArrayList<>();
+
+    protected VenueMap() {}
 
     public VenueMap(String id, String venueName, List<Zone> zones) {
         if (id == null || id.isBlank()) {
