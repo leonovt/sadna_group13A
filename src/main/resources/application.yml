@@ -17,6 +17,11 @@ app:
     username: admin
     password: admin123
 
+  # Optional initial-state file (issue #230): a sequence of legal start-up operations.
+  # Blank = start with a clean state. An invalid/malformed file aborts start-up.
+  init:
+    state-file: ""
+
 logging:
   level:
     com.sadna.group13a.domain: DEBUG
