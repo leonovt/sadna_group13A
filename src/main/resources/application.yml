@@ -12,6 +12,13 @@ app:
   seat:
     hold-duration-minutes: 10
 
+  # Persistence connection health-check (issue #228 — auto-recovery after data-store outage).
+  # This project uses an in-memory data store rather than a JDBC datasource, so instead of
+  # HikariCP's connection-test-query we run an equivalent scheduled health check that detects
+  # a connection loss and automatically resumes once it is restored — no restart required.
+  persistence:
+    health-check-interval-ms: 5000
+
   # Bootstrap admin credentials
   admin:
     username: admin
