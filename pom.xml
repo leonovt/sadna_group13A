@@ -48,6 +48,13 @@
             <artifactId>vaadin-spring-boot-starter</artifactId>
         </dependency>
 
+        <!-- Bean Validation (JSR-380) - validates @ConfigurationProperties so the
+             application fails fast on invalid/missing startup configuration (V3 #223) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
         <!-- Security - for BCrypt password encoder -->
         <dependency>
             <groupId>org.springframework.security</groupId>
