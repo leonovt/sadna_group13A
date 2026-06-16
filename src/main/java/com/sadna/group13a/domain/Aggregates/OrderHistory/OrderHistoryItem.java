@@ -1,5 +1,8 @@
 package com.sadna.group13a.domain.Aggregates.OrderHistory;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -18,9 +21,12 @@ public class OrderHistoryItem {
     private final String seatLabel; // nullable for standing admission
     private final double pricePaid;
 
-    public OrderHistoryItem(String eventId, String eventTitle, LocalDateTime eventDate,
-                            String companyId, String companyName, String zoneName,
-                            String seatLabel, double pricePaid) {
+    @JsonCreator
+    public OrderHistoryItem(@JsonProperty("eventId") String eventId, @JsonProperty("eventTitle") String eventTitle,
+                            @JsonProperty("eventDate") LocalDateTime eventDate,
+                            @JsonProperty("companyId") String companyId, @JsonProperty("companyName") String companyName,
+                            @JsonProperty("zoneName") String zoneName,
+                            @JsonProperty("seatLabel") String seatLabel, @JsonProperty("pricePaid") double pricePaid) {
         if (eventId == null || eventId.isBlank()) throw new IllegalArgumentException("eventId cannot be blank");
         if (eventTitle == null || eventTitle.isBlank()) throw new IllegalArgumentException("eventTitle cannot be blank");
         if (eventDate == null) throw new IllegalArgumentException("eventDate cannot be null");

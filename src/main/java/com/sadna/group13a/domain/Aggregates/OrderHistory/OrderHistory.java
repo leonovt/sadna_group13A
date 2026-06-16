@@ -1,5 +1,8 @@
 package com.sadna.group13a.domain.Aggregates.OrderHistory;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,8 +23,10 @@ public class OrderHistory {
     private final String transactionId;
     private final List<OrderHistoryItem> items;
 
-    public OrderHistory(String receiptId, String userId, LocalDateTime purchaseDate, double totalPaid,
-                        String transactionId, List<OrderHistoryItem> items) {
+    @JsonCreator
+    public OrderHistory(@JsonProperty("receiptId") String receiptId, @JsonProperty("userId") String userId,
+                        @JsonProperty("purchaseDate") LocalDateTime purchaseDate, @JsonProperty("totalPaid") double totalPaid,
+                        @JsonProperty("transactionId") String transactionId, @JsonProperty("items") List<OrderHistoryItem> items) {
         if (receiptId == null || receiptId.isBlank()) throw new IllegalArgumentException("receiptId cannot be blank");
         if (userId == null || userId.isBlank()) throw new IllegalArgumentException("userId cannot be blank");
         if (purchaseDate == null) throw new IllegalArgumentException("purchaseDate cannot be null");
