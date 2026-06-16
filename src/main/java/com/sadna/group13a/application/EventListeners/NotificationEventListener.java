@@ -10,6 +10,7 @@ import com.sadna.group13a.domain.Events.CompanySuspendedEvent;
 import com.sadna.group13a.domain.Events.EventCancelledEvent;
 import com.sadna.group13a.domain.Events.EventRescheduledEvent;
 import com.sadna.group13a.domain.Events.EventSoldOutEvent;
+import com.sadna.group13a.domain.Events.InquiryAnsweredEvent;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
 import com.sadna.group13a.domain.Events.PermissionsUpdatedEvent;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
@@ -142,5 +143,10 @@ public class NotificationEventListener {
     @EventListener
     public void onAdminMessage(AdminMessageEvent event) {
         notificationService.notifyAdminMessage(event.targetUserId(), event.message());
+    }
+
+    @EventListener
+    public void onInquiryAnswered(InquiryAnsweredEvent event) {
+        notificationService.notifyInquiryAnswered(event.userId(), event.companyName(), event.response());
     }
 }

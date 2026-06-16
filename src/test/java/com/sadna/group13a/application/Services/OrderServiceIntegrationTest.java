@@ -597,6 +597,7 @@ class OrderServiceIntegrationTest {
         @Override public void notifyEventSoldOut(java.util.List<String> staffIds, String eventId, String eventTitle) {}
         @Override public void notifyRaffleWon(String userId, String eventId, String authCode, LocalDateTime expiresAt) {}
         @Override public void notifyAdminMessage(String targetUserId, String message) {}
+        @Override public void notifyInquiryAnswered(String userId, String companyName, String response) {}
 
         // ── Accessors ─────────────────────────────────────────────────────────────
         int    getOrderCompletedCallCount() { return orderCompletedCallCount.get(); }
