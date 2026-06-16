@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class EventService
@@ -75,6 +76,7 @@ public class EventService
     /**
      * Creates a new Event under a company.
      */
+    @Transactional
     public Result<String> createEvent(String tokenString, String companyId, String title, String description,
                                       LocalDateTime date, String category, String artist, String location)
     {
@@ -106,6 +108,7 @@ public class EventService
     /**
      * Publishes an event to the public marketplace.
      */
+    @Transactional
     public Result<Void> publishEvent(String tokenString, String eventId) {
         if(!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized publishEvent attempt for event '{}'.", eventId);
@@ -143,6 +146,7 @@ public class EventService
     /**
      * Retrieves basic event details.
      */
+    @Transactional(readOnly = true)
     public Result<EventDTO> getEvent(String token, String eventId) {
         if (token != null && !authGateway.validateToken(token)) {
             logger.warn("Unauthorized getEvent attempt for event '{}' — invalid token.", eventId);
@@ -173,6 +177,7 @@ public class EventService
         return Result.success(dto);
     }
 
+    @Transactional
     public Result<Void> setVenueMap(String tokenString, String eventId, VenueMap venueMap) {
         if(!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized setVenueMap attempt for event '{}'.", eventId);
@@ -215,6 +220,7 @@ public class EventService
      * aggregate construction out of the views. Authorisation, the published-event
      * guard, and persistence are reused from {@link #setVenueMap}.
      */
+    @Transactional
     public Result<Void> createVenueMap(String tokenString, String eventId,
                                        String venueName, List<ZoneCreationDTO> zoneSpecs) {
         if (zoneSpecs == null || zoneSpecs.isEmpty()) {
@@ -239,6 +245,7 @@ public class EventService
         return setVenueMap(tokenString, eventId, venueMap);
     }
 
+    @Transactional
     public Result<Void> unpublishEvent(String tokeString, String eventId)
     {
         if(!authGateway.validateToken(tokeString))
@@ -270,6 +277,7 @@ public class EventService
         return Result.success();
     }
 
+    @Transactional
     public Result<Void> updateEventDetails(String tokenString, String eventId, String title, String description, LocalDateTime date, String category, String artist) {
         if(!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized updateEventDetails attempt for event '{}'.", eventId);
@@ -321,6 +329,7 @@ public class EventService
         }
     }
 
+    @Transactional
     public Result<Void> setSaleMode(String tokenString, String eventId, EventSaleMode saleMode) {
         if (!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized setSaleMode attempt for event '{}'.", eventId);
@@ -355,6 +364,7 @@ public class EventService
         }
     }
 
+    @Transactional(readOnly = true)
     public Result<VenueMapDTO> getVenueMap(String token, String eventId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized getVenueMap attempt for event '{}'.", eventId);
@@ -382,6 +392,7 @@ public class EventService
         return Result.success(new VenueMapDTO(map.getId(), map.getVenueName(), zoneDTOs));
     }
 
+    @Transactional
     public Result<Void> setPurchasePolicy(String tokenString, String eventId, PurchasePolicy policy) {
         if (!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized setPurchasePolicy attempt for event '{}'.", eventId);
@@ -415,6 +426,7 @@ public class EventService
         }
     }
 
+    @Transactional
     public Result<Void> setDiscountPolicy(String tokenString, String eventId, DiscountPolicy policy) {
         if (!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized setDiscountPolicy attempt for event '{}'.", eventId);
@@ -448,6 +460,7 @@ public class EventService
         }
     }
 
+    @Transactional(readOnly = true)
     public Result<String> getPurchasePolicyDescription(String token, String eventId) {
         if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
         return eventRepository.findById(eventId)
@@ -455,6 +468,7 @@ public class EventService
                 .orElse(Result.failure("Event not found."));
     }
 
+    @Transactional(readOnly = true)
     public Result<String> getDiscountPolicyDescription(String token, String eventId) {
         if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
         return eventRepository.findById(eventId)
@@ -477,6 +491,7 @@ public class EventService
                 zone.getMaxCapacity(), zone.getAvailableSeatCount(), null);
     }
 
+    @Transactional(readOnly = true)
     public Result<List<EventDTO>> getCompanyEvents(String tokenString, String companyId) {
         if (!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized getCompanyEvents attempt for company '{}'.", companyId);
@@ -503,6 +518,7 @@ public class EventService
         return Result.success(dtos);
     }
 
+    @Transactional(readOnly = true)
     public Result<List<EventDTO>> searchEvents(String query, String category,
                                                LocalDateTime fromDate, LocalDateTime toDate,
                                                Double minPrice, Double maxPrice,

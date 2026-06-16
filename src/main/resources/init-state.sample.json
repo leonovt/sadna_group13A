@@ -1,0 +1,23 @@
+[
+  { "action": "register", "args": { "username": "alice", "password": "password123" } },
+  { "action": "login",    "args": { "username": "alice", "password": "password123" }, "bindTo": "alice_token" },
+
+  { "action": "create-company",
+    "args": { "token": "alice_token", "name": "SoundWave Entertainment", "description": "Live music promoter" },
+    "bindTo": "soundwave" },
+
+  { "action": "create-event",
+    "args": {
+      "token": "alice_token",
+      "companyId": "soundwave",
+      "title": "Jazz Night 2026",
+      "description": "An evening of live jazz",
+      "date": "2026-08-01T20:00",
+      "category": "Live Music",
+      "artist": "The Quartet",
+      "location": "Tel Aviv"
+    },
+    "bindTo": "jazz_night" },
+
+  { "action": "publish-event", "args": { "token": "alice_token", "eventId": "jazz_night" } }
+]
