@@ -12,6 +12,8 @@ import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +39,7 @@ class TicketIssuanceTest {
 
     @BeforeEach
     void setUp() {
-        userRepository = new UserRepositoryImpl();
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
         historyRepository = new OrderHistoryRepositoryImpl();
         authGateway = new AuthImpl();
         paymentGateway = new StubPaymentGateway(); // Used user's stub!

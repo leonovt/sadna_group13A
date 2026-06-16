@@ -21,6 +21,7 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.QueueRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -63,7 +64,7 @@ class AdminServiceIntegrationTest {
     @BeforeEach
     void setUp() {
         adminRepo   = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
-        userRepo    = new UserRepositoryImpl();
+        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
         eventRepo   = new EventRepositoryImpl();
         companyRepo = new CompanyRepositoryImpl();
         queueRepo   = new QueueRepositoryImpl();
@@ -434,7 +435,13 @@ class AdminServiceIntegrationTest {
             pool.shutdown();
             assertTrue(pool.awaitTermination(10, TimeUnit.SECONDS));
 
-            assertTrue(errors.isEmpty(), "No thread should throw: " + errors);
+            // Any thread that didn't succeed must have lost a genuine optimistic-lock race
+            // (concurrent reads of the same user now return independent copies once the
+            // user repository is JPA-backed, so real version conflicts are possible here —
+            // unlike the old in-memory repo, which always handed back the same shared
+            // reference and so never actually enforced the version check in this scenario).
+            errors.forEach(msg -> assertTrue(msg != null && msg.contains("Optimistic lock conflict"),
+                    "Unexpected error (not a lock conflict): " + msg));
             // At least one success is guaranteed; allow multiple since deactivation is idempotent
             assertTrue(successCount.get() >= 1, "At least one deactivation must succeed");
             assertFalse(userRepo.findById(MEMBER_ID).orElseThrow().isActive(),
