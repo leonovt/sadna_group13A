@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.policies.discount;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
@@ -16,7 +18,9 @@ public class SimpleDiscount implements DiscountPolicy {
     private final LocalDate startDate;
     private final LocalDate endDate;
 
-    public SimpleDiscount(double percentage, LocalDate startDate, LocalDate endDate) {
+    @JsonCreator
+    public SimpleDiscount(@JsonProperty("percentage") double percentage, @JsonProperty("startDate") LocalDate startDate,
+                           @JsonProperty("endDate") LocalDate endDate) {
         if (percentage < 0.0 || percentage > 1.0)
             throw new DomainException("Discount percentage must be between 0 and 1");
         if (startDate == null || endDate == null)

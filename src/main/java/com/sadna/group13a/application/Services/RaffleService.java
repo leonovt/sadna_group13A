@@ -19,6 +19,7 @@ import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
 import com.sadna.group13a.domain.Events.RaffleWonEvent;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.domain.Aggregates.User.User;
+import com.sadna.group13a.domain.shared.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -162,28 +163,47 @@ public class RaffleService {
             return Result.failure("Only active registered members can join a raffle.");
         }
 
-        Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
-        if (raffleOpt.isEmpty()) {
-            logger.warn("User '{}' tried to join non-existent raffle '{}'.", userId, raffleId);
-            return Result.failure("Raffle not found.");
+        // Optimistic-lock conflicts are expected under concurrent registration (each
+        // attempt re-reads the latest raffle state and reapplies the registration) —
+        // retried up to maxAttempts before giving up, rather than dropping the join.
+        final int maxAttempts = 30;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
+            if (raffleOpt.isEmpty()) {
+                logger.warn("User '{}' tried to join non-existent raffle '{}'.", userId, raffleId);
+                return Result.failure("Raffle not found.");
+            }
+
+            Raffle raffle = raffleOpt.get();
+
+            try {
+                raffle.registerParticipant(userId);
+                raffleRepository.save(raffle);
+
+                logger.info("User '{}' joined raffle '{}'.", userId, raffleId);
+                return Result.success();
+
+            } catch (IllegalStateException | IllegalArgumentException e) {
+                logger.warn("User '{}' failed to join raffle '{}': {}", userId, raffleId, e.getMessage());
+                return Result.failure(e.getMessage());
+            } catch (OptimisticLockException e) {
+                logger.debug("User '{}' hit a concurrent update joining raffle '{}' (attempt {}/{}); retrying.",
+                        userId, raffleId, attempt, maxAttempts);
+                // Small jittered backoff so threads that just collided don't immediately
+                // collide again on the very next attempt (thundering-herd avoidance).
+                try {
+                    Thread.sleep(java.util.concurrent.ThreadLocalRandom.current().nextInt(1, 5));
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+            } catch (Exception e) {
+                logger.error("Unexpected error while user '{}' was joining raffle '{}': {}", userId, raffleId, e.getMessage(), e);
+                return Result.failure("An unexpected internal error occurred.");
+            }
         }
-
-        Raffle raffle = raffleOpt.get();
-
-        try {
-            raffle.registerParticipant(userId);
-            raffleRepository.save(raffle);
-
-            logger.info("User '{}' joined raffle '{}'.", userId, raffleId);
-            return Result.success();
-
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            logger.warn("User '{}' failed to join raffle '{}': {}", userId, raffleId, e.getMessage());
-            return Result.failure(e.getMessage());
-        } catch (Exception e) {
-            logger.error("Unexpected error while user '{}' was joining raffle '{}': {}", userId, raffleId, e.getMessage(), e);
-            return Result.failure("An unexpected internal error occurred.");
-        }
+        logger.error("User '{}' failed to join raffle '{}' after {} attempts due to repeated concurrent updates.",
+                userId, raffleId, maxAttempts);
+        return Result.failure("Failed to join raffle due to high contention. Please try again.");
     }
     
     /**

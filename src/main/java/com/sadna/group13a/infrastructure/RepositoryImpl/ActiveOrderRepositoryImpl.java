@@ -30,7 +30,7 @@ public class ActiveOrderRepositoryImpl implements IActiveOrderRepository {
         Optional<ActiveOrderEntity> storedEntity = jpa.findById(order.getId());
         if (storedEntity.isPresent()) {
             ActiveOrder stored = toDomain(storedEntity.get());
-            if (stored.getVersion() > order.getVersion()) {
+            if (stored.getVersion() >= order.getVersion()) {
                 throw new OptimisticLockException(
                         "Optimistic lock conflict for ActiveOrder " + order.getId() +
                         ": stored version " + stored.getVersion() +

@@ -29,7 +29,7 @@ public class RaffleRepositoryImpl implements IRaffleRepository {
         Optional<RaffleEntity> storedEntity = jpa.findById(raffle.getId());
         if (storedEntity.isPresent()) {
             Raffle stored = toDomain(storedEntity.get());
-            if (stored.getVersion() > raffle.getVersion()) {
+            if (stored.getVersion() >= raffle.getVersion()) {
                 throw new OptimisticLockException(
                         "Optimistic lock conflict for Raffle " + raffle.getId() +
                         ": stored version " + stored.getVersion() +

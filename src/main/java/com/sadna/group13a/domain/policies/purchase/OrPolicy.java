@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.policies.purchase;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 
@@ -10,7 +12,8 @@ public class OrPolicy implements PurchasePolicy {
 
     private final List<PurchasePolicy> children;
 
-    public OrPolicy(List<PurchasePolicy> children) {
+    @JsonCreator
+    public OrPolicy(@JsonProperty("children") List<PurchasePolicy> children) {
         if (children == null || children.size() < 2)
             throw new IllegalArgumentException("OrPolicy requires at least 2 children");
         if (children.contains(null))

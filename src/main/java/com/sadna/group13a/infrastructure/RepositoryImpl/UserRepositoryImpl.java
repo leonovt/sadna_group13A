@@ -40,7 +40,7 @@ public class UserRepositoryImpl implements IUserRepository {
 
         if (storedEntity.isPresent()) {
             User stored = toDomain(storedEntity.get());
-            if (stored.getVersion() > user.getVersion()) {
+            if (stored.getVersion() >= user.getVersion()) {
                 throw new OptimisticLockException(
                         "Optimistic lock conflict for User " + user.getId() +
                         ": stored version " + stored.getVersion() +
