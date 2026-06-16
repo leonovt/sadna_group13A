@@ -3,6 +3,17 @@ package com.sadna.group13a.domain.Aggregates.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.shared.OrderStatus;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,20 +23,38 @@ import java.util.Objects;
 /**
  * Aggregate Root for a user's active shopping cart.
  * Holds item reservations until checkout completes or the cart expires.
- *
- * The {@code version} field is incremented on every mutation and is used for
- * optimistic-locking conflict detection (analogous to JPA {@code @Version}).
  */
+@Entity
+@Table(name = "active_orders")
 public class ActiveOrder {
 
-    private final String id;
-    private final String userId;
-    private final List<OrderItem> items;
+    @Id
+    @Column(name = "id", nullable = false)
+    private String id;
+
+    @Column(name = "user_id", nullable = false)
+    private String userId;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "order_id")
+    private List<OrderItem> items;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
     private OrderStatus status;
-    private final LocalDateTime createdAt;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
+    @Version
+    @Column(name = "version", nullable = false)
     private volatile long version = 0L;
+
+    /** Required by JPA. Do not use in business code. */
+    protected ActiveOrder() {}
 
     public ActiveOrder(String id, String userId) {
         if (id == null || id.isBlank()) throw new IllegalArgumentException("id cannot be blank");

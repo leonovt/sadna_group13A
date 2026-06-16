@@ -1,5 +1,20 @@
 package com.sadna.group13a.domain.Aggregates.Raffle;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKey;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -10,19 +25,42 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+@Entity
+@Table(name = "raffles")
 public class Raffle
 {
-    private final String id;
-    private final String eventId;
-    private final String companyId;
+    @Id
+    @Column(name = "id", nullable = false)
+    private String id;
+
+    @Column(name = "event_id", nullable = false)
+    private String eventId;
+
+    @Column(name = "company_id", nullable = false)
+    private String companyId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
     private RaffleStatus status;
+
+    @Version
+    @Column(name = "version", nullable = false)
     private volatile long version = 0L;
 
     // Using a Set prevents the same user from registering twice!
-    private final Set<String> participantUserIds;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "raffle_participants", joinColumns = @JoinColumn(name = "raffle_id"))
+    @Column(name = "user_id")
+    private Set<String> participantUserIds;
 
     // Maps a winning User ID to their specific Authorization Code
-    private final Map<String, AuthorizationCode> winners;
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "raffle_id")
+    @MapKey(name = "userId")
+    private Map<String, AuthorizationCode> winners;
+
+    /** Required by JPA. Do not use in business code. */
+    protected Raffle() {}
 
     public Raffle(String id, String eventId, String companyId)
     {
@@ -36,7 +74,7 @@ public class Raffle
 
     /**
      * Domain Logic: Register a participant.
-     * Note: The Application Service MUST verify the user is a registered Member 
+     * Note: The Application Service MUST verify the user is a registered Member
      * before passing their ID to this method[cite: 1].
      */
     public synchronized void registerParticipant(String userId) {
@@ -53,7 +91,7 @@ public class Raffle
 
     /**
      * Domain Logic: Executes the draw, selects winners, and generates their codes.
-     * 
+     *
      * @param numberOfWinners How many people should win
      * @param codeValidMinutes How long the winners have to buy their tickets
      */
@@ -103,12 +141,12 @@ public class Raffle
     public String getCompanyId() { return companyId; }
     public RaffleStatus getStatus() { return status; }
     public long getVersion() { return version; }
-    
+
     // Return an unmodifiable view to protect the aggregate's internal state!
-    public Set<String> getParticipantUserIds() { 
-        return Collections.unmodifiableSet(participantUserIds); 
+    public Set<String> getParticipantUserIds() {
+        return Collections.unmodifiableSet(participantUserIds);
     }
-    
+
     public Collection<AuthorizationCode> getWinningCodes() {
         return Collections.unmodifiableCollection(winners.values());
     }

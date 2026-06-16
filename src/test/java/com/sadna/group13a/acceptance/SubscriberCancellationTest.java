@@ -53,6 +53,7 @@ class SubscriberCancellationTest {
         adminService = new AdminService(
                 userRepository, adminRepository, null, companyRepository,
                 null, historyRepository, new com.sadna.group13a.infrastructure.StubPaymentGateway(),
+                new com.sadna.group13a.infrastructure.StubTicketSupplier(),
                 authGateway, eventPublisher, systemLogService);
     }
 

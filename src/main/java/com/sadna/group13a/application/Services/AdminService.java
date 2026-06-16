@@ -6,6 +6,7 @@ import com.sadna.group13a.application.DTO.SuspensionDTO;
 import com.sadna.group13a.application.DTO.SystemAnalyticsDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
+import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
@@ -37,6 +38,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AdminService {
@@ -50,6 +52,7 @@ public class AdminService {
     private final IQueueRepository queueRepository;
     private final IOrderHistoryRepository historyRepository;
     private final IPaymentGateway paymentGateway;
+    private final ITicketSupplier ticketSupplier;
     private final IAuth authGateway;
     private final ApplicationEventPublisher eventPublisher;
     private final SystemLogService systemLogService;
@@ -61,6 +64,7 @@ public class AdminService {
                         IQueueRepository queueRepository,
                         IOrderHistoryRepository historyRepository,
                         IPaymentGateway paymentGateway,
+                        ITicketSupplier ticketSupplier,
                         IAuth authGateway,
                         ApplicationEventPublisher eventPublisher,
                         SystemLogService systemLogService) {
@@ -71,6 +75,7 @@ public class AdminService {
         this.queueRepository = queueRepository;
         this.historyRepository = historyRepository;
         this.paymentGateway = paymentGateway;
+        this.ticketSupplier = ticketSupplier;
         this.authGateway = authGateway;
         this.eventPublisher = eventPublisher;
         this.systemLogService = systemLogService;
@@ -78,6 +83,7 @@ public class AdminService {
 
     // ── User Management ───────────────────────────────────────────
 
+    @Transactional
     public Result<Void> deactivateUser(String token, String targetUsername) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized deactivateUser attempt for target '{}'.", targetUsername);
@@ -109,6 +115,7 @@ public class AdminService {
         return Result.success();
     }
 
+    @Transactional
     public Result<Void> reactivateUser(String token, String targetUsername) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized reactivateUser attempt for target '{}'.", targetUsername);
@@ -141,6 +148,7 @@ public class AdminService {
      * 11.6.7 — Suspend a user for a fixed number of days, or permanently when durationDays is null.
      * Suspended users keep read-only access (canPurchase returns false, browsing is unaffected).
      */
+    @Transactional
     public Result<Void> suspendUser(String token, String targetUsername, Long durationDays) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized suspendUser attempt for target '{}'.", targetUsername);
@@ -182,6 +190,7 @@ public class AdminService {
     /**
      * 11.6.8 — Lift an active suspension (works for both temporary and permanent).
      */
+    @Transactional
     public Result<Void> liftSuspension(String token, String targetUsername) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized liftSuspension attempt for target '{}'.", targetUsername);
@@ -216,6 +225,7 @@ public class AdminService {
      * 11.6.9 — Return suspension records for all currently suspended users,
      * including start date, duration, and end date.
      */
+    @Transactional(readOnly = true)
     public Result<List<SuspensionDTO>> viewSuspensions(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized viewSuspensions attempt.");
@@ -243,6 +253,7 @@ public class AdminService {
 
     // ── Event Management ──────────────────────────────────────────
 
+    @Transactional
     public Result<Void> cancelEventGlobally(String token, String eventId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized cancelEventGlobally attempt for event '{}'.", eventId);
@@ -309,6 +320,24 @@ public class AdminService {
             }
         }
 
+        // Invalidate the issued tickets for the cancelled event via the external system (issue #226).
+        List<String> ticketCodesToCancel = affectedReceipts.stream()
+                .flatMap(r -> r.getItems().stream())
+                .filter(i -> i.getEventId().equals(eventId))
+                .map(OrderHistoryItem::getTicketCode)
+                .filter(code -> code != null && !code.isBlank())
+                .collect(Collectors.toList());
+        if (!ticketCodesToCancel.isEmpty()) {
+            Result<Void> cancelResult = ticketSupplier.cancelTickets(ticketCodesToCancel);
+            if (cancelResult.isSuccess()) {
+                systemLogService.logEvent("ticketsCancelled adminId=" + adminId + " eventId=" + eventId
+                        + " count=" + ticketCodesToCancel.size());
+                logger.info("Cancelled {} issued ticket(s) for cancelled event '{}'.", ticketCodesToCancel.size(), eventId);
+            } else {
+                logger.error("Failed to cancel issued tickets for event '{}': {}", eventId, cancelResult.getErrorMessage());
+            }
+        }
+
         systemLogService.logEvent("cancelEventGlobally adminId=" + adminId + " eventId=" + eventId);
         logger.warn("Admin '{}' cancelled event '{}'.", adminId, eventId);
         return Result.success();
@@ -316,6 +345,7 @@ public class AdminService {
 
     // ── Company Management ────────────────────────────────────────
 
+    @Transactional
     public Result<Void> closeCompanyGlobally(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized closeCompanyGlobally attempt for company '{}'.", companyId);
@@ -347,6 +377,7 @@ public class AdminService {
 
     // ── Queue Control ─────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public Result<List<TicketQueue>> viewAllQueues(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized viewAllQueues attempt.");
@@ -362,6 +393,7 @@ public class AdminService {
         return Result.success(queues);
     }
 
+    @Transactional
     public Result<Void> clearEventQueue(String token, String eventId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized clearEventQueue attempt for event '{}'.", eventId);
@@ -386,6 +418,7 @@ public class AdminService {
         return Result.success();
     }
 
+    @Transactional
     public Result<Void> adjustQueueRate(String token, String eventId, int newMaxConcurrentUsers) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized adjustQueueRate attempt for event '{}'.", eventId);
@@ -418,6 +451,7 @@ public class AdminService {
 
     // ── Analytics ─────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public Result<SystemAnalyticsDTO> getSystemAnalytics(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized getSystemAnalytics attempt.");
@@ -441,6 +475,7 @@ public class AdminService {
         return Result.success(new SystemAnalyticsDTO(totalUsers, activeQueues, activeCompanies, publishedEvents));
     }
 
+    @Transactional(readOnly = true)
     public Result<List<OrderHistoryDTO>> viewGlobalPurchaseHistory(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized viewGlobalPurchaseHistory attempt.");
@@ -467,6 +502,7 @@ public class AdminService {
 
     // ── Logs (SLR-8) ─────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public Result<List<String>> getEventLog(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized getEventLog attempt.");
@@ -482,6 +518,7 @@ public class AdminService {
         return Result.success(log);
     }
 
+    @Transactional(readOnly = true)
     public Result<List<String>> getErrorLog(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized getErrorLog attempt.");
@@ -499,6 +536,7 @@ public class AdminService {
 
     // ── Messaging ─────────────────────────────────────────────────
 
+    @Transactional
     public Result<Void> sendMessageToUser(String token, String targetUsername, String message) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized sendMessageToUser attempt for target '{}'.", targetUsername);

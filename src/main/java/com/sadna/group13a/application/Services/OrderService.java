@@ -8,6 +8,7 @@ import com.sadna.group13a.application.DTO.OrderItemDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Interfaces.ITicketSupplier;
+import com.sadna.group13a.application.Interfaces.TicketIssueRequest;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
@@ -45,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -119,6 +121,7 @@ public class OrderService {
      * Adds an item to the user's active cart.  If no cart exists, creates one.
      * Holds the seat/spot immediately to prevent double-booking.
      */
+    @Transactional
     public Result<String> addItemToCart(String token, String eventId, String zoneId, String seatId) {
         if (seatId != null) {
             return addBatchItemsToCart(token, eventId, zoneId, List.of(seatId), null);
@@ -137,6 +140,7 @@ public class OrderService {
      * StandingZone. The {@code reservedSeats} rollback list is a local variable and is
      * never shared between threads.
      */
+    @Transactional
     public Result<String> addBatchItemsToCart(String token, String eventId, String zoneId,
                                                List<String> seatIds, Integer quantity) {
         if (!authGateway.validateToken(token)) {
@@ -222,6 +226,7 @@ public class OrderService {
      * @param optionalAuthCode raffle authorization code (null for REGULAR/QUEUE events)
      * @param paymentDetails  payment instrument data passed to the payment gateway
      */
+    @Transactional
     public Result<OrderHistoryDTO> executeCheckout(
             String token,
             String activeOrderId,
@@ -416,19 +421,43 @@ public class OrderService {
             }
         }
 
-        // ── Post-checkout ─────────────────────────────────────────────────────────
-        OrderHistory history = new OrderHistory(
-                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, transactionId, allHistoryItems);
+        // ── Ticket issuance (external system) ───────────────────────────────────────
+        // One ticket per receipt line; the supplier issues all-or-nothing and cancels
+        // any already-issued tickets if a later one fails (UC 1.4 / issue #226).
+        List<TicketIssueRequest> ticketRequests = allHistoryItems.stream()
+                .map(i -> new TicketIssueRequest(
+                        i.getEventId(),
+                        i.getZoneName(),
+                        i.getSeatLabel() != null,
+                        1,
+                        parseSeatNumber(i.getSeatLabel())))
+                .collect(Collectors.toList());
 
-        Result<List<String>> ticketResult = ticketSupplier.issueTickets(history.getReceiptId(), allHistoryItems.size());
+        Result<List<String>> ticketResult = ticketSupplier.issueTickets(userId, ticketRequests);
         if (!ticketResult.isSuccess()) {
-            logger.error("Ticket issuance failed for receipt {}: {}", history.getReceiptId(), ticketResult.getErrorMessage());
+            logger.error("Ticket issuance failed for user {}: {}", userId, ticketResult.getErrorMessage());
             paymentGateway.refundPayment(transactionId);
             rollbackSoldSeats(processedEvents, order.getItems());
             orderRepository.deleteById(activeOrderId);
             eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Ticket issuance failed — payment refunded."));
             return Result.failure("Ticket issuance failed — payment refunded.");
         }
+
+        // ── Post-checkout ─────────────────────────────────────────────────────────
+        // Persist the issued ticket codes on the receipt (aligned by index with the items).
+        List<String> ticketCodes = ticketResult.getOrThrow();
+        List<OrderHistoryItem> codedItems = new ArrayList<>(allHistoryItems.size());
+        for (int i = 0; i < allHistoryItems.size(); i++) {
+            OrderHistoryItem item = allHistoryItems.get(i);
+            String code = (i < ticketCodes.size()) ? ticketCodes.get(i) : null;
+            codedItems.add(new OrderHistoryItem(
+                    item.getEventId(), item.getEventTitle(), item.getEventDate(),
+                    item.getCompanyId(), item.getCompanyName(), item.getZoneName(),
+                    item.getSeatLabel(), item.getPricePaid(), code));
+        }
+
+        OrderHistory history = new OrderHistory(
+                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, transactionId, codedItems);
 
         historyRepository.save(history);
         orderRepository.deleteById(activeOrderId);
@@ -463,6 +492,7 @@ public class OrderService {
     /**
      * Returns the current contents of the user's active cart.
      */
+    @Transactional(readOnly = true)
     public Result<OrderDTO> viewCart(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to view cart");
@@ -494,6 +524,7 @@ public class OrderService {
     /**
      * Removes a single item from the user's cart and releases its seat hold.
      */
+    @Transactional
     public Result<Void> removeItemFromCart(String token, String eventId, String zoneId, String seatId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to remove item from cart");
@@ -525,6 +556,7 @@ public class OrderService {
     /**
      * Cancels the user's entire cart and releases all held seats.
      */
+    @Transactional
     public Result<Void> cancelCart(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to cancel cart");
@@ -549,6 +581,17 @@ public class OrderService {
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────────
+
+    /**
+     * Best-effort extraction of a numeric seat from a seat label (e.g. "Front Row 12" → 12)
+     * for the external ticket system's {@code seats} payload. Returns 0 for standing
+     * admission (null label) or labels without a trailing number.
+     */
+    private static int parseSeatNumber(String seatLabel) {
+        if (seatLabel == null) return 0;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*$").matcher(seatLabel);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
 
     private void rollbackSoldSeats(Map<String, Event> processedEvents, List<OrderItem> items) {
         checkoutDomainService.unsellSeats(processedEvents, items);
