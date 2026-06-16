@@ -15,6 +15,7 @@ import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.SeatStatus;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
@@ -85,6 +86,7 @@ class OrderServiceIntegrationTest {
 
     private CheckoutDomainService        checkoutDomainService;
     private TicketingAccessDomainService ticketingAccessDomainService;
+    private CartDomainService            cartDomainService;
 
     // ── External-port test doubles ────────────────────────────────────────────────
 
@@ -110,6 +112,7 @@ class OrderServiceIntegrationTest {
 
         checkoutDomainService        = new CheckoutDomainService();
         ticketingAccessDomainService = new TicketingAccessDomainService();
+        cartDomainService            = new CartDomainService();
 
         paymentGateway      = new SpyPaymentGateway();
         ticketSupplier      = new StubTicketSupplier();
@@ -142,7 +145,9 @@ class OrderServiceIntegrationTest {
                         auth,                         // 10. IAuth
                         checkoutDomainService,        // 11. CheckoutDomainService
                         ticketingAccessDomainService, // 12. TicketingAccessDomainService
-                        eventPublisher                // 13. ApplicationEventPublisher
+                        eventPublisher,               // 13. ApplicationEventPublisher
+                        cartDomainService,            // 14. CartDomainService
+                        null                          // 15. QueueService (queue advancement not under test here)
                 );
 
         seedEventAndCompany();
@@ -569,7 +574,7 @@ class OrderServiceIntegrationTest {
         @Override public void notifyUserBanned(String u, String adminId) {}
         @Override public void notifyUserSuspended(String u, java.time.LocalDateTime suspendedUntil) {}
         @Override public void notifyCompanyClosed(java.util.List<String> staffIds, String c, String adminId) {}
-        @Override public void notifyRaffleDrawn(String e, int w) {}
+        @Override public void notifyRaffleDrawn(java.util.List<String> participantUserIds, String e, int w) {}
         @Override public void notifyActionFailed(String userId, String reason) {}
         @Override public void notifyCompanySuspended(java.util.List<String> staffIds, String companyId) {}
         @Override public void notifyCompanyReopened(java.util.List<String> staffIds, String companyId) {}

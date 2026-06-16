@@ -5,7 +5,6 @@ import com.sadna.group13a.application.DTO.EventDTO;
 import com.sadna.group13a.application.DTO.UserDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.User.UserRole;
-import com.sadna.group13a.presentation.views.admin.AdminDashboardView;
 import com.sadna.group13a.presentation.views.auth.LoginView;
 import com.sadna.group13a.presentation.views.cart.CartView;
 import com.sadna.group13a.presentation.views.company.CompanyDashboardView;
@@ -83,7 +82,7 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         add(buildSearchBar());
         add(buildEventGrid());
 
-        loadEvents(null, null, null);
+        loadEvents(null, null, null, null);
 
         Image easterEgg = new Image("images/image.png", "👑");
         easterEgg.setHeight("200px");
@@ -111,8 +110,11 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
             header.add(new RouterLink("My Profile", ProfileView.class));
             header.add(new RouterLink("My Raffles", RaffleView.class));
         }
-        if (role == UserRole.ADMIN) {
-            header.add(new RouterLink("Admin", AdminDashboardView.class));
+        if (presenter.isAdmin(token)) {
+            Button adminBtn = new Button("Admin Panel", e -> UI.getCurrent().navigate("admin"));
+            adminBtn.getStyle().set("background-color", "var(--lumo-error-color)")
+                               .set("color", "white");
+            header.add(adminBtn);
         }
         header.add(new RouterLink("Cart", CartView.class));
         header.add(new Button("Logout", e -> presenter.handleLogout(token)));
@@ -141,25 +143,43 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
 
     private final TextField categoryField = new TextField();
     private final TextField locationField = new TextField();
+    private final TextField artistField   = new TextField();
 
     private HorizontalLayout buildSearchBar() {
         searchField.setPlaceholder("Search by title...");
-        searchField.setWidth("220px");
+        searchField.setWidth("200px");
         categoryField.setPlaceholder("Category");
-        categoryField.setWidth("150px");
+        categoryField.setWidth("130px");
         locationField.setPlaceholder("Location");
-        locationField.setWidth("150px");
-        Button searchButton = new Button("Search", e -> loadEvents(
-                searchField.getValue().isBlank() ? null : searchField.getValue(),
-                categoryField.getValue(), locationField.getValue()));
-        HorizontalLayout bar = new HorizontalLayout(searchField, categoryField, locationField, searchButton);
+        locationField.setWidth("130px");
+        artistField.setPlaceholder("Artist");
+        artistField.setWidth("130px");
+
+        searchField.setValueChangeMode(com.vaadin.flow.data.value.ValueChangeMode.LAZY);
+        categoryField.setValueChangeMode(com.vaadin.flow.data.value.ValueChangeMode.LAZY);
+        locationField.setValueChangeMode(com.vaadin.flow.data.value.ValueChangeMode.LAZY);
+        artistField.setValueChangeMode(com.vaadin.flow.data.value.ValueChangeMode.LAZY);
+
+        searchField.addValueChangeListener(e -> runSearch());
+        categoryField.addValueChangeListener(e -> runSearch());
+        locationField.addValueChangeListener(e -> runSearch());
+        artistField.addValueChangeListener(e -> runSearch());
+
+        HorizontalLayout bar = new HorizontalLayout(searchField, categoryField, locationField, artistField);
         bar.setAlignItems(Alignment.BASELINE);
         return bar;
+    }
+
+    private void runSearch() {
+        loadEvents(
+                searchField.getValue().isBlank() ? null : searchField.getValue(),
+                categoryField.getValue(), locationField.getValue(), artistField.getValue());
     }
 
     private Grid<EventDTO> buildEventGrid() {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         eventGrid.addColumn(EventDTO::title).setHeader("Event").setSortable(true).setAutoWidth(true);
+        eventGrid.addColumn(e -> e.artist() != null ? e.artist() : "").setHeader("Artist").setAutoWidth(true);
         eventGrid.addColumn(e -> e.eventDate() != null ? e.eventDate().format(fmt) : "")
                 .setHeader("Date")
                 .setComparator(Comparator.comparing(EventDTO::eventDate, Comparator.nullsLast(Comparator.naturalOrder())))
@@ -172,8 +192,8 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         return eventGrid;
     }
 
-    private void loadEvents(String query, String category, String location) {
-        Result<List<EventDTO>> result = presenter.loadEvents(query, category, location);
+    private void loadEvents(String query, String category, String location, String artist) {
+        Result<List<EventDTO>> result = presenter.loadEvents(query, category, location, artist);
         List<EventDTO> events = result.isSuccess() ? result.getOrThrow() : Collections.emptyList();
         eventGrid.setItems(events);
     }

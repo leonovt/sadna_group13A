@@ -1,6 +1,5 @@
 package com.sadna.group13a.application.Services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.DTO.RaffleRegistrationDTO;
 import com.sadna.group13a.application.DTO.RaffleResultDTO;
 import com.sadna.group13a.application.DTO.WinningTicketDTO;
@@ -51,12 +50,9 @@ class RaffleServiceIntegrationTest {
         userRepo       = new UserRepositoryImpl();
         eventPublisher = new SpyEventPublisher();
 
-        // findAndRegisterModules picks up JavaTimeModule for LocalDateTime in AuthorizationCode
-        ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-
         raffleService = new RaffleService(
                 raffleRepo, eventRepo, companyRepo, userRepo,
-                new MultiUserStubAuth(), objectMapper, eventPublisher
+                new MultiUserStubAuth(), eventPublisher
         );
     }
 

@@ -3,6 +3,7 @@ package com.sadna.group13a.application.Services;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -13,6 +14,7 @@ import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.Aggregates.Event.Seat;
@@ -28,6 +30,8 @@ import com.sadna.group13a.application.DTO.ZoneCreationDTO;
 import com.sadna.group13a.application.DTO.ZoneDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
+import com.sadna.group13a.domain.DomainServices.EventSearchDomainService;
+import com.sadna.group13a.domain.DomainServices.VenueMapFactory;
 import com.sadna.group13a.domain.Events.EventRescheduledEvent;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
@@ -49,24 +53,30 @@ public class EventService
     private final IUserRepository userRepository;
     private final IOrderHistoryRepository historyRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final EventSearchDomainService eventSearchDomainService;
+    private final VenueMapFactory venueMapFactory;
 
     public EventService(IEventRepository eventRepository, ICompanyRepository companyRepository,
                         IAuth authGateway, IUserRepository userRepository,
                         IOrderHistoryRepository historyRepository,
-                        ApplicationEventPublisher eventPublisher) {
+                        ApplicationEventPublisher eventPublisher,
+                        EventSearchDomainService eventSearchDomainService,
+                        VenueMapFactory venueMapFactory) {
         this.eventRepository = eventRepository;
         this.companyRepository = companyRepository;
         this.authGateway = authGateway;
         this.userRepository = userRepository;
         this.historyRepository = historyRepository;
         this.eventPublisher = eventPublisher;
+        this.eventSearchDomainService = eventSearchDomainService;
+        this.venueMapFactory = venueMapFactory;
     }
 
     /**
      * Creates a new Event under a company.
      */
     public Result<String> createEvent(String tokenString, String companyId, String title, String description,
-                                      LocalDateTime date, String category, String location)
+                                      LocalDateTime date, String category, String artist, String location)
     {
         if(!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized createEvent attempt for company '{}'.", companyId);
@@ -86,6 +96,7 @@ public class EventService
         }
 
         Event event = new Event(UUID.randomUUID().toString(), title, description, companyId, date, category);
+        event.setArtist(artist);
         event.setLocation(location);
         eventRepository.save(event);
         logger.info("User '{}' created event '{}' ('{}') under company '{}'.", initiatorId, event.getId(), title, companyId);
@@ -152,6 +163,7 @@ public class EventService
             e.getCompanyId(),
             e.getEventDate(),
             e.getCategory(),
+            e.getArtist(),
             e.getLocation(),
             e.isPublished(),
             e.isPublished() ? e.getTotalAvailable() : 0,
@@ -213,34 +225,18 @@ public class EventService
         try {
             List<Zone> zones = new ArrayList<>();
             for (ZoneCreationDTO spec : zoneSpecs) {
-                zones.add(buildZone(spec));
+                if (spec == null || spec.type() == null) {
+                    throw new IllegalArgumentException("Zone type must be specified");
+                }
+                zones.add(venueMapFactory.buildZone(spec.name(), spec.type(), spec.basePrice(), spec.capacity()));
             }
-            venueMap = new VenueMap(UUID.randomUUID().toString(), venueName, zones);
+            venueMap = venueMapFactory.build(venueName, zones);
         } catch (IllegalArgumentException e) {
-            // Invalid input (blank names, non-positive capacity, …) is reported back
-            // to the caller as a failure rather than thrown across the boundary.
             logger.warn("createVenueMap: rejected venue map for event '{}': {}", eventId, e.getMessage());
             return Result.failure(e.getMessage());
         }
 
         return setVenueMap(tokenString, eventId, venueMap);
-    }
-
-    private Zone buildZone(ZoneCreationDTO spec) {
-        if (spec == null || spec.type() == null) {
-            throw new IllegalArgumentException("Zone type must be specified");
-        }
-        String zoneId = UUID.randomUUID().toString();
-        if (spec.type() == ZoneType.SEATED) {
-            // A seated zone is materialised as individually addressable seats so the
-            // inventory is ready for per-seat holds; labels are "<zone> <n>".
-            List<Seat> seats = new ArrayList<>();
-            for (int i = 1; i <= spec.capacity(); i++) {
-                seats.add(new Seat(UUID.randomUUID().toString(), spec.name() + " " + i));
-            }
-            return new SeatedZone(zoneId, spec.name(), spec.basePrice(), seats);
-        }
-        return new StandingZone(zoneId, spec.name(), spec.basePrice(), spec.capacity());
     }
 
     public Result<Void> unpublishEvent(String tokeString, String eventId)
@@ -274,7 +270,7 @@ public class EventService
         return Result.success();
     }
 
-    public Result<Void> updateEventDetails(String tokenString, String eventId, String title, String description, LocalDateTime date, String category) {
+    public Result<Void> updateEventDetails(String tokenString, String eventId, String title, String description, LocalDateTime date, String category, String artist) {
         if(!authGateway.validateToken(tokenString)) {
             logger.warn("Unauthorized updateEventDetails attempt for event '{}'.", eventId);
             return Result.failure("Unauthorized: Invalid token.");
@@ -301,6 +297,7 @@ public class EventService
             if (title != null) event.setTitle(title);
             if (description != null) event.setDescription(description);
             if (category != null) event.setCategory(category);
+            if (artist != null) event.setArtist(artist);
             if (date != null) {
                 LocalDateTime oldDate = event.getEventDate();
                 event.setEventDate(date);
@@ -451,6 +448,20 @@ public class EventService
         }
     }
 
+    public Result<String> getPurchasePolicyDescription(String token, String eventId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return eventRepository.findById(eventId)
+                .map(e -> Result.success(com.sadna.group13a.application.PolicyFormatter.describe(e.getPurchasePolicy())))
+                .orElse(Result.failure("Event not found."));
+    }
+
+    public Result<String> getDiscountPolicyDescription(String token, String eventId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return eventRepository.findById(eventId)
+                .map(e -> Result.success(com.sadna.group13a.application.PolicyFormatter.describe(e.getDiscountPolicy())))
+                .orElse(Result.failure("Event not found."));
+    }
+
     private ZoneDTO toZoneDTO(Zone zone) {
         if (zone instanceof SeatedZone sz) {
             List<SeatDTO> seatDTOs = sz.getSeats().stream()
@@ -485,7 +496,7 @@ public class EventService
         List<EventDTO> dtos = eventRepository.findByCompanyId(companyId).stream()
                 .map(e -> new EventDTO(
                         e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
-                        e.getEventDate(), e.getCategory(), e.getLocation(),
+                        e.getEventDate(), e.getCategory(), e.getArtist(), e.getLocation(),
                         e.isPublished(), e.isPublished() ? e.getTotalAvailable() : 0, e.getSaleMode()))
                 .collect(Collectors.toList());
         logger.debug("getCompanyEvents: {} event(s) retrieved for company '{}' by '{}'.", dtos.size(), companyId, callerId);
@@ -495,35 +506,19 @@ public class EventService
     public Result<List<EventDTO>> searchEvents(String query, String category,
                                                LocalDateTime fromDate, LocalDateTime toDate,
                                                Double minPrice, Double maxPrice,
-                                               String location) {
-        List<EventDTO> dtos = eventRepository.findAll().stream()
-            .filter(Event::isPublished)
-            .filter(e -> {
-                Optional<ProductionCompany> comp = companyRepository.findById(e.getCompanyId());
-                return comp.isPresent() && comp.get().getStatus() == CompanyStatus.ACTIVE;
-            })
-            .filter(e -> query == null || e.getTitle().toLowerCase().contains(query.toLowerCase())
-                                       || e.getDescription().toLowerCase().contains(query.toLowerCase()))
-            .filter(e -> category == null || e.getCategory().equalsIgnoreCase(category))
-            .filter(e -> location == null || (e.getLocation() != null
-                                       && e.getLocation().toLowerCase().contains(location.toLowerCase())))
-            .filter(e -> fromDate == null || !e.getEventDate().isBefore(fromDate))
-            .filter(e -> toDate == null || !e.getEventDate().isAfter(toDate))
-            .filter(e -> {
-                if (minPrice == null && maxPrice == null) return true;
-                if (e.getVenueMap() == null) return false;
-                double cheapest = e.getVenueMap().getZones().stream()
-                        .mapToDouble(Zone::getBasePrice).min().orElse(Double.MAX_VALUE);
-                return (minPrice == null || cheapest >= minPrice)
-                    && (maxPrice == null || cheapest <= maxPrice);
-            })
-            .map(e -> new EventDTO(
-                e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
-                e.getEventDate(), e.getCategory(), e.getLocation(), e.isPublished(), e.getTotalAvailable(), e.getSaleMode()
-            ))
-            .collect(Collectors.toList());
-        logger.debug("searchEvents: {} result(s) — query='{}' category='{}' location='{}' from='{}' to='{}' minPrice='{}' maxPrice='{}'.",
-                dtos.size(), query, category, location, fromDate, toDate, minPrice, maxPrice);
+                                               String location, String artist) {
+        Map<String, ProductionCompany> companiesById = companyRepository.findAll().stream()
+                .collect(Collectors.toMap(ProductionCompany::getId, c -> c));
+
+        List<EventDTO> dtos = eventSearchDomainService
+                .search(eventRepository.findAll(), companiesById, query, category, fromDate, toDate, minPrice, maxPrice, location, artist)
+                .stream()
+                .map(e -> new EventDTO(
+                        e.getId(), e.getTitle(), e.getDescription(), e.getCompanyId(),
+                        e.getEventDate(), e.getCategory(), e.getArtist(), e.getLocation(),
+                        e.isPublished(), e.getTotalAvailable(), e.getSaleMode()))
+                .collect(Collectors.toList());
+
         return Result.success(dtos);
     }
 }

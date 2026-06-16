@@ -14,7 +14,9 @@ import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
+import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
 import com.sadna.group13a.domain.Interfaces.*;
@@ -77,7 +79,7 @@ class PurchaseCompletionTest {
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
-                checkoutDomainService, ticketingAccessDomainService, eventPublisher);
+                checkoutDomainService, ticketingAccessDomainService, eventPublisher, mock(CartDomainService.class), null);
 
         // Default: any userId resolves to an active member so user-guard tests pass through
         when(userRepository.findById(anyString()))
@@ -257,10 +259,13 @@ class PurchaseCompletionTest {
             when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
             when(companyRepository.findById("company1")).thenReturn(Optional.of(mock(ProductionCompany.class)));
 
+            AuthorizationCode authCode = new AuthorizationCode(userId, eventId, 60);
+            when(ticketingAccessDomainService.resolveRaffleAuthCode(any(), any(), any()))
+                    .thenReturn(Optional.of(authCode));
             doThrow(new PermissionDeniedException("Access Denied: Not a winner"))
                     .when(ticketingAccessDomainService).validateAccess(any(), any(), any(), any());
 
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, authCode.getCode(), "cc_good");
 
             assertFalse(result.isSuccess());
             assertTrue(result.getErrorMessage().contains("Not a winner"));

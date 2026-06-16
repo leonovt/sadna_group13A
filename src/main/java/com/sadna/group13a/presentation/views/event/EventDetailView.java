@@ -1,11 +1,13 @@
 package com.sadna.group13a.presentation.views.event;
 
 import com.sadna.group13a.application.DTO.EventDTO;
+import com.sadna.group13a.application.DTO.RaffleDTO;
 import com.sadna.group13a.application.DTO.SeatDTO;
 import com.sadna.group13a.application.DTO.VenueMapDTO;
 import com.sadna.group13a.application.DTO.ZoneDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
+import com.sadna.group13a.domain.Aggregates.Raffle.RaffleStatus;
 import com.sadna.group13a.domain.Aggregates.Event.SeatStatus;
 import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
 import com.vaadin.flow.component.UI;
@@ -93,6 +95,8 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
 
         if (event.saleMode() == EventSaleMode.QUEUE) {
             renderQueueGate(token, event);
+        } else if (event.saleMode() == EventSaleMode.RAFFLE) {
+            renderRaffleGate(token);
         } else {
             renderVenueSection(token);
         }
@@ -103,6 +107,7 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
         String saleModeLabel = event.saleMode() != null ? event.saleMode().name() : "REGULAR";
         add(
             new H2(event.title()),
+            new Paragraph("Artist: " + (event.artist() != null ? event.artist() : "TBD")),
             new Paragraph("Date: " + event.eventDate().format(fmt)),
             new Paragraph("Location: " + (event.location() != null ? event.location() : "TBD")),
             new Paragraph("Category: " + event.category()),
@@ -124,6 +129,42 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
                 e -> UI.getCurrent().navigate("queue/" + eventId));
             joinBtn.getStyle().set("font-size", "1rem");
             add(info, joinBtn);
+        }
+    }
+
+    private void renderRaffleGate(String token) {
+        Result<RaffleDTO> raffleResult = presenter.getRaffleForEvent(token, eventId);
+
+        if (!raffleResult.isSuccess()) {
+            add(new Paragraph("This event uses a raffle system. No raffle is currently active — check back soon."));
+            return;
+        }
+
+        RaffleDTO raffle = raffleResult.getOrThrow();
+
+        if (raffle.status() == RaffleStatus.OPEN_FOR_REGISTRATION) {
+            Paragraph info = new Paragraph(
+                "This event uses a raffle. Register for the raffle for a chance to buy tickets.");
+            Span raffleIdSpan = new Span("Raffle ID: " + raffle.id());
+            raffleIdSpan.getStyle()
+                .set("font-family", "monospace")
+                .set("background", "var(--lumo-contrast-5pct)")
+                .set("padding", "2px 6px")
+                .set("border-radius", "4px");
+            Button joinBtn = new Button("Go to My Raffles →",
+                e -> UI.getCurrent().navigate("member/raffles"));
+            add(info, raffleIdSpan, joinBtn);
+
+        } else if (raffle.status() == RaffleStatus.DRAWN) {
+            if (presenter.hasWonRaffle(token, eventId)) {
+                renderVenueSection(token);
+            } else {
+                add(new Paragraph("The raffle for this event has concluded."),
+                    new Paragraph("You did not win this raffle, or you did not participate."));
+            }
+
+        } else {
+            add(new Paragraph("The raffle for this event has been closed."));
         }
     }
 

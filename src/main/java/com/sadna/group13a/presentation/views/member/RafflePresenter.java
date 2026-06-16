@@ -8,6 +8,8 @@ import com.sadna.group13a.application.Services.RaffleService;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 public class RafflePresenter {
 
@@ -48,6 +50,17 @@ public class RafflePresenter {
         Result<RaffleDTO> result = raffleService.getRaffleDetails(token, raffleId.trim());
         if (result.isSuccess()) {
             view.showRaffleDetails(result.getOrThrow());
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
+    public void handleLoadMyRaffles(RaffleView view) {
+        String token = requireToken(view);
+        if (token == null) return;
+        Result<List<RaffleDTO>> result = raffleService.getRafflesForUser(token);
+        if (result.isSuccess()) {
+            view.showMyRaffles(result.getOrThrow());
         } else {
             view.showError(result.getErrorMessage());
         }

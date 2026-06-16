@@ -38,4 +38,18 @@ public class RaffleRepositoryImpl implements IRaffleRepository {
                 .filter(r -> r.getEventId().equals(eventId))
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<Raffle> findByUserId(String userId) {
+        return store.values().stream()
+                .filter(r -> r.getParticipantUserIds().contains(userId))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Raffle> findByCompanyId(String companyId) {
+        return store.values().stream()
+                .filter(r -> r.getCompanyId().equals(companyId))
+                .collect(Collectors.toList());
+    }
 }

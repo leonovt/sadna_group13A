@@ -69,6 +69,7 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
 
         // ── Events grid ───────────────────────────────────────────
         eventsGrid.addColumn(EventDTO::title).setHeader("Title").setFlexGrow(2);
+        eventsGrid.addColumn(e -> e.artist() != null ? e.artist() : "").setHeader("Artist");
         eventsGrid.addColumn(EventDTO::category).setHeader("Category");
         eventsGrid.addColumn(e -> e.eventDate().toLocalDate().toString()).setHeader("Date");
         eventsGrid.addColumn(e -> e.isPublished() ? "Published" : "Draft").setHeader("Status");
@@ -83,6 +84,10 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
                 statusMessage.setVisible(false);
                 openEventSettingsDialog(event);
             });
+            Button policiesBtn = new Button("Policies", click -> {
+                statusMessage.setVisible(false);
+                UI.getCurrent().navigate("company/" + companyId + "/event-policies/" + event.id());
+            });
             Button toggleBtn = event.isPublished()
                     ? new Button("Unpublish", click -> {
                         statusMessage.setVisible(false);
@@ -93,7 +98,7 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
                         presenter.handlePublishEvent(this, companyId, event.id());
                     });
 
-            HorizontalLayout row1 = new HorizontalLayout(editBtn, settingsBtn);
+            HorizontalLayout row1 = new HorizontalLayout(editBtn, settingsBtn, policiesBtn);
             row1.setSpacing(true);
             row1.setPadding(false);
 
@@ -131,20 +136,21 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         TextArea  descField      = new TextArea("Description");
         DateTimePicker dateField = new DateTimePicker("Date & Time");
         TextField categoryField  = new TextField("Category");
+        TextField artistField    = new TextField("Artist");
         TextField locationField  = new TextField("Location");
 
         titleField.setWidthFull();
         descField.setWidthFull();
         dateField.setWidthFull();
 
-        VerticalLayout form = new VerticalLayout(titleField, descField, dateField, categoryField, locationField);
+        VerticalLayout form = new VerticalLayout(titleField, descField, dateField, categoryField, artistField, locationField);
         form.setPadding(false);
 
         Button confirmBtn = new Button("Create", click -> {
             statusMessage.setVisible(false);
             presenter.handleCreateEvent(this, companyId, titleField.getValue(),
                     descField.getValue(), dateField.getValue(),
-                    categoryField.getValue(), locationField.getValue());
+                    categoryField.getValue(), artistField.getValue(), locationField.getValue());
             dialog.close();
         });
         dialog.add(form);
@@ -162,23 +168,25 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         TextArea  descField      = new TextArea("Description");
         DateTimePicker dateField = new DateTimePicker("Date & Time");
         TextField categoryField  = new TextField("Category");
+        TextField artistField    = new TextField("Artist");
 
         titleField.setValue(event.title() != null ? event.title() : "");
         descField.setValue(event.description() != null ? event.description() : "");
         dateField.setValue(event.eventDate());
         categoryField.setValue(event.category() != null ? event.category() : "");
+        artistField.setValue(event.artist() != null ? event.artist() : "");
         titleField.setWidthFull();
         descField.setWidthFull();
         dateField.setWidthFull();
 
-        VerticalLayout form = new VerticalLayout(titleField, descField, dateField, categoryField);
+        VerticalLayout form = new VerticalLayout(titleField, descField, dateField, categoryField, artistField);
         form.setPadding(false);
 
         Button saveBtn = new Button("Save", click -> {
             statusMessage.setVisible(false);
             presenter.handleUpdateEvent(this, companyId, event.id(),
                     titleField.getValue(), descField.getValue(),
-                    dateField.getValue(), categoryField.getValue());
+                    dateField.getValue(), categoryField.getValue(), artistField.getValue());
             dialog.close();
         });
         dialog.add(form);

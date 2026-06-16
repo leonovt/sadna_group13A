@@ -2,6 +2,7 @@ package com.sadna.group13a.domain.DomainServices;
 
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
+import com.sadna.group13a.domain.Aggregates.Raffle.Raffle;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
 
@@ -9,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Domain Service — pure Java, no Spring annotations.
@@ -39,6 +42,22 @@ public class TicketingAccessDomainService {
             throw new PermissionDeniedException("purchase tickets — event has already taken place");
         }
         logger.debug("validateEventIsOpenForSale: event '{}' is open for sale.", event.getId());
+    }
+
+    /**
+     * Resolves and validates a raffle authorization code for a buyer from the
+     * event's raffle list. Returns empty if no valid code exists for this user.
+     *
+     * @param raffles  the raffles associated with the event
+     * @param userId   the buyer's ID
+     * @param eventId  the event being purchased
+     * @return the valid authorization code, or empty if none found
+     */
+    public Optional<AuthorizationCode> resolveRaffleAuthCode(List<Raffle> raffles, String userId, String eventId) {
+        return raffles.stream()
+                .findFirst()
+                .flatMap(r -> r.getAuthorizationCodeFor(userId))
+                .filter(c -> c.isValidFor(userId, eventId));
     }
 
     /**
