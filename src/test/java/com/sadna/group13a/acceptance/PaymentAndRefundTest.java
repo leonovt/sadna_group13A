@@ -67,7 +67,7 @@ class PaymentAndRefundTest {
         queueRepository = mock(IQueueRepository.class);
         raffleRepository = mock(IRaffleRepository.class);
         ticketSupplier = mock(ITicketSupplier.class);
-        when(ticketSupplier.issueTickets(any(), anyInt())).thenReturn(Result.success(List.of("ticket-1")));
+        when(ticketSupplier.issueTickets(any(), any())).thenReturn(Result.success(List.of("ticket-1")));
         paymentGateway = mock(IPaymentGateway.class);
         userRepository = mock(IUserRepository.class);
         authGateway = mock(IAuth.class);
