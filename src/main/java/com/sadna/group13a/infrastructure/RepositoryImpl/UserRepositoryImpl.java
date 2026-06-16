@@ -1,77 +1,86 @@
 package com.sadna.group13a.infrastructure.RepositoryImpl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.domain.shared.OptimisticLockException;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.UserEntity;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.UserJpaRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
 public class UserRepositoryImpl implements IUserRepository {
 
-    private final ConcurrentHashMap<String, User> store = new ConcurrentHashMap<>();
+    private final UserJpaRepository jpa;
+    private final ObjectMapper objectMapper;
+
+    public UserRepositoryImpl(UserJpaRepository jpa,
+                               @Qualifier("domainObjectMapper") ObjectMapper objectMapper) {
+        this.jpa = jpa;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public Optional<User> findById(String id) {
-        return Optional.ofNullable(store.get(id));
+        return jpa.findById(id).map(this::toDomain);
     }
 
     @Override
     public Optional<User> findByUsername(String username) {
-        return store.values().stream()
-                .filter(u -> u.getUsername().equals(username))
-                .findFirst();
+        return jpa.findByUsername(username).map(this::toDomain);
     }
 
     @Override
     public synchronized void save(User user) {
-        User stored = store.get(user.getId());
+        Optional<UserEntity> storedEntity = jpa.findById(user.getId());
 
-        // 1. Optimistic Locking Check (For updating an existing user)
-        if (stored != null && stored != user) {
-            // If the incoming version is NOT strictly greater than the stored version, 
-            // it means a concurrent update happened and we have a collision.
+        if (storedEntity.isPresent()) {
+            User stored = toDomain(storedEntity.get());
             if (stored.getVersion() > user.getVersion()) {
                 throw new OptimisticLockException(
                         "Optimistic lock conflict for User " + user.getId() +
                         ": stored version " + stored.getVersion() +
                         " >= incoming version " + user.getVersion());
             }
+        } else if (jpa.existsByUsername(user.getUsername())) {
+            throw new RuntimeException("Username already exists: " + user.getUsername());
         }
 
-        // 2. Unique Username Check (For creating a new user)
-        // If 'stored' is null, this is a brand new user being registered.
-        if (stored == null) {
-            boolean usernameTaken = store.values().stream()
-                    .anyMatch(u -> u.getUsername().equals(user.getUsername()));
-            if (usernameTaken) {
-                // Throwing RuntimeException here. If your UserService expects a 
-                // specific exception (like DuplicateKeyException), change it here!
-                throw new RuntimeException("Username already exists: " + user.getUsername());
-            }
-        }
-
-        // 3. Save the user
-        store.put(user.getId(), user);
+        jpa.save(new UserEntity(user.getId(), user.getUsername(), writeJson(user)));
     }
 
     @Override
     public void delete(String id) {
-        // Safe to leave unsynchronized. ConcurrentHashMap handles single removals safely.
-        store.remove(id);
+        jpa.deleteById(id);
     }
 
     @Override
     public List<User> findAll() {
-        return new ArrayList<>(store.values());
+        return jpa.findAll().stream().map(this::toDomain).toList();
     }
 
     @Override
     public boolean existsByUsername(String username) {
-        return store.values().stream().anyMatch(u -> u.getUsername().equals(username));
+        return jpa.existsByUsername(username);
+    }
+
+    private String writeJson(User user) {
+        try {
+            return objectMapper.writeValueAsString(user);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize User " + user.getId(), e);
+        }
+    }
+
+    private User toDomain(UserEntity entity) {
+        try {
+            return objectMapper.readValue(entity.getData(), User.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to deserialize User " + entity.getId(), e);
+        }
     }
 }
