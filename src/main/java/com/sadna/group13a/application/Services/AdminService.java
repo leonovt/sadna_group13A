@@ -6,6 +6,7 @@ import com.sadna.group13a.application.DTO.SuspensionDTO;
 import com.sadna.group13a.application.DTO.SystemAnalyticsDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
+import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
@@ -51,6 +52,7 @@ public class AdminService {
     private final IQueueRepository queueRepository;
     private final IOrderHistoryRepository historyRepository;
     private final IPaymentGateway paymentGateway;
+    private final ITicketSupplier ticketSupplier;
     private final IAuth authGateway;
     private final ApplicationEventPublisher eventPublisher;
     private final SystemLogService systemLogService;
@@ -62,6 +64,7 @@ public class AdminService {
                         IQueueRepository queueRepository,
                         IOrderHistoryRepository historyRepository,
                         IPaymentGateway paymentGateway,
+                        ITicketSupplier ticketSupplier,
                         IAuth authGateway,
                         ApplicationEventPublisher eventPublisher,
                         SystemLogService systemLogService) {
@@ -72,6 +75,7 @@ public class AdminService {
         this.queueRepository = queueRepository;
         this.historyRepository = historyRepository;
         this.paymentGateway = paymentGateway;
+        this.ticketSupplier = ticketSupplier;
         this.authGateway = authGateway;
         this.eventPublisher = eventPublisher;
         this.systemLogService = systemLogService;
@@ -313,6 +317,24 @@ public class AdminService {
             } else {
                 logger.error("Refund failed for receipt '{}' (transaction '{}') on cancelled event '{}': {}",
                         receipt.getReceiptId(), txnId, eventId, refundResult.getErrorMessage());
+            }
+        }
+
+        // Invalidate the issued tickets for the cancelled event via the external system (issue #226).
+        List<String> ticketCodesToCancel = affectedReceipts.stream()
+                .flatMap(r -> r.getItems().stream())
+                .filter(i -> i.getEventId().equals(eventId))
+                .map(OrderHistoryItem::getTicketCode)
+                .filter(code -> code != null && !code.isBlank())
+                .collect(Collectors.toList());
+        if (!ticketCodesToCancel.isEmpty()) {
+            Result<Void> cancelResult = ticketSupplier.cancelTickets(ticketCodesToCancel);
+            if (cancelResult.isSuccess()) {
+                systemLogService.logEvent("ticketsCancelled adminId=" + adminId + " eventId=" + eventId
+                        + " count=" + ticketCodesToCancel.size());
+                logger.info("Cancelled {} issued ticket(s) for cancelled event '{}'.", ticketCodesToCancel.size(), eventId);
+            } else {
+                logger.error("Failed to cancel issued tickets for event '{}': {}", eventId, cancelResult.getErrorMessage());
             }
         }
 

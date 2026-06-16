@@ -8,6 +8,7 @@ import com.sadna.group13a.application.DTO.OrderItemDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Interfaces.ITicketSupplier;
+import com.sadna.group13a.application.Interfaces.TicketIssueRequest;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
@@ -420,19 +421,43 @@ public class OrderService {
             }
         }
 
-        // ── Post-checkout ─────────────────────────────────────────────────────────
-        OrderHistory history = new OrderHistory(
-                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, transactionId, allHistoryItems);
+        // ── Ticket issuance (external system) ───────────────────────────────────────
+        // One ticket per receipt line; the supplier issues all-or-nothing and cancels
+        // any already-issued tickets if a later one fails (UC 1.4 / issue #226).
+        List<TicketIssueRequest> ticketRequests = allHistoryItems.stream()
+                .map(i -> new TicketIssueRequest(
+                        i.getEventId(),
+                        i.getZoneName(),
+                        i.getSeatLabel() != null,
+                        1,
+                        parseSeatNumber(i.getSeatLabel())))
+                .collect(Collectors.toList());
 
-        Result<List<String>> ticketResult = ticketSupplier.issueTickets(history.getReceiptId(), allHistoryItems.size());
+        Result<List<String>> ticketResult = ticketSupplier.issueTickets(userId, ticketRequests);
         if (!ticketResult.isSuccess()) {
-            logger.error("Ticket issuance failed for receipt {}: {}", history.getReceiptId(), ticketResult.getErrorMessage());
+            logger.error("Ticket issuance failed for user {}: {}", userId, ticketResult.getErrorMessage());
             paymentGateway.refundPayment(transactionId);
             rollbackSoldSeats(processedEvents, order.getItems());
             orderRepository.deleteById(activeOrderId);
             eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Ticket issuance failed — payment refunded."));
             return Result.failure("Ticket issuance failed — payment refunded.");
         }
+
+        // ── Post-checkout ─────────────────────────────────────────────────────────
+        // Persist the issued ticket codes on the receipt (aligned by index with the items).
+        List<String> ticketCodes = ticketResult.getOrThrow();
+        List<OrderHistoryItem> codedItems = new ArrayList<>(allHistoryItems.size());
+        for (int i = 0; i < allHistoryItems.size(); i++) {
+            OrderHistoryItem item = allHistoryItems.get(i);
+            String code = (i < ticketCodes.size()) ? ticketCodes.get(i) : null;
+            codedItems.add(new OrderHistoryItem(
+                    item.getEventId(), item.getEventTitle(), item.getEventDate(),
+                    item.getCompanyId(), item.getCompanyName(), item.getZoneName(),
+                    item.getSeatLabel(), item.getPricePaid(), code));
+        }
+
+        OrderHistory history = new OrderHistory(
+                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, transactionId, codedItems);
 
         historyRepository.save(history);
         orderRepository.deleteById(activeOrderId);
@@ -556,6 +581,17 @@ public class OrderService {
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────────
+
+    /**
+     * Best-effort extraction of a numeric seat from a seat label (e.g. "Front Row 12" → 12)
+     * for the external ticket system's {@code seats} payload. Returns 0 for standing
+     * admission (null label) or labels without a trailing number.
+     */
+    private static int parseSeatNumber(String seatLabel) {
+        if (seatLabel == null) return 0;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*$").matcher(seatLabel);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
 
     private void rollbackSoldSeats(Map<String, Event> processedEvents, List<OrderItem> items) {
         checkoutDomainService.unsellSeats(processedEvents, items);

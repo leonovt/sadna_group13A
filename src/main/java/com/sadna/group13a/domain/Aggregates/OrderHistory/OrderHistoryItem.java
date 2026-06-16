@@ -17,10 +17,18 @@ public class OrderHistoryItem {
     private final String zoneName;
     private final String seatLabel; // nullable for standing admission
     private final double pricePaid;
+    /** Code returned by the external ticket-issuance system. Null for legacy/seeded records. */
+    private final String ticketCode;
 
     public OrderHistoryItem(String eventId, String eventTitle, LocalDateTime eventDate,
                             String companyId, String companyName, String zoneName,
                             String seatLabel, double pricePaid) {
+        this(eventId, eventTitle, eventDate, companyId, companyName, zoneName, seatLabel, pricePaid, null);
+    }
+
+    public OrderHistoryItem(String eventId, String eventTitle, LocalDateTime eventDate,
+                            String companyId, String companyName, String zoneName,
+                            String seatLabel, double pricePaid, String ticketCode) {
         if (eventId == null || eventId.isBlank()) throw new IllegalArgumentException("eventId cannot be blank");
         if (eventTitle == null || eventTitle.isBlank()) throw new IllegalArgumentException("eventTitle cannot be blank");
         if (eventDate == null) throw new IllegalArgumentException("eventDate cannot be null");
@@ -37,6 +45,7 @@ public class OrderHistoryItem {
         this.zoneName = zoneName;
         this.seatLabel = seatLabel;
         this.pricePaid = pricePaid;
+        this.ticketCode = ticketCode;
     }
 
     public String getEventId() { return eventId; }
@@ -47,6 +56,7 @@ public class OrderHistoryItem {
     public String getZoneName() { return zoneName; }
     public String getSeatLabel() { return seatLabel; }
     public double getPricePaid() { return pricePaid; }
+    public String getTicketCode() { return ticketCode; }
 
     @Override
     public boolean equals(Object o) {

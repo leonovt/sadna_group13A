@@ -449,9 +449,10 @@ class PolicyCombinationTest {
         @Override public boolean isConnected() { return true; }
 
         @Override
-        public Result<List<String>> issueTickets(String orderId, int quantity) {
+        public Result<List<String>> issueTickets(String customerId,
+                java.util.List<com.sadna.group13a.application.Interfaces.TicketIssueRequest> requests) {
             List<String> codes = new java.util.ArrayList<>();
-            for (int i = 0; i < quantity; i++) codes.add("TICKET-" + UUID.randomUUID());
+            for (int i = 0; i < requests.size(); i++) codes.add("TICKET-" + UUID.randomUUID());
             return Result.success(codes);
         }
 
