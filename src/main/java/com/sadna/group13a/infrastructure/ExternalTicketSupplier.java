@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Interfaces.ITicketSupplier;
 import com.sadna.group13a.application.Interfaces.TicketIssueRequest;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.application.config.ExternalSystemTimeoutProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,19 +38,21 @@ import java.util.Map;
 public class ExternalTicketSupplier implements ITicketSupplier {
 
     private static final Logger logger = LoggerFactory.getLogger(ExternalTicketSupplier.class);
-    private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final String FAILURE = "-1";
 
     private final String baseUrl;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final Duration readTimeout;
 
     public ExternalTicketSupplier(@Value("${app.ticketing.url}") String baseUrl,
-                                  ObjectMapper objectMapper) {
+                                  ObjectMapper objectMapper,
+                                  ExternalSystemTimeoutProperties timeouts) {
         this.baseUrl = baseUrl;
         this.objectMapper = objectMapper;
+        this.readTimeout = Duration.ofMillis(timeouts.getReadTimeoutMs());
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(TIMEOUT)
+                .connectTimeout(Duration.ofMillis(timeouts.getConnectTimeoutMs()))
                 .build();
     }
 
@@ -57,7 +60,7 @@ public class ExternalTicketSupplier implements ITicketSupplier {
     public boolean isConnected() {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl))
-                    .timeout(TIMEOUT)
+                    .timeout(readTimeout)
                     .GET()
                     .build();
             // Any HTTP response (even 4xx/405) means the service is reachable.
@@ -143,7 +146,7 @@ public class ExternalTicketSupplier implements ITicketSupplier {
         try {
             String json = objectMapper.writeValueAsString(body);
             HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl))
-                    .timeout(TIMEOUT)
+                    .timeout(readTimeout)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
