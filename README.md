@@ -1,74 +1,61 @@
 # sadna_group13A
 
-Event management & ticketing platform (Ben-Gurion University — Software Engineering Workshop 2026).
+## Startup configuration
 
-## Running the system
+System startup parameters are driven by an **external configuration file** and are **not**
+hardcoded. They live under `app.init.*` in `src/main/resources/application.yml` (or any active
+profile / external config file) and are bound to `SystemInitProperties`.
 
-```bash
-mvn spring-boot:run
+The configuration is **validated on startup**: if a required value is missing or invalid, the
+application **refuses to start** (fail-fast) rather than running in a misconfigured state.
+
+| Parameter | Required | Meaning |
+|-----------|----------|---------|
+| `app.init.max-concurrent-users-per-event` | yes (≥ 1) | Max users who may hold tickets for a single event at once before additional visitors are routed to the virtual queue. Used as the default queue capacity when an owner enables QUEUE mode without specifying one. |
+| `app.init.initial-state-file` | no | Path to an initial-state JSON file executed at startup (see issue #224). Leave blank to skip. |
+
+Database connection parameters also come from configuration (no hardcoded credentials) — see the
+"Database configuration" section (issue #222).
+
+### Example
+
+```yaml
+app:
+  init:
+    max-concurrent-users-per-event: 100
+    initial-state-file:
 ```
 
-Profiles select the runtime configuration (database, seed data, etc.):
+To override at runtime without editing files:
 
 ```bash
-# Local development with an in-memory H2 database
-mvn spring-boot:run -Dspring-boot.run.profiles=local
-
-# Remote PostgreSQL (production-like)
-mvn spring-boot:run -Dspring-boot.run.profiles=prod
-
-# Demo data seeding (sample users/companies/events)
-mvn spring-boot:run -Dspring-boot.run.profiles=demo
+mvn spring-boot:run -Dspring-boot.run.arguments=--app.init.max-concurrent-users-per-event=250
 ```
 
-## System initialization
+## Payment integration
 
-On startup the platform initializes itself (`PlatformBootstrap` → `SystemService.initializePlatform`):
-it verifies the external payment/ticketing services are reachable and creates the **root admin**
-account. The admin credentials come from `app.admin.*` in configuration:
+The system charges and refunds through an external payment service. Which implementation is used is
+selected by configuration — the URL is **never hardcoded**:
 
-| Profile | Username | Password |
-|---------|----------|----------|
-| default / `local` / `prod` | `admin` | `admin123` |
-| `demo` | `yahlitheking` | `roee0` |
-
-## Database configuration
-
-Database connection details are **not hardcoded** in Java — they come entirely from the
-external configuration files under `src/main/resources/`. Switching between a local and a
-remote database requires **only a profile change** (no code change):
-
-| Profile | File | Database | When to use |
-|---------|------|----------|-------------|
-| `local` | `application-local.yml` | In-memory **H2** | Development on a single machine |
-| `prod`  | `application-prod.yml`  | Remote **PostgreSQL** (e.g. GCP) | Production / remote DB |
-
-### Parameters
-
-Defined under `spring.datasource.*` and `spring.jpa.*`:
+```yaml
+app:
+  external:
+    payment:
+      mode: stub   # 'stub' (in-memory, default — used by tests and local dev) or 'wsep'
+      url: https://damp-lynna-wsep-1984852e.koyeb.app/   # used only when mode=wsep
+```
 
 | Parameter | Meaning |
 |-----------|---------|
-| `spring.datasource.url` | JDBC connection URL (host, port, database name) |
-| `spring.datasource.username` | Database user |
-| `spring.datasource.password` | Database password (**from an environment variable in `prod`**) |
-| `spring.datasource.driver-class-name` | JDBC driver (`org.h2.Driver` / `org.postgresql.Driver`) |
-| `spring.jpa.database-platform` | Hibernate dialect (`H2Dialect` / `PostgreSQLDialect`) |
-| `spring.jpa.hibernate.ddl-auto` | Schema strategy (`create-drop` local, `validate` prod) |
+| `app.external.payment.mode` | `stub` (default `StubPaymentGateway`) or `wsep` (real `WsepPaymentGateway`). |
+| `app.external.payment.url`  | WSEP endpoint; used only when `mode=wsep`. |
 
-### Secrets
+When `mode=wsep`:
+- At startup the platform performs a `handshake` to verify the service is reachable (init fails otherwise).
+- Checkout collects the card fields (number, holder, expiry, CVV, ID, currency) and calls `pay`; the
+  returned transaction id is stored on the order receipt.
+- On cancellation or any post-payment failure the system calls `refund` for the **entire** transaction
+  (WSEP supports only full refunds).
+- Timeouts, non-2xx responses, malformed bodies and `-1` results are handled gracefully (no crash).
 
-The remote database password is **never committed**. In the `prod` profile it is read from the
-`DB_PASSWORD` environment variable (along with `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`).
-`.env` files are gitignored.
-
-```powershell
-# PowerShell example
-$env:DB_HOST = "your-gcp-host"
-$env:DB_PASSWORD = "your-password"
-mvn spring-boot:run -Dspring-boot.run.profiles=prod
-```
-
-> Note: the ORM/persistence layer (JPA starter + JDBC drivers) is delivered separately. Until it
-> is on the classpath, Spring ignores `spring.datasource.*` / `spring.jpa.*`; this configuration is
-> ready so that enabling persistence becomes a config-only switch.
+Tests always run with `mode=stub`, so they never contact the real WSEP service.
