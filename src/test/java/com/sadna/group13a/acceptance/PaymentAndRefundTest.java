@@ -57,6 +57,7 @@ class PaymentAndRefundTest {
     private CheckoutDomainService checkoutDomainService;
     private TicketingAccessDomainService ticketingAccessDomainService;
     private ApplicationEventPublisher eventPublisher;
+    private com.sadna.group13a.application.Services.SystemLogService systemLogService;
 
     @BeforeEach
     void setUp() {
@@ -69,16 +70,19 @@ class PaymentAndRefundTest {
         ticketSupplier = mock(ITicketSupplier.class);
         when(ticketSupplier.issueTickets(any(), any())).thenReturn(Result.success(List.of("ticket-1")));
         paymentGateway = mock(IPaymentGateway.class);
+        when(paymentGateway.refundPayment(any())).thenReturn(Result.success());
         userRepository = mock(IUserRepository.class);
         authGateway = mock(IAuth.class);
         checkoutDomainService = mock(CheckoutDomainService.class);
         ticketingAccessDomainService = mock(TicketingAccessDomainService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        systemLogService = mock(com.sadna.group13a.application.Services.SystemLogService.class);
 
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
-                checkoutDomainService, ticketingAccessDomainService, eventPublisher, mock(CartDomainService.class), null);
+                checkoutDomainService, ticketingAccessDomainService, eventPublisher, mock(CartDomainService.class), null,
+                systemLogService);
 
         // Default: any userId resolves to an active member so user-guard tests pass through
         when(userRepository.findById(anyString()))
@@ -336,6 +340,92 @@ class PaymentAndRefundTest {
 
             assertTrue(refundResult.isSuccess());
             verify(paymentGateway).refundPayment(transactionId);
+        }
+    }
+
+    @Nested
+    @DisplayName("Ticket Issuance Failure (issue #243)")
+    class TicketIssuanceFailure {
+
+        private String token, userId, activeOrderId, eventId, companyId, paymentDetails;
+        private ActiveOrder order;
+
+        @BeforeEach
+        void arrangeCheckout() {
+            token = "valid_token";
+            userId = "user123";
+            activeOrderId = "order123";
+            eventId = "event1";
+            companyId = "company1";
+            paymentDetails = "cc_num_123";
+
+            when(authGateway.validateToken(token)).thenReturn(true);
+            when(authGateway.extractUserId(token)).thenReturn(userId);
+
+            order = new ActiveOrder(activeOrderId, userId);
+            order.addItem(new OrderItem(eventId, "zone1", "seat1", 100.0));
+            when(orderRepository.findById(activeOrderId)).thenReturn(Optional.of(order));
+
+            Event event = mock(Event.class);
+            when(event.getId()).thenReturn(eventId);
+            when(event.getCompanyId()).thenReturn(companyId);
+            when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+            when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+
+            ProductionCompany company = mock(ProductionCompany.class);
+            when(company.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(company.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
+            when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+
+            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
+                    "Zone1", "Seat1", 100.0);
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any()))
+                    .thenReturn(List.of(item));
+
+            when(paymentGateway.processPayment(100.0, paymentDetails)).thenReturn(Result.success("txn_123"));
+        }
+
+        @Test
+        @DisplayName("Given ticket issuance declined (-1) — When checkout completes — Then payment refunded and seats released")
+        void givenTicketIssuanceDeclined_thenRefundedAndSeatsReleased() {
+            when(ticketSupplier.issueTickets(any(), any())).thenReturn(Result.failure("External ticket service rejected the issuance."));
+
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+
+            assertFalse(result.isSuccess(), "Post: checkout must fail when ticket issuance is declined");
+            assertTrue(result.getErrorMessage().contains("payment refunded"));
+            verify(paymentGateway).refundPayment("txn_123");
+            verify(checkoutDomainService).unsellSeats(any(), any());
+            verify(historyRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Given ticket supplier throws (timeout/network error) — When checkout completes — Then payment refunded and seats released")
+        void givenTicketSupplierThrows_thenRefundedAndSeatsReleased() {
+            when(ticketSupplier.issueTickets(any(), any())).thenThrow(new RuntimeException("connection reset"));
+
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+
+            assertFalse(result.isSuccess(), "Post: checkout must fail cleanly when the ticket supplier throws");
+            assertTrue(result.getErrorMessage().contains("payment refunded"));
+            verify(paymentGateway).refundPayment("txn_123");
+            verify(checkoutDomainService).unsellSeats(any(), any());
+            verify(historyRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Given ticket issuance fails AND the refund itself also fails — Then it is logged as an admin alert")
+        void givenTicketIssuanceFailsAndRefundAlsoFails_thenAdminAlertLogged() {
+            when(ticketSupplier.issueTickets(any(), any())).thenReturn(Result.failure("External ticket service rejected the issuance."));
+            when(paymentGateway.refundPayment("txn_123")).thenReturn(Result.failure("Refund service is unavailable."));
+
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+
+            assertFalse(result.isSuccess(), "Post: checkout must still fail even if the refund itself fails");
+            verify(paymentGateway).refundPayment("txn_123");
+            verify(systemLogService).logError(contains("txn_123"));
         }
     }
 }
