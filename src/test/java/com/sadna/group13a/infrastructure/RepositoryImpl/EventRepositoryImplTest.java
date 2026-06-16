@@ -4,8 +4,11 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
-import org.junit.jupiter.api.BeforeEach;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,16 +16,14 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
+@DataJpaTest
+@Import({EventRepositoryImpl.class, PersistenceConfig.class})
 class EventRepositoryImplTest {
 
+    @Autowired
     private EventRepositoryImpl repo;
-    private static final LocalDateTime FUTURE = LocalDateTime.now().plusDays(30);
 
-    @BeforeEach
-    void setUp() {
-        repo = new EventRepositoryImpl();
-    }
+    private static final LocalDateTime FUTURE = LocalDateTime.now().plusDays(30);
 
     private Event buildEvent(String id, String companyId, String title, String category) {
         return new Event(id, title, "Desc", companyId, FUTURE, category);

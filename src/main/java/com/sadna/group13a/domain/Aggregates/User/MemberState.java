@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 
 import java.util.Collections;
@@ -12,7 +14,8 @@ class MemberState implements UserTypeState {
     private final Map<String, CompanyRole> companyRoles = new ConcurrentHashMap<>();
     private final Map<String, String> appointedBy = new ConcurrentHashMap<>();
 
-    MemberState(String passwordHash) {
+    @JsonCreator
+    MemberState(@JsonProperty("passwordHash") String passwordHash) {
         this.passwordHash = passwordHash;
     }
 

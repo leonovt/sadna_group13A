@@ -1,23 +1,23 @@
 package com.sadna.group13a.infrastructure.RepositoryImpl;
 
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
-import org.junit.jupiter.api.BeforeEach;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
+@DataJpaTest
+@Import({ActiveOrderRepositoryImpl.class, PersistenceConfig.class})
 class ActiveOrderRepositoryImplTest {
 
+    @Autowired
     private ActiveOrderRepositoryImpl repo;
-
-    @BeforeEach
-    void setUp() {
-        repo = new ActiveOrderRepositoryImpl();
-    }
 
     @Test
     void givenOrder_whenSave_thenFindByIdReturnsIt() {
@@ -69,5 +69,25 @@ class ActiveOrderRepositoryImplTest {
         Optional<ActiveOrder> found = repo.findActiveByUserId("user-C");
         assertTrue(found.isPresent());
         assertEquals("user-C", found.get().getUserId());
+    }
+
+    @Test
+    void givenNoExistingOrder_whenGetOrCreate_thenCreatesAndPersistsNewOrder() {
+        ActiveOrder created = repo.getOrCreate("user-E", () -> new ActiveOrder(UUID.randomUUID().toString(), "user-E"));
+
+        assertEquals("user-E", created.getUserId());
+        assertTrue(repo.findById(created.getId()).isPresent());
+    }
+
+    @Test
+    void givenExistingOrder_whenGetOrCreate_thenReturnsExistingWithoutInvokingFactory() {
+        ActiveOrder existing = new ActiveOrder(UUID.randomUUID().toString(), "user-F");
+        repo.save(existing);
+
+        ActiveOrder result = repo.getOrCreate("user-F", () -> {
+            throw new AssertionError("factory should not be invoked when an order already exists");
+        });
+
+        assertEquals(existing.getId(), result.getId());
     }
 }

@@ -1,8 +1,11 @@
 package com.sadna.group13a.infrastructure.RepositoryImpl;
 
 import com.sadna.group13a.domain.Aggregates.Raffle.Raffle;
-import org.junit.jupiter.api.BeforeEach;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.util.List;
 import java.util.Optional;
@@ -10,15 +13,12 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
+@DataJpaTest
+@Import({RaffleRepositoryImpl.class, PersistenceConfig.class})
 class RaffleRepositoryImplTest {
 
+    @Autowired
     private RaffleRepositoryImpl repo;
-
-    @BeforeEach
-    void setUp() {
-        repo = new RaffleRepositoryImpl();
-    }
 
     @Test
     void givenRaffle_whenSave_thenFindByIdReturnsIt() {

@@ -14,6 +14,12 @@ import com.sadna.group13a.domain.Interfaces.*;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.*;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeRaffleJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeActiveOrderJpaRepository;
 import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,12 +54,12 @@ class TicketReservationTest {
 
     @BeforeEach
     void setUp() {
-        eventRepository = new EventRepositoryImpl();
-        userRepository = new UserRepositoryImpl();
-        companyRepository = new CompanyRepositoryImpl();
-        raffleRepository = new RaffleRepositoryImpl();
+        eventRepository = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        companyRepository = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        raffleRepository = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(), new PersistenceConfig().domainObjectMapper());
         queueRepository = new QueueRepositoryImpl();
-        activeOrderRepository = new ActiveOrderRepositoryImpl();
+        activeOrderRepository = new ActiveOrderRepositoryImpl(new FakeActiveOrderJpaRepository(), new PersistenceConfig().domainObjectMapper());
         authGateway = new AuthImpl();
         paymentGateway = new StubPaymentGateway();
         eventPublisher = mock(ApplicationEventPublisher.class);
@@ -284,7 +290,10 @@ class TicketReservationTest {
         expiresAtField.setAccessible(true);
         expiresAtField.set(seat, Instant.now().minusSeconds(60)); // Expired 1 min ago
 
-        eventRepository.save(event);
+        // Note: no eventRepository.save(event) here — this test only verifies Seat's lazy
+        // expiry computation (getEffectiveStatus()) on the in-memory object via reflection;
+        // it isn't exercising persistence, and the backdated expiry was never applied through
+        // Event's own version-incrementing methods, so saving it would be a same-version resave.
 
         // Post-condition: seat is automatically released back to AVAILABLE after expiry
         assertTrue(seat.getEffectiveStatus() == SeatStatus.AVAILABLE, "Post: seat must be AVAILABLE after hold expiry");
@@ -309,7 +318,10 @@ class TicketReservationTest {
         setupData("e1", "c1", "z1", "s1", EventSaleMode.REGULAR);
 
         ProductionCompany comp = companyRepository.findById("c1").get();
-        comp.setPurchasePolicy(ctx -> false);
+        // AgeRestrictionPolicy(999) is a named, serializable stand-in for "always false" —
+        // an inline lambda PurchasePolicy has no stable class identity and can't round-trip
+        // through the JSON-blob persistence the JPA-backed repos use.
+        comp.setPurchasePolicy(new com.sadna.group13a.domain.policies.purchase.AgeRestrictionPolicy(999));
         companyRepository.save(comp);
         // Pre-condition: company has a restrictive policy that blocks all purchases
         assertFalse(comp.getPurchasePolicy().isSatisfied(

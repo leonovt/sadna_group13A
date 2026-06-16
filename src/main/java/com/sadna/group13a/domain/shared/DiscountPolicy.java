@@ -13,18 +13,15 @@ import com.sadna.group13a.domain.policies.discount.SimpleDiscount;
  * Composite-pattern component for discount rules.
  * Leaf implementations compute a single discount amount (simple %, conditional, coupon).
  * Composite implementations (AdditiveDiscountPolicy, MaxDiscountPolicy) combine children.
- *
- * The Jackson @JsonTypeInfo / @JsonSubTypes annotations enable the
- * DiscountPolicyConverter to serialize/deserialize recursive trees as JSON.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "policyClass")
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = NoDiscountPolicy.class,       name = "NO_DISCOUNT"),
-    @JsonSubTypes.Type(value = SimpleDiscount.class,         name = "SIMPLE"),
-    @JsonSubTypes.Type(value = ConditionalDiscount.class,    name = "CONDITIONAL"),
-    @JsonSubTypes.Type(value = CouponDiscount.class,         name = "COUPON"),
-    @JsonSubTypes.Type(value = AdditiveDiscountPolicy.class, name = "ADDITIVE"),
-    @JsonSubTypes.Type(value = MaxDiscountPolicy.class,      name = "MAX")
+        @JsonSubTypes.Type(NoDiscountPolicy.class),
+        @JsonSubTypes.Type(SimpleDiscount.class),
+        @JsonSubTypes.Type(ConditionalDiscount.class),
+        @JsonSubTypes.Type(CouponDiscount.class),
+        @JsonSubTypes.Type(MaxDiscountPolicy.class),
+        @JsonSubTypes.Type(AdditiveDiscountPolicy.class)
 })
 public interface DiscountPolicy {
     double calculateDiscount(double basePrice, DiscountContext ctx);
