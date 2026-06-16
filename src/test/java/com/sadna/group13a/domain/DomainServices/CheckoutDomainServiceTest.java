@@ -11,9 +11,13 @@ import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.policies.discount.AdditiveDiscountPolicy;
+import com.sadna.group13a.domain.policies.discount.ConditionalDiscount;
 import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AgeRestrictionPolicy;
 import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import com.sadna.group13a.domain.policies.purchase.AndPolicy;
+import com.sadna.group13a.domain.policies.purchase.MinTicketsPolicy;
+import com.sadna.group13a.domain.policies.purchase.OrPolicy;
 import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
@@ -310,6 +314,196 @@ class CheckoutDomainServiceTest {
                     () -> service.checkoutItemsForEvent(
                             order.getItems(), order, event, company,
                             combined, new NoDiscountPolicy(), pCtx, dCtx));
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // Combined PurchasePolicy + DiscountPolicy
+    // ══════════════════════════════════════════════════════════════
+
+    @Nested
+    class CombinedPolicyAndDiscountTests {
+
+        @Test
+        void givenAgeRestrictionBlocks_whenCheckout_thenDiscountNeverApplied() {
+            seat.hold(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
+
+            PurchasePolicy agePolicy    = new AgeRestrictionPolicy(21);
+            DiscountPolicy bigDiscount  = new ConditionalDiscount(0.50, 1);
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 18, null); // user is 18 → blocked
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
+
+            assertThrows(DomainException.class,
+                    () -> service.checkoutItemsForEvent(order.getItems(), order, event, company,
+                            agePolicy, bigDiscount, pCtx, dCtx));
+        }
+
+        @Test
+        void givenAgeRestrictionSatisfied_andConditionalDiscount_thenPriceIsReduced() {
+            seat.hold(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
+
+            PurchasePolicy agePolicy   = new AgeRestrictionPolicy(18);
+            DiscountPolicy twentyOff   = new ConditionalDiscount(0.20, 1);
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 21, null); // age 21 ≥ 18 → allowed
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
+
+            List<OrderHistoryItem> items = service.checkoutItemsForEvent(
+                    order.getItems(), order, event, company, agePolicy, twentyOff, pCtx, dCtx);
+
+            assertEquals(80.0, items.get(0).getPricePaid(), 0.001);
+        }
+
+        @Test
+        void givenMinTicketsPolicySatisfied_andConditionalDiscountThresholdMet_thenDiscountApplied() {
+            // 2 tickets: seated (100) + standing (50)
+            seat.hold(USER_ID);
+            standingZone.holdStandingSpot(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE,   seat.getId(), 100.0));
+            order.addItem(new OrderItem(EVENT_ID, STANDING_ZONE, null,          50.0));
+
+            PurchasePolicy minTwo   = new MinTicketsPolicy(2);
+            DiscountPolicy tenOff   = new ConditionalDiscount(0.10, 2); // 10% if 2+ tickets
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 2, 25, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 2, null);
+
+            List<OrderHistoryItem> items = service.checkoutItemsForEvent(
+                    order.getItems(), order, event, company, minTwo, tenOff, pCtx, dCtx);
+
+            assertEquals(2, items.size());
+            assertEquals(90.0, items.get(0).getPricePaid(), 0.001); // 100 − 10%
+            assertEquals(45.0, items.get(1).getPricePaid(), 0.001); // 50  − 10%
+        }
+
+        @Test
+        void givenMinTicketsPolicyNotMet_whenCheckout_thenBlockedAndNoItemsSold() {
+            seat.hold(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
+
+            PurchasePolicy minTwo = new MinTicketsPolicy(2); // needs 2, only 1 in order
+            DiscountPolicy anyDiscount = new ConditionalDiscount(0.20, 1);
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 25, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
+
+            assertThrows(DomainException.class,
+                    () -> service.checkoutItemsForEvent(order.getItems(), order, event, company,
+                            minTwo, anyDiscount, pCtx, dCtx));
+
+            // seat must stay HELD (not SOLD), because the policy check fires before seat transitions
+            assertEquals(SeatStatus.HELD, seat.getEffectiveStatus());
+        }
+
+        @Test
+        void givenOrPolicy_oneRestrictiveBranchOnePermissive_andDiscount_thenSucceedsWithDiscount() {
+            seat.hold(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
+
+            // OR: AgeRestriction(99) blocks, AllowAll passes → overall allowed
+            PurchasePolicy orPolicy  = new OrPolicy(new AgeRestrictionPolicy(99), new AllowAllPolicy());
+            DiscountPolicy thirtyOff = new ConditionalDiscount(0.30, 1);
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 25, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
+
+            List<OrderHistoryItem> items = service.checkoutItemsForEvent(
+                    order.getItems(), order, event, company, orPolicy, thirtyOff, pCtx, dCtx);
+
+            assertEquals(70.0, items.get(0).getPricePaid(), 0.001);
+        }
+
+        @Test
+        void givenAndPolicy_bothPass_andAdditiveDiscount_thenBothDiscountsSummed() {
+            seat.hold(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
+
+            // AND(AllowAll, MinTickets1): both pass
+            PurchasePolicy andPolicy = new AndPolicy(new AllowAllPolicy(), new MinTicketsPolicy(1));
+            // Additive: 10% + 5% = 15% off
+            DiscountPolicy additive  = new AdditiveDiscountPolicy(List.of(
+                    new ConditionalDiscount(0.10, 1),
+                    new ConditionalDiscount(0.05, 1)));
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 25, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
+
+            List<OrderHistoryItem> items = service.checkoutItemsForEvent(
+                    order.getItems(), order, event, company, andPolicy, additive, pCtx, dCtx);
+
+            assertEquals(85.0, items.get(0).getPricePaid(), 0.001);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // Policy combination helpers
+    // ══════════════════════════════════════════════════════════════
+
+    @Nested
+    class PolicyCombinationHelperTests {
+
+        @Test
+        void givenCombinePolicies_bothSatisfied_thenCheckoutSucceeds() {
+            seat.hold(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
+
+            PurchasePolicy combined = service.combinePolicies(new AllowAllPolicy(), new MinTicketsPolicy(1));
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 25, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
+
+            assertDoesNotThrow(() -> service.checkoutItemsForEvent(
+                    order.getItems(), order, event, company,
+                    combined, new NoDiscountPolicy(), pCtx, dCtx));
+        }
+
+        @Test
+        void givenCombinePolicies_companyPolicyBlocks_thenCheckoutThrows() {
+            seat.hold(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
+
+            // Company requires age 99 — effectively always blocks
+            PurchasePolicy combined = service.combinePolicies(new AllowAllPolicy(), new AgeRestrictionPolicy(99));
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 25, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
+
+            assertThrows(DomainException.class,
+                    () -> service.checkoutItemsForEvent(order.getItems(), order, event, company,
+                            combined, new NoDiscountPolicy(), pCtx, dCtx));
+        }
+
+        @Test
+        void givenCombineDiscounts_eventAndCompanyDiscountsAreAdditive() {
+            seat.hold(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
+
+            DiscountPolicy eventDiscount   = new ConditionalDiscount(0.10, 1); // 10% off
+            DiscountPolicy companyDiscount = new ConditionalDiscount(0.05, 1); // 5% off
+            DiscountPolicy combined        = service.combineDiscounts(eventDiscount, companyDiscount);
+
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 25, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
+
+            List<OrderHistoryItem> items = service.checkoutItemsForEvent(
+                    order.getItems(), order, event, company,
+                    new AllowAllPolicy(), combined, pCtx, dCtx);
+
+            assertEquals(85.0, items.get(0).getPricePaid(), 0.001); // 100 − 10% − 5%
+        }
+
+        @Test
+        void givenCombineDiscounts_oneIsNoDiscount_thenOnlyOtherApplies() {
+            seat.hold(USER_ID);
+            order.addItem(new OrderItem(EVENT_ID, SEATED_ZONE, seat.getId(), 100.0));
+
+            DiscountPolicy combined = service.combineDiscounts(
+                    new NoDiscountPolicy(),
+                    new ConditionalDiscount(0.20, 1));
+
+            PurchaseContext pCtx = new PurchaseContext(USER_ID, 1, 25, null);
+            DiscountContext dCtx = new DiscountContext(USER_ID, 1, null);
+
+            List<OrderHistoryItem> items = service.checkoutItemsForEvent(
+                    order.getItems(), order, event, company,
+                    new AllowAllPolicy(), combined, pCtx, dCtx);
+
+            assertEquals(80.0, items.get(0).getPricePaid(), 0.001);
         }
     }
 

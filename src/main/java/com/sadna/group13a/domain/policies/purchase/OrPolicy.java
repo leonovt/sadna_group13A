@@ -12,7 +12,8 @@ public class OrPolicy implements PurchasePolicy {
 
     private final List<PurchasePolicy> children;
 
-    public OrPolicy(List<PurchasePolicy> children) {
+    @JsonCreator
+    public OrPolicy(@JsonProperty("children") List<PurchasePolicy> children) {
         if (children == null || children.size() < 2)
             throw new IllegalArgumentException("OrPolicy requires at least 2 children");
         if (children.contains(null))
@@ -20,9 +21,7 @@ public class OrPolicy implements PurchasePolicy {
         this.children = List.copyOf(children);
     }
 
-    @JsonCreator
-    public OrPolicy(@JsonProperty("left")  PurchasePolicy left,
-                    @JsonProperty("right") PurchasePolicy right) {
+    public OrPolicy(PurchasePolicy left, PurchasePolicy right) {
         if (left == null || right == null) throw new IllegalArgumentException("Policy children cannot be null");
         this.children = List.of(left, right);
     }

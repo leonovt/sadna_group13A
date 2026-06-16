@@ -1,5 +1,6 @@
 # Maven build output
 target/
+data/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -53,6 +54,7 @@ Desktop.ini
 
 # Claude Code
 .claude/
+CLAUDE.md
 target/
 
 # Vaadin generated files
