@@ -16,6 +16,7 @@ import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeAdminJpaRepository;
 import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
@@ -68,7 +69,7 @@ class AdminServiceIntegrationTest {
         eventRepo   = new EventRepositoryImpl();
         companyRepo = new CompanyRepositoryImpl();
         queueRepo   = new QueueRepositoryImpl();
-        historyRepo = new OrderHistoryRepositoryImpl();
+        historyRepo = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper());
 
         systemLogService = new SystemLogService();
         eventPublisher   = new SpyEventPublisher();

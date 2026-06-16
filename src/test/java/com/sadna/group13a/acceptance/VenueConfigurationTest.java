@@ -25,6 +25,7 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryIm
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,7 @@ class VenueConfigurationTest {
         authGateway = new AuthImpl();
         
         eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository,
-                new OrderHistoryRepositoryImpl(), e -> {}, new EventSearchDomainService(), new VenueMapFactory());
+                new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper()), e -> {}, new EventSearchDomainService(), new VenueMapFactory());
     }
 
     @Test
