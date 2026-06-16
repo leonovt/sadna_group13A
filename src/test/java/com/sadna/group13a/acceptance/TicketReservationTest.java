@@ -16,6 +16,7 @@ import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.*;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeActiveOrderJpaRepository;
 import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,7 +56,7 @@ class TicketReservationTest {
         companyRepository = new CompanyRepositoryImpl();
         raffleRepository = new RaffleRepositoryImpl();
         queueRepository = new QueueRepositoryImpl();
-        activeOrderRepository = new ActiveOrderRepositoryImpl();
+        activeOrderRepository = new ActiveOrderRepositoryImpl(new FakeActiveOrderJpaRepository(), new PersistenceConfig().domainObjectMapper());
         authGateway = new AuthImpl();
         paymentGateway = new StubPaymentGateway();
         eventPublisher = mock(ApplicationEventPublisher.class);

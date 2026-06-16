@@ -32,6 +32,7 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.RaffleRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeActiveOrderJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -104,7 +105,7 @@ class OrderServiceIntegrationTest {
     @BeforeEach
     void setUp() {
         // Each test starts with a completely clean in-memory store.
-        orderRepo   = new ActiveOrderRepositoryImpl();
+        orderRepo   = new ActiveOrderRepositoryImpl(new FakeActiveOrderJpaRepository(), new PersistenceConfig().domainObjectMapper());
         historyRepo = new OrderHistoryRepositoryImpl();
         eventRepo   = new EventRepositoryImpl();
         companyRepo = new CompanyRepositoryImpl();

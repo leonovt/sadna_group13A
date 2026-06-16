@@ -35,6 +35,7 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.RaffleRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeActiveOrderJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -88,7 +89,7 @@ class PolicyCombinationTest {
 
     @BeforeEach
     void setUp() {
-        orderRepo   = new ActiveOrderRepositoryImpl();
+        orderRepo   = new ActiveOrderRepositoryImpl(new FakeActiveOrderJpaRepository(), new PersistenceConfig().domainObjectMapper());
         historyRepo = new OrderHistoryRepositoryImpl();
         eventRepo   = new EventRepositoryImpl();
         companyRepo = new CompanyRepositoryImpl();
