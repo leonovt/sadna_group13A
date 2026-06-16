@@ -67,8 +67,9 @@ public class CompanyDashboardView extends VerticalLayout implements BeforeEnterO
         Button policiesBtn  = new Button("Staff Permissions", e -> UI.getCurrent().navigate("company/" + companyId + "/policy"));
         Button purchaseBtn  = new Button("Purchase & Discounts", e -> UI.getCurrent().navigate("company/" + companyId + "/policies"));
         Button rafflesBtn   = new Button("Raffles",      e -> UI.getCurrent().navigate("company/" + companyId + "/raffles"));
+        Button inquiriesBtn = new Button("Inquiries",    e -> UI.getCurrent().navigate("company/" + companyId + "/inquiries"));
 
-        HorizontalLayout navRow = new HorizontalLayout(staffBtn, eventsBtn, salesBtn, ordersBtn, policiesBtn, purchaseBtn, rafflesBtn);
+        HorizontalLayout navRow = new HorizontalLayout(staffBtn, eventsBtn, salesBtn, ordersBtn, policiesBtn, purchaseBtn, rafflesBtn, inquiriesBtn);
         navRow.setSpacing(true);
 
         // ── Company status controls ───────────────────────────────

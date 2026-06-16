@@ -52,4 +52,7 @@ public interface INotificationService {
     void notifyRaffleWon(String userId, String eventId, String authCode, LocalDateTime expiresAt);
 
     void notifyAdminMessage(String userId, String message);
+
+    /** Notifies a buyer that the company answered their inquiry (II.4.4). */
+    void notifyInquiryAnswered(String userId, String companyName, String response);
 }

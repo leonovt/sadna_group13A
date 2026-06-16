@@ -131,4 +131,9 @@ public class InMemoryNotificationService implements INotificationService {
     public void notifyAdminMessage(String userId, String message) {
         logger.info("[NOTIFY] User {} — message from admin: {}", userId, message);
     }
+
+    @Override
+    public void notifyInquiryAnswered(String userId, String companyName, String response) {
+        logger.info("[NOTIFY] User {} — \"{}\" answered your inquiry: {}", userId, companyName, response);
+    }
 }

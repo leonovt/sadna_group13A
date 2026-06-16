@@ -57,7 +57,9 @@ public class MemberDashboardView extends VerticalLayout implements BeforeEnterOb
         HorizontalLayout navigation = new HorizontalLayout(
             new RouterLink("My Orders", OrderHistoryView.class),
             new RouterLink("My Profile", ProfileView.class),
-            new RouterLink("Raffles", RaffleView.class)
+            new RouterLink("Raffles", RaffleView.class),
+            new RouterLink("Complaints", ComplaintView.class),
+            new RouterLink("Inquiries", InquiryView.class)
         );
 
         Button createCompanyButton = new Button("Create Company", e -> {
