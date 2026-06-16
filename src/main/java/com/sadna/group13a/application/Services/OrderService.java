@@ -388,17 +388,17 @@ public class OrderService {
         }
 
         // ── Payment ───────────────────────────────────────────────────────────────
-        // chargePayment() funnels every failure mode (declined/-1, and any exception
-        // thrown by the gateway — timeout, network error, malformed response) through one
-        // typed PaymentFailedException, caught here exactly like SeatUnavailableException
-        // above: rollback + CheckoutFailedEvent + Result.failure, never propagated past
-        // this method. The cart stays open (never mutated/deleted on this path) so the
-        // user can choose to retry — this method does not auto-retry payments.
-        String transactionId;
+        Result<String> paymentResult;
         try {
-            transactionId = chargePayment(totalPaid, paymentDetails);
-        } catch (PaymentFailedException e) {
-            logger.warn("Payment failed for user {} (amount {}): {}", userId, totalPaid, e.getMessage());
+            paymentResult = paymentGateway.processPayment(totalPaid, paymentDetails);
+        } catch (Exception e) {
+            logger.error("Payment gateway threw an exception for user {} (amount {}): {}", userId, totalPaid, e.getMessage());
+            rollbackSoldSeats(processedEvents, order.getItems());
+            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Payment gateway error: " + e.getMessage()));
+            return Result.failure("Payment declined: " + e.getMessage());
+        }
+        if (!paymentResult.isSuccess()) {
+            logger.warn("Payment declined for user {} (amount {}): {}", userId, totalPaid, paymentResult.getErrorMessage());
             rollbackSoldSeats(processedEvents, order.getItems());
             eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Payment declined: " + e.getMessage()));
             return Result.failure("Payment declined: " + e.getMessage());
