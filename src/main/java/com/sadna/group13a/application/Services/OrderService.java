@@ -383,7 +383,15 @@ public class OrderService {
         }
 
         // ── Payment ───────────────────────────────────────────────────────────────
-        Result<String> paymentResult = paymentGateway.processPayment(totalPaid, paymentDetails);
+        Result<String> paymentResult;
+        try {
+            paymentResult = paymentGateway.processPayment(totalPaid, paymentDetails);
+        } catch (Exception e) {
+            logger.error("Payment gateway threw an exception for user {} (amount {}): {}", userId, totalPaid, e.getMessage());
+            rollbackSoldSeats(processedEvents, order.getItems());
+            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Payment gateway error: " + e.getMessage()));
+            return Result.failure("Payment declined: " + e.getMessage());
+        }
         if (!paymentResult.isSuccess()) {
             logger.warn("Payment declined for user {} (amount {}): {}", userId, totalPaid, paymentResult.getErrorMessage());
             rollbackSoldSeats(processedEvents, order.getItems());
