@@ -17,6 +17,12 @@ app:
     username: admin
     password: admin123
 
+external:
+  system:
+    url: https://damp-lynna-wsep-1984852e.koyeb.app/
+    connect-timeout-ms: 5000
+    read-timeout-ms: 10000
+
 logging:
   level:
     com.sadna.group13a.domain: DEBUG

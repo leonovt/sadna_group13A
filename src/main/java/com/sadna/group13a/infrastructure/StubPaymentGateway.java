@@ -4,11 +4,13 @@ import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
 @Service
+@Profile("!prod")
 public class StubPaymentGateway implements IPaymentGateway {
 
     private static final Logger logger = LoggerFactory.getLogger(StubPaymentGateway.class);
