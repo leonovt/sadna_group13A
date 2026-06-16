@@ -9,6 +9,10 @@ import com.sadna.group13a.infrastructure.PasswordEncoderImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import com.sadna.group13a.infrastructure.init.InitialStateLoader;
 import com.sadna.group13a.infrastructure.init.InitialStateRunner;
 import com.sadna.group13a.infrastructure.init.SystemConfig;
@@ -43,9 +47,9 @@ class SystemInitializationTest {
 
     @BeforeEach
     void setUp() {
-        userRepo = new UserRepositoryImpl();
-        companyRepo = new CompanyRepositoryImpl();
-        OrderHistoryRepositoryImpl historyRepo = new OrderHistoryRepositoryImpl();
+        userRepo = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        OrderHistoryRepositoryImpl historyRepo = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper());
         AuthImpl auth = new AuthImpl();
 
         UserService userService = new UserService(

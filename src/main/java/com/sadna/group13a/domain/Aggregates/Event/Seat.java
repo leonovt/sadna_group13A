@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
 
 import java.time.Duration;
@@ -31,7 +33,8 @@ public class Seat {
     private String heldByUserId;
     private Instant holdExpiresAt;
 
-    public Seat(String id, String label) {
+    @JsonCreator
+    public Seat(@JsonProperty("id") String id, @JsonProperty("label") String label) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Seat id cannot be null or blank");
         }
