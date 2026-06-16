@@ -185,7 +185,8 @@ class SubscriberNotificationTest {
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier,
                 userRepository, authGateway, checkoutService, accessService, eventPublisher,
-                mock(CartDomainService.class), null);
+                mock(CartDomainService.class), null,
+                mock(com.sadna.group13a.application.Services.SystemLogService.class));
 
         String token     = "tok";
         String userId    = "user1";

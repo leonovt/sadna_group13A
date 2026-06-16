@@ -4,17 +4,17 @@ import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
 /**
- * In-memory payment gateway used by default and in tests. Active unless
- * {@code app.external.payment.mode=wsep}, in which case {@link WsepPaymentGateway} replaces it.
+ * In-memory payment gateway used in all non-production profiles (test, local, demo).
+ * Activate {@link WsepPaymentGateway} instead by running with {@code --spring.profiles.active=prod}.
  */
 @Service
-@ConditionalOnProperty(name = "app.external.payment.mode", havingValue = "stub", matchIfMissing = true)
+@Profile("!prod")
 public class StubPaymentGateway implements IPaymentGateway {
 
     private static final Logger logger = LoggerFactory.getLogger(StubPaymentGateway.class);

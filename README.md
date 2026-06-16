@@ -127,9 +127,12 @@ Override any key in a profile-specific file (`application-prod.yml`,
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `external.system.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external payment and ticket issuance API. All actions (pay, refund, issue_ticket, cancel_ticket, handshake) are POSTed to this endpoint. |
-| `external.system.connect-timeout-ms` | `5000` | TCP connection timeout in milliseconds when reaching the external system. |
-| `external.system.read-timeout-ms` | `10000` | Socket read timeout in milliseconds while waiting for the external system's response. |
+| `app.external.payment.mode` | `stub` | `stub` (in-memory, tests/local) or `wsep` (real external payment service). |
+| `app.external.payment.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external payment API (used only when `mode=wsep`). |
+| `app.ticketing.mode` | `stub` | `stub` (in-memory, tests/local) or `wsep` (real external ticket-issuance service). |
+| `app.ticketing.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external ticket-issuance API (used only when `mode=wsep`). |
+| `app.external.connect-timeout-ms` | `5000` | TCP connection timeout in milliseconds, shared by every call to the external payment and ticket-issuance system (issue #241) — never hangs indefinitely on an unresponsive service. |
+| `app.external.read-timeout-ms` | `10000` | Socket read timeout in milliseconds while waiting for the external system's response, shared by both external call sites. |
 
 ### Minimal `application.yml` for local development (H2)
 
