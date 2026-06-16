@@ -37,6 +37,7 @@ import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
+import com.sadna.group13a.domain.shared.PaymentFailedException;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
 import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
@@ -395,10 +396,9 @@ public class OrderService {
         if (!paymentResult.isSuccess()) {
             logger.warn("Payment declined for user {} (amount {}): {}", userId, totalPaid, paymentResult.getErrorMessage());
             rollbackSoldSeats(processedEvents, order.getItems());
-            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Payment declined: " + paymentResult.getErrorMessage()));
-            return Result.failure("Payment declined: " + paymentResult.getErrorMessage());
+            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Payment declined: " + e.getMessage()));
+            return Result.failure("Payment declined: " + e.getMessage());
         }
-        String transactionId = paymentResult.getOrThrow();
 
         // ── Persist seat changes ──────────────────────────────────────────────────
         // OptimisticLockException here means a concurrent modification raced past the
@@ -599,6 +599,24 @@ public class OrderService {
         if (seatLabel == null) return 0;
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*$").matcher(seatLabel);
         return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+
+    /**
+     * Charges the gateway and returns the transaction id, or throws PaymentFailedException
+     * for any failure mode — a declined/-1 Result, or an exception escaping the gateway's
+     * own defensive handling (timeout, network error, malformed response).
+     */
+    private String chargePayment(double amount, String paymentDetails) {
+        Result<String> paymentResult;
+        try {
+            paymentResult = paymentGateway.processPayment(amount, paymentDetails);
+        } catch (Exception e) {
+            throw new PaymentFailedException("Payment service is unavailable. Please try again.", e);
+        }
+        if (!paymentResult.isSuccess()) {
+            throw new PaymentFailedException(paymentResult.getErrorMessage(), null);
+        }
+        return paymentResult.getOrThrow();
     }
 
     private void rollbackSoldSeats(Map<String, Event> processedEvents, List<OrderItem> items) {
