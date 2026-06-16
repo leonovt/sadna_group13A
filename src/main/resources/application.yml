@@ -28,10 +28,10 @@ app:
   seat:
     hold-duration-minutes: 10
 
-  # External ticket-issuance system (issue #226)
+  # External ticket-issuance system (issue #226).
+  # Gateway selection is profile-driven: stub in all non-prod profiles, real in prod.
+  # Activate the real gateway: --spring.profiles.active=prod
   ticketing:
-    # 'stub' (default, in-memory — used by tests/local) or 'wsep' (real external service).
-    mode: stub
     url: https://damp-lynna-wsep-1984852e.koyeb.app/
   # Persistence connection health-check (issue #228 — auto-recovery after data-store outage).
   # This project uses an in-memory data store rather than a JDBC datasource, so instead of
@@ -59,11 +59,11 @@ app:
     state-file: ""
 
   # External payment service (Version 3 — see README "Payment integration").
+  # Gateway selection is profile-driven: stub in all non-prod profiles, real in prod.
+  # Activate the real gateway: --spring.profiles.active=prod
   external:
     payment:
-      # 'stub' (default, in-memory — used by tests/local) or 'wsep' (real external service).
-      mode: stub
-      # WSEP endpoint; used only when mode=wsep. URL is read from config, not hardcoded.
+      # WSEP endpoint; used only in the prod profile.
       url: https://damp-lynna-wsep-1984852e.koyeb.app/
     # Shared connect/read timeouts for all external calls (payment + ticket issuance) —
     # issue #241. Bound to ExternalSystemTimeoutProperties.
