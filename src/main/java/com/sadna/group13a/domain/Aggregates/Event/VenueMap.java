@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.shared.EntityNotFoundException;
 
 import java.util.*;
@@ -15,7 +17,9 @@ public class VenueMap {
     private final String venueName;
     private final List<Zone> zones;
 
-    public VenueMap(String id, String venueName, List<Zone> zones) {
+    @JsonCreator
+    public VenueMap(@JsonProperty("id") String id, @JsonProperty("venueName") String venueName,
+                     @JsonProperty("zones") List<Zone> zones) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("VenueMap id cannot be null or blank");
         }

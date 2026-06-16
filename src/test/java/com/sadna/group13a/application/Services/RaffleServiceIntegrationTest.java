@@ -16,6 +16,7 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.RaffleRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeRaffleJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,7 +49,7 @@ class RaffleServiceIntegrationTest {
     @BeforeEach
     void setUp() {
         raffleRepo     = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(), new PersistenceConfig().domainObjectMapper());
-        eventRepo      = new EventRepositoryImpl();
+        eventRepo      = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
         companyRepo    = new CompanyRepositoryImpl();
         userRepo       = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
         eventPublisher = new SpyEventPublisher();

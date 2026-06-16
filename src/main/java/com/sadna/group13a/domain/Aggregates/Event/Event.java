@@ -43,8 +43,10 @@ public class Event {
     private PurchasePolicy purchasePolicy;
     private DiscountPolicy discountPolicy;
 
-    public Event(String id, String title, String description,
-                 String companyId, LocalDateTime eventDate, String category) {
+    @JsonCreator
+    public Event(@JsonProperty("id") String id, @JsonProperty("title") String title,
+                 @JsonProperty("description") String description, @JsonProperty("companyId") String companyId,
+                 @JsonProperty("eventDate") LocalDateTime eventDate, @JsonProperty("category") String category) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Event id cannot be null or blank");
         }

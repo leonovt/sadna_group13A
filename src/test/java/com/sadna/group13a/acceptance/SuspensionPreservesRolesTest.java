@@ -15,6 +15,7 @@ import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeAdminJpaRepository;
 import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
@@ -75,7 +76,7 @@ class SuspensionPreservesRolesTest {
         adminRepo.save(new Admin("admin-rec-1", ADMIN_ID));
 
         adminService = new AdminService(
-                userRepo, adminRepo, new EventRepositoryImpl(), companyRepo,
+                userRepo, adminRepo, new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper()), companyRepo,
                 new QueueRepositoryImpl(), new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper()),
                 new StubPaymentGateway(), auth, publisher, log);
     }

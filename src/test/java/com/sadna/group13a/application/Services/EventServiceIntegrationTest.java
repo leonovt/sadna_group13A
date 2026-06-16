@@ -16,6 +16,7 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryIm
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.context.ApplicationEventPublisher;
@@ -48,7 +49,7 @@ class EventServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        eventRepo   = new EventRepositoryImpl();
+        eventRepo   = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
         companyRepo = new CompanyRepositoryImpl();
         userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
         auth        = new MultiUserStubAuth();
