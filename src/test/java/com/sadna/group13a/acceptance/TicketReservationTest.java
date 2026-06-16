@@ -318,7 +318,10 @@ class TicketReservationTest {
         setupData("e1", "c1", "z1", "s1", EventSaleMode.REGULAR);
 
         ProductionCompany comp = companyRepository.findById("c1").get();
-        comp.setPurchasePolicy(ctx -> false);
+        // AgeRestrictionPolicy(999) is a named, serializable stand-in for "always false" —
+        // an inline lambda PurchasePolicy has no stable class identity and can't round-trip
+        // through the JSON-blob persistence the JPA-backed repos use.
+        comp.setPurchasePolicy(new com.sadna.group13a.domain.policies.purchase.AgeRestrictionPolicy(999));
         companyRepository.save(comp);
         // Pre-condition: company has a restrictive policy that blocks all purchases
         assertFalse(comp.getPurchasePolicy().isSatisfied(
