@@ -3,6 +3,7 @@ package com.sadna.group13a.infrastructure;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Interfaces.TicketIssueRequest;
 import com.sadna.group13a.application.Result;
+import com.sadna.group13a.application.config.ExternalSystemTimeoutProperties;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,7 +65,11 @@ class ExternalTicketSupplierTest {
     }
 
     private ExternalTicketSupplier supplier() {
-        return new ExternalTicketSupplier(baseUrl, new ObjectMapper());
+        return new ExternalTicketSupplier(baseUrl, new ObjectMapper(), new ExternalSystemTimeoutProperties());
+    }
+
+    private ExternalTicketSupplier supplier(ExternalSystemTimeoutProperties timeouts) {
+        return new ExternalTicketSupplier(baseUrl, new ObjectMapper(), timeouts);
     }
 
     @Test
@@ -78,7 +83,8 @@ class ExternalTicketSupplierTest {
     void isConnected_whenUnreachable_returnsFalse() {
         int deadPort = server.getAddress().getPort();
         server.stop(0);
-        ExternalTicketSupplier deadSupplier = new ExternalTicketSupplier("http://localhost:" + deadPort + "/", new ObjectMapper());
+        ExternalTicketSupplier deadSupplier = new ExternalTicketSupplier(
+                "http://localhost:" + deadPort + "/", new ObjectMapper(), new ExternalSystemTimeoutProperties());
         assertFalse(deadSupplier.isConnected());
     }
 
@@ -132,6 +138,42 @@ class ExternalTicketSupplierTest {
         Result<Void> result = supplier().cancelTickets(List.of());
         assertTrue(result.isSuccess());
         assertTrue(cancelledTickets.isEmpty());
+    }
+
+    @Test
+    @DisplayName("issueTickets fails fast (does not hang) when the service is slower than the configured read timeout (issue #241)")
+    void issueTickets_slowResponse_failsWithinConfiguredReadTimeout() throws IOException {
+        HttpServer slowServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        slowServer.createContext("/", exchange -> {
+            try {
+                Thread.sleep(2000); // far longer than the 300ms read timeout configured below
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            byte[] bytes = "CODE-1".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(bytes);
+            }
+        });
+        slowServer.start();
+        try {
+            String slowUrl = "http://localhost:" + slowServer.getAddress().getPort() + "/";
+            ExternalSystemTimeoutProperties shortTimeout = new ExternalSystemTimeoutProperties();
+            shortTimeout.setReadTimeoutMs(300);
+            ExternalTicketSupplier slowSupplier = new ExternalTicketSupplier(slowUrl, new ObjectMapper(), shortTimeout);
+
+            long start = System.nanoTime();
+            Result<List<String>> result = slowSupplier.issueTickets("cust-1",
+                    List.of(new TicketIssueRequest("EVT-1", "Zone A", false, 0, 0)));
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+
+            assertFalse(result.isSuccess(), "a response slower than the read timeout must fail, not hang");
+            assertTrue(elapsedMs < 2000,
+                    "must fail within the configured read timeout, not wait for the full slow response (took " + elapsedMs + "ms)");
+        } finally {
+            slowServer.stop(0);
+        }
     }
 
     private static String extract(String json, String field) {
