@@ -2,21 +2,22 @@ spring:
   application:
     name: sadna-group13a
 
-  # ── Database connection (Version 3) ────────────────────────────────────────
-  # The actual datasource/JPA settings live in the profile files so the system
-  # can switch between a local (H2) and a remote (PostgreSQL) database WITHOUT
-  # any code change — just activate a different profile:
-  #   local : in-memory H2          -> --spring.profiles.active=local
-  #   prod  : remote PostgreSQL/GCP -> --spring.profiles.active=prod
-  # See application-local.yml / application-prod.yml and the README "Database
-  # configuration" section for every parameter.
-  #
-  # NOTE: these settings only take effect once the JPA starter + JDBC drivers
-  # are on the classpath (the persistence/ORM migration is a separate task).
-  # Until then Spring ignores spring.datasource.* / spring.jpa.*.
-  #
-  # Secrets (DB password) must NOT be committed — they come from environment
-  # variables (e.g. ${DB_PASSWORD}); see application-prod.yml.
+  datasource:
+    url: jdbc:h2:mem:sadna;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
 
 # JWT Configuration
 app:
