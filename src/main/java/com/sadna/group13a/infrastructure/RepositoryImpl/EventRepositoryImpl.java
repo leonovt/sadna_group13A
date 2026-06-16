@@ -34,12 +34,7 @@ public class EventRepositoryImpl implements IEventRepository {
         Optional<EventEntity> storedEntity = jpa.findById(event.getId());
         if (storedEntity.isPresent()) {
             Event stored = toDomain(storedEntity.get());
-            // Deliberately `>` not `>=`: unlike User/ActiveOrder/Raffle, Event's version
-            // field doesn't track every real mutation — code (and tests) can reach into
-            // a nested Zone/Seat and mutate it directly without going through Event's own
-            // version-incrementing methods (reserveSeat/sellItem/etc.), so a same-version
-            // resave after such a mutation is legitimate, not a conflict.
-            if (stored.getVersion() > event.getVersion()) {
+            if (stored.getVersion() >= event.getVersion()) {
                 throw new OptimisticLockException(
                         "Optimistic lock conflict for Event " + event.getId() +
                         ": stored version " + stored.getVersion() +

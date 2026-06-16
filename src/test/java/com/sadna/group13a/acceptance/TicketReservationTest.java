@@ -289,7 +289,10 @@ class TicketReservationTest {
         expiresAtField.setAccessible(true);
         expiresAtField.set(seat, Instant.now().minusSeconds(60)); // Expired 1 min ago
 
-        eventRepository.save(event);
+        // Note: no eventRepository.save(event) here — this test only verifies Seat's lazy
+        // expiry computation (getEffectiveStatus()) on the in-memory object via reflection;
+        // it isn't exercising persistence, and the backdated expiry was never applied through
+        // Event's own version-incrementing methods, so saving it would be a same-version resave.
 
         // Post-condition: seat is automatically released back to AVAILABLE after expiry
         assertTrue(seat.getEffectiveStatus() == SeatStatus.AVAILABLE, "Post: seat must be AVAILABLE after hold expiry");

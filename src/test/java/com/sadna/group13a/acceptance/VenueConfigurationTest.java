@@ -71,8 +71,8 @@ class VenueConfigurationTest {
         assertEquals(SeatStatus.AVAILABLE, preZone.findSeatById("s1").get().getStatus(),
                 "Pre: seat must be AVAILABLE before status change");
 
-        // Logical system changes seat to HELD
-        seat.hold("user1");
+        // Logical system changes seat to HELD (via Event's own facade so version tracks it)
+        event.reserveSeat("z1", "s1", "user1");
         eventRepository.save(event);
 
         // Post-condition: the persisted map reflects the HELD status in real-time

@@ -336,10 +336,9 @@ class OrderServiceIntegrationTest {
         @Test
         @DisplayName("Given a seat already held by another user, addItemToCart returns failure")
         void givenAlreadyHeldSeat_whenAddItemToCart_thenFailure() {
-            // Pre-hold the seat as a different user directly on the domain object.
+            // Pre-hold the seat as a different user, via Event's own facade so version tracks it.
             Event event = eventRepo.findById(EVENT_ID).orElseThrow();
-            SeatedZone zone = (SeatedZone) event.getZoneById(ZONE_ID);
-            zone.findSeatById(SEAT_ID).orElseThrow().hold("other-user-999");
+            event.reserveSeat(ZONE_ID, SEAT_ID, "other-user-999");
             eventRepo.save(event);
 
             Result<String> result =
