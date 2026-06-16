@@ -1,5 +1,8 @@
 package com.sadna.group13a.domain.Aggregates.Raffle;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,7 +27,9 @@ public class Raffle
     // Maps a winning User ID to their specific Authorization Code
     private final Map<String, AuthorizationCode> winners;
 
-    public Raffle(String id, String eventId, String companyId)
+    @JsonCreator
+    public Raffle(@JsonProperty("id") String id, @JsonProperty("eventId") String eventId,
+                  @JsonProperty("companyId") String companyId)
     {
         this.id = id;
         this.eventId = eventId;
