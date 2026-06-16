@@ -53,6 +53,14 @@ app:
     # Leave blank to skip initial-state loading.
     initial-state-file:
 
+  # External payment service (Version 3 — see README "Payment integration").
+  external:
+    payment:
+      # 'stub' (default, in-memory — used by tests/local) or 'wsep' (real external service).
+      mode: stub
+      # WSEP endpoint; used only when mode=wsep. URL is read from config, not hardcoded.
+      url: https://damp-lynna-wsep-1984852e.koyeb.app/
+
 logging:
   level:
     com.sadna.group13a.domain: DEBUG

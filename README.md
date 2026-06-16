@@ -32,63 +32,30 @@ To override at runtime without editing files:
 mvn spring-boot:run -Dspring-boot.run.arguments=--app.init.max-concurrent-users-per-event=250
 ```
 
-## Initial-state file
+## Payment integration
 
-Optionally, the system can be brought to a known state at startup by replaying a sequence of
-use-cases from a **separate** JSON file (distinct from the configuration file). Point
-`app.init.initial-state-file` at it:
+The system charges and refunds through an external payment service. Which implementation is used is
+selected by configuration — the URL is **never hardcoded**:
 
 ```yaml
 app:
-  init:
-    initial-state-file: classpath:init-state.sample.json   # or a filesystem path
+  external:
+    payment:
+      mode: stub   # 'stub' (in-memory, default — used by tests and local dev) or 'wsep'
+      url: https://damp-lynna-wsep-1984852e.koyeb.app/   # used only when mode=wsep
 ```
 
-The path is resolved as a filesystem path (absolute, or relative to the working directory); if not
-found there it is looked up on the classpath. A `classpath:` prefix forces a classpath lookup. A
-ready-to-use example lives at `src/main/resources/init-state.sample.json`.
+| Parameter | Meaning |
+|-----------|---------|
+| `app.external.payment.mode` | `stub` (default `StubPaymentGateway`) or `wsep` (real `WsepPaymentGateway`). |
+| `app.external.payment.url`  | WSEP endpoint; used only when `mode=wsep`. |
 
-### Format
+When `mode=wsep`:
+- At startup the platform performs a `handshake` to verify the service is reachable (init fails otherwise).
+- Checkout collects the card fields (number, holder, expiry, CVV, ID, currency) and calls `pay`; the
+  returned transaction id is stored on the order receipt.
+- On cancellation or any post-payment failure the system calls `refund` for the **entire** transaction
+  (WSEP supports only full refunds).
+- Timeouts, non-2xx responses, malformed bodies and `-1` results are handled gracefully (no crash).
 
-The file is a JSON **array of operations**, executed in order. Each operation has:
-
-| Field | Required | Meaning |
-|-------|----------|---------|
-| `action` | yes | The use-case to invoke (see the table below). |
-| `args` | depends | Named arguments for the use-case. |
-| `bindTo` | no | A name bound to the value this operation returns (a token or an entity id), for reuse by later operations. |
-
-Any `args` value equal to a previously bound name is **resolved to that bound value** — this is how
-a token returned by `login` is passed to later operations.
-
-All operations go through the **application/service layer** only. Initialization is
-**all-or-nothing**: if any operation fails, the error is reported and the application **does not
-start**.
-
-### Supported actions
-
-| `action` | `args` | Binds (`bindTo`) |
-|----------|--------|------------------|
-| `register` | `username`, `password` | — |
-| `login` | `username`, `password` | auth token |
-| `enter-as-guest` | — | guest token |
-| `create-company` | `token`, `name`, `description?` | company id |
-| `create-event` | `token`, `companyId`, `title`, `description?`, `date` (ISO `yyyy-MM-ddThh:mm`), `category?`, `artist?`, `location?` | event id |
-| `publish-event` | `token`, `eventId` | — |
-
-### Example
-
-```json
-[
-  { "action": "register", "args": { "username": "alice", "password": "password123" } },
-  { "action": "login",    "args": { "username": "alice", "password": "password123" }, "bindTo": "alice_token" },
-  { "action": "create-company",
-    "args": { "token": "alice_token", "name": "SoundWave Entertainment", "description": "Live music promoter" },
-    "bindTo": "soundwave" },
-  { "action": "create-event",
-    "args": { "token": "alice_token", "companyId": "soundwave", "title": "Jazz Night 2026",
-              "date": "2026-08-01T20:00", "category": "Live Music", "artist": "The Quartet", "location": "Tel Aviv" },
-    "bindTo": "jazz_night" },
-  { "action": "publish-event", "args": { "token": "alice_token", "eventId": "jazz_night" } }
-]
-```
+Tests always run with `mode=stub`, so they never contact the real WSEP service.
