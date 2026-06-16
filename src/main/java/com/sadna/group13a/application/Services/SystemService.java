@@ -16,6 +16,7 @@ import com.sadna.group13a.domain.Aggregates.Admin.Admin;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.application.Result;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SystemService {
@@ -49,6 +50,7 @@ public class SystemService {
      * Initializes the platform, verifies external services, and creates the root system administrator.
      * The root admin is stored as a Member (for auth) and as an Admin record (for governance).
      */
+    @Transactional
     public Result<Void> initializePlatform(String adminUsername, String rawPassword) {
         logger.info("Attempting to initialize the platform...");
         if (!isInitialized.compareAndSet(false, true)) {

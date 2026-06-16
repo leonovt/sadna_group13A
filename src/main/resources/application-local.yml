@@ -1,0 +1,26 @@
+# Local profile — activated via: --spring.profiles.active=local
+# (or: mvn spring-boot:run -Dspring-boot.run.profiles=local)
+#
+# Uses a LOCAL in-memory H2 database. No credentials are needed and nothing is
+# persisted between restarts — intended for development on a single machine.
+#
+# NOTE: spring.datasource.* / spring.jpa.* only take effect once the JPA starter
+# and the H2 driver are on the classpath (separate persistence/ORM task).
+
+spring:
+  datasource:
+    # In-memory H2; DB_CLOSE_DELAY=-1 keeps it alive for the JVM lifetime.
+    url: jdbc:h2:mem:sadna;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      # create-drop: schema is (re)built on startup and dropped on shutdown.
+      ddl-auto: create-drop
+    show-sql: false
+  # H2 web console (http://localhost:8080/h2-console) for inspecting local data.
+  h2:
+    console:
+      enabled: true

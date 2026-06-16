@@ -73,7 +73,7 @@ class SuspensionPreservesRolesTest {
         adminService = new AdminService(
                 userRepo, adminRepo, new EventRepositoryImpl(), companyRepo,
                 new QueueRepositoryImpl(), new OrderHistoryRepositoryImpl(),
-                new StubPaymentGateway(), auth, publisher, log);
+                new StubPaymentGateway(), new com.sadna.group13a.infrastructure.StubTicketSupplier(), auth, publisher, log);
     }
 
     /** Seeds a company whose founder appointed an accepted manager, and returns that company. */
