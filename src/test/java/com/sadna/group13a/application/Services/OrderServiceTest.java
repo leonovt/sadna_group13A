@@ -16,6 +16,7 @@ import com.sadna.group13a.domain.Aggregates.Event.SeatedZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Events.OrderCompletedEvent;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -57,6 +59,7 @@ class OrderServiceTest {
     @Mock private IAuth authGateway;
     @Mock private CheckoutDomainService checkoutDomainService;
     @Mock private TicketingAccessDomainService ticketingAccessDomainService;
+    @Mock private CartDomainService cartDomainService;
     @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks

@@ -2,6 +2,23 @@ spring:
   application:
     name: sadna-group13a
 
+  datasource:
+    url: jdbc:h2:mem:sadna;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
 # JWT Configuration
 app:
   jwt:
@@ -16,6 +33,15 @@ app:
   admin:
     username: admin
     password: admin123
+
+  # System initialization parameters (Version 3 — see README "Startup configuration").
+  # Bound to SystemInitProperties and validated: invalid/missing values stop startup.
+  init:
+    # Max users who may hold tickets for one event simultaneously before queuing (>= 1).
+    max-concurrent-users-per-event: 100
+    # Optional path to an initial-state JSON file executed at startup (issue #224).
+    # Leave blank to skip initial-state loading.
+    initial-state-file:
 
 logging:
   level:

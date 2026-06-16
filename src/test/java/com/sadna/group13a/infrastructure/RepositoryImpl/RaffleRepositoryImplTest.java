@@ -59,4 +59,36 @@ class RaffleRepositoryImplTest {
 
         assertEquals(2, repo.findByEventId("event-99").size());
     }
+
+    @Test
+    void givenParticipantInRaffle_whenFindByUserId_thenReturnsRaffle() {
+        Raffle raffle = new Raffle(UUID.randomUUID().toString(), "event-1", "co-1");
+        raffle.registerParticipant("user-abc");
+        repo.save(raffle);
+
+        List<Raffle> found = repo.findByUserId("user-abc");
+        assertEquals(1, found.size());
+    }
+
+    @Test
+    void givenUserNotInAnyRaffle_whenFindByUserId_thenReturnsEmpty() {
+        repo.save(new Raffle(UUID.randomUUID().toString(), "event-1", "co-1"));
+
+        assertTrue(repo.findByUserId("nobody").isEmpty());
+    }
+
+    @Test
+    void givenRaffleForCompany_whenFindByCompanyId_thenReturnsIt() {
+        repo.save(new Raffle(UUID.randomUUID().toString(), "event-1", "co-xyz"));
+
+        List<Raffle> found = repo.findByCompanyId("co-xyz");
+        assertEquals(1, found.size());
+    }
+
+    @Test
+    void givenNoRaffleForCompany_whenFindByCompanyId_thenReturnsEmpty() {
+        repo.save(new Raffle(UUID.randomUUID().toString(), "event-1", "co-A"));
+
+        assertTrue(repo.findByCompanyId("co-B").isEmpty());
+    }
 }

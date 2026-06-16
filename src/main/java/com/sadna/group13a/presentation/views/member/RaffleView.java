@@ -1,11 +1,11 @@
 package com.sadna.group13a.presentation.views.member;
 
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.RaffleDTO;
 import com.sadna.group13a.application.DTO.WinningTicketDTO;
 import com.sadna.group13a.presentation.views.auth.LoginView;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
@@ -18,6 +18,7 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Route("member/raffles")
 @PageTitle("Raffles")
@@ -28,6 +29,7 @@ public class RaffleView extends VerticalLayout implements BeforeEnterObserver {
 
     private final RafflePresenter presenter;
 
+    private final Grid<RaffleDTO> myRafflesGrid = new Grid<>(RaffleDTO.class, false);
     private final TextField raffleIdField = new TextField("Raffle ID");
     private final Span errorMessage = new Span();
     private final Span infoMessage = new Span();
@@ -39,31 +41,38 @@ public class RaffleView extends VerticalLayout implements BeforeEnterObserver {
         initView();
     }
 
-    /**
-     * Guards the page: unauthenticated users are redirected straight to login
-     * instead of being shown the raffle controls and then an error.
-     */
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         if (!presenter.hasAccess()) {
             event.forwardTo(LoginView.class);
+            return;
         }
+        presenter.handleLoadMyRaffles(this);
     }
 
     private void initView() {
         add(new Button("<- Home", e -> UI.getCurrent().navigate("")));
         setAlignItems(Alignment.CENTER);
         setSizeFull();
+        setPadding(true);
 
         errorMessage.getStyle().set("color", "var(--lumo-error-color)");
         errorMessage.setVisible(false);
-
         infoMessage.getStyle().set("color", "var(--lumo-success-color)");
         infoMessage.setVisible(false);
-
         neutralMessage.getStyle().set("color", "var(--lumo-secondary-text-color)");
         neutralMessage.setVisible(false);
 
+        // ── My raffles grid ───────────────────────────────────────────
+        myRafflesGrid.addColumn(RaffleDTO::id).setHeader("Raffle ID").setAutoWidth(true);
+        myRafflesGrid.addColumn(RaffleDTO::eventId).setHeader("Event").setAutoWidth(true);
+        myRafflesGrid.addColumn(r -> r.status().name()).setHeader("Status").setAutoWidth(true);
+        myRafflesGrid.addColumn(RaffleDTO::totalParticipants).setHeader("Participants").setAutoWidth(true);
+        myRafflesGrid.setHeight("220px");
+        myRafflesGrid.addSelectionListener(sel ->
+                sel.getFirstSelectedItem().ifPresent(r -> raffleIdField.setValue(r.id())));
+
+        // ── Details / result panel ────────────────────────────────────
         detailsLayout.setPadding(false);
         detailsLayout.setSpacing(false);
         detailsLayout.setVisible(false);
@@ -74,20 +83,34 @@ public class RaffleView extends VerticalLayout implements BeforeEnterObserver {
             clearFeedback();
             presenter.handleJoinRaffle(raffleIdField.getValue(), this);
         });
-
         Button detailsButton = new Button("View Details", e -> {
             clearFeedback();
             presenter.handleViewDetails(raffleIdField.getValue(), this);
         });
-
         Button resultButton = new Button("Check My Result", e -> {
             clearFeedback();
             presenter.handleCheckResult(raffleIdField.getValue(), this);
         });
+        Button refreshButton = new Button("Refresh", e -> {
+            clearFeedback();
+            presenter.handleLoadMyRaffles(this);
+        });
 
-        HorizontalLayout actions = new HorizontalLayout(joinButton, detailsButton, resultButton);
+        HorizontalLayout actions = new HorizontalLayout(joinButton, detailsButton, resultButton, refreshButton);
 
-        add(new H2("Raffles"), raffleIdField, actions, errorMessage, infoMessage, neutralMessage, detailsLayout);
+        add(
+            new H2("My Raffles"),
+            myRafflesGrid,
+            new H3("Actions"),
+            raffleIdField,
+            actions,
+            errorMessage, infoMessage, neutralMessage,
+            detailsLayout
+        );
+    }
+
+    public void showMyRaffles(List<RaffleDTO> raffles) {
+        myRafflesGrid.setItems(raffles);
     }
 
     public void showError(String message) {
@@ -100,10 +123,6 @@ public class RaffleView extends VerticalLayout implements BeforeEnterObserver {
         infoMessage.setVisible(true);
     }
 
-    /**
-     * Displays an expected, non-winning outcome (e.g. "you did not win, or the draw
-     * hasn't happened yet") in neutral styling — this is informational, not an error.
-     */
     public void showNeutral(String message) {
         neutralMessage.setText(message);
         neutralMessage.setVisible(true);
@@ -113,6 +132,8 @@ public class RaffleView extends VerticalLayout implements BeforeEnterObserver {
         detailsLayout.removeAll();
         detailsLayout.add(
             new H3("Raffle Details"),
+            new Span("Raffle ID: " + raffle.id()),
+            new Span("Event: " + raffle.eventId()),
             new Span("Status: " + raffle.status()),
             new Span("Participants: " + raffle.totalParticipants())
         );

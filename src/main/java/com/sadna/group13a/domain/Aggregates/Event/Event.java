@@ -29,6 +29,7 @@ public class Event {
     private String companyId;       // owning ProductionCompany
     private LocalDateTime eventDate;
     private String category;
+    private String artist;          // performing artist / headliner, nullable
     private String location;        // physical venue / city, nullable
     private VenueMap venueMap;
     private boolean published;      // whether the event is visible to buyers
@@ -60,6 +61,7 @@ public class Event {
         this.companyId = companyId;
         this.eventDate = eventDate;
         this.category = category;
+        this.artist = null;
         this.location = null;
         this.venueMap = null;
         this.published = false;
@@ -113,6 +115,13 @@ public class Event {
 
     public void setCategory(String category) {
         this.category = category;
+        version++;
+    }
+
+    public String getArtist() { return artist; }
+
+    public void setArtist(String artist) {
+        this.artist = artist;
         version++;
     }
 
