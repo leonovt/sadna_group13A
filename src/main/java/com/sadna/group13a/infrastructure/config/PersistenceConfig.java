@@ -24,6 +24,10 @@ public class PersistenceConfig {
         ObjectMapper mapper = new ObjectMapper();
         mapper.setVisibility(PropertyAccessor.ALL, Visibility.NONE);
         mapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY);
+        // ALL=NONE above also disables CREATOR auto-detection, which breaks records
+        // (e.g. PendingNotification) and any class relying on Jackson's automatic
+        // canonical/implicit-constructor detection rather than an explicit @JsonCreator.
+        mapper.setVisibility(PropertyAccessor.CREATOR, Visibility.ANY);
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.registerModule(new JavaTimeModule());
         return mapper;
