@@ -65,6 +65,10 @@ app:
       mode: stub
       # WSEP endpoint; used only when mode=wsep. URL is read from config, not hardcoded.
       url: https://damp-lynna-wsep-1984852e.koyeb.app/
+    # Shared connect/read timeouts for all external calls (payment + ticket issuance) —
+    # issue #241. Bound to ExternalSystemTimeoutProperties.
+    connect-timeout-ms: 5000
+    read-timeout-ms: 10000
 
 logging:
   level:
