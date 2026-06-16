@@ -95,6 +95,7 @@ class TicketIssuanceRobustnessTest {
 
     private IPaymentGateway paymentGateway;
     private ITicketSupplier ticketSupplier;
+    private SystemLogService systemLogService;
 
     // ── Lightweight test double for auth ──────────────────────────────────────
 
@@ -131,6 +132,7 @@ class TicketIssuanceRobustnessTest {
 
         paymentGateway = mock(IPaymentGateway.class);
         ticketSupplier = mock(ITicketSupplier.class);
+        systemLogService = mock(SystemLogService.class);
 
         auth = new StubAuth(USER_ID, VALID_TOKEN);
 
@@ -151,7 +153,8 @@ class TicketIssuanceRobustnessTest {
                 ticketingAccessDomainService, // 12. TicketingAccessDomainService
                 noOpPublisher,                // 13. ApplicationEventPublisher
                 cartDomainService,            // 14. CartDomainService
-                null                          // 15. QueueService (not exercised here)
+                null,                         // 15. QueueService (not exercised here)
+                systemLogService              // 16. SystemLogService
         );
 
         // Payment always succeeds with a fixed transaction ID unless a test overrides it.

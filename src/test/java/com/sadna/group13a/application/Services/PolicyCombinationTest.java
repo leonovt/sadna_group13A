@@ -119,7 +119,7 @@ class PolicyCombinationTest {
                 orderRepo, historyRepo, eventRepo, companyRepo, queueRepo, raffleRepo,
                 payment, tickets, userRepo, auth,
                 checkoutDomainService, ticketingAccessDomainService, publisher,
-                cartDomainService, null);
+                cartDomainService, null, new SystemLogService());
     }
 
     // ── Seed helpers ──────────────────────────────────────────────────────────────

@@ -154,7 +154,8 @@ class OrderServiceIntegrationTest {
                         ticketingAccessDomainService, // 12. TicketingAccessDomainService
                         eventPublisher,               // 13. ApplicationEventPublisher
                         cartDomainService,            // 14. CartDomainService
-                        null                          // 15. QueueService (queue advancement not under test here)
+                        null,                         // 15. QueueService (queue advancement not under test here)
+                        new SystemLogService()        // 16. SystemLogService
                 );
 
         seedEventAndCompany();
