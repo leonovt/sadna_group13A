@@ -22,6 +22,13 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryIm
 import com.sadna.group13a.infrastructure.RepositoryImpl.QueueRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.RaffleRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeActiveOrderJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeRaffleJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -29,9 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -111,13 +116,14 @@ class TicketIssuanceRobustnessTest {
 
     @BeforeEach
     void setUp() {
-        orderRepo   = new ActiveOrderRepositoryImpl();
-        historyRepo = new OrderHistoryRepositoryImpl();
-        eventRepo   = new EventRepositoryImpl();
-        companyRepo = new CompanyRepositoryImpl();
+        PersistenceConfig cfg = new PersistenceConfig();
+        orderRepo   = new ActiveOrderRepositoryImpl(new FakeActiveOrderJpaRepository(),  cfg.domainObjectMapper());
+        historyRepo = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), cfg.domainObjectMapper());
+        eventRepo   = new EventRepositoryImpl(new FakeEventJpaRepository(),               cfg.domainObjectMapper());
+        companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(),           cfg.domainObjectMapper());
         queueRepo   = new QueueRepositoryImpl();
-        raffleRepo  = new RaffleRepositoryImpl();
-        userRepo    = new UserRepositoryImpl();
+        raffleRepo  = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(),             cfg.domainObjectMapper());
+        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(),                 cfg.domainObjectMapper());
 
         checkoutDomainService        = new CheckoutDomainService();
         ticketingAccessDomainService = new TicketingAccessDomainService();
@@ -211,7 +217,7 @@ class TicketIssuanceRobustnessTest {
                 + "failure code from supplier → payment refunded, seats rolled back")
         void checkout_ticketIssuanceReturnsMinusOne_refundIsCalledAndStateRollsBack() {
             // Supplier failure maps to the '-1 / rejected' code from the external system.
-            when(ticketSupplier.issueTickets(anyString(), anyInt()))
+            when(ticketSupplier.issueTickets(anyString(), anyList()))
                     .thenReturn(Result.failure("ticket issuance rejected (-1)"));
 
             String cartId = placeItemInCart();
@@ -240,7 +246,7 @@ class TicketIssuanceRobustnessTest {
         @DisplayName("checkout_ticketIssuanceTimesOut_refundIsCalledAndSeatsReleased: "
                 + "timeout failure from supplier → payment refunded, seats released")
         void checkout_ticketIssuanceTimesOut_refundIsCalledAndSeatsReleased() {
-            when(ticketSupplier.issueTickets(anyString(), anyInt()))
+            when(ticketSupplier.issueTickets(anyString(), anyList()))
                     .thenReturn(Result.failure("Ticket service timeout — no response after 30s"));
 
             String cartId = placeItemInCart();
@@ -263,7 +269,7 @@ class TicketIssuanceRobustnessTest {
         @Test
         @DisplayName("Refund must be called exactly once — no duplicate refund attempts")
         void checkout_ticketIssuanceFails_refundCalledExactlyOnce() {
-            when(ticketSupplier.issueTickets(anyString(), anyInt()))
+            when(ticketSupplier.issueTickets(anyString(), anyList()))
                     .thenReturn(Result.failure("Service unavailable"));
 
             String cartId = placeItemInCart();
@@ -278,7 +284,7 @@ class TicketIssuanceRobustnessTest {
         @Test
         @DisplayName("No OrderHistory must be created when ticket issuance fails")
         void checkout_ticketIssuanceFails_noOrderHistoryCreated() {
-            when(ticketSupplier.issueTickets(anyString(), anyInt()))
+            when(ticketSupplier.issueTickets(anyString(), anyList()))
                     .thenReturn(Result.failure("Quota exceeded"));
 
             String cartId = placeItemInCart();
@@ -293,7 +299,7 @@ class TicketIssuanceRobustnessTest {
         @DisplayName("Cart must be removed even on ticket failure — "
                 + "seats are refunded and the order is voided, so the cart has no valid state")
         void checkout_ticketIssuanceFails_cartIsDeleted() {
-            when(ticketSupplier.issueTickets(anyString(), anyInt()))
+            when(ticketSupplier.issueTickets(anyString(), anyList()))
                     .thenReturn(Result.failure("Supplier unreachable"));
 
             String cartId = placeItemInCart();
@@ -311,13 +317,13 @@ class TicketIssuanceRobustnessTest {
         @Test
         @DisplayName("issueTickets must be called exactly once — no internal retry loop")
         void checkout_ticketIssuanceFails_ticketSupplierCalledExactlyOnce() {
-            when(ticketSupplier.issueTickets(anyString(), anyInt()))
+            when(ticketSupplier.issueTickets(anyString(), anyList()))
                     .thenReturn(Result.failure("Rejected"));
 
             String cartId = placeItemInCart();
             orderService.executeCheckout(VALID_TOKEN, cartId, null, "card");
 
-            verify(ticketSupplier, times(1)).issueTickets(anyString(), eq(1));
+            verify(ticketSupplier, times(1)).issueTickets(anyString(), argThat(list -> list.size() == 1));
         }
     }
 
@@ -356,7 +362,7 @@ class TicketIssuanceRobustnessTest {
                 + "and refund was at least attempted")
         void checkout_ticketIssuanceFails_refundFails_adminAlertIsLogged() {
             // Both external systems fail.
-            when(ticketSupplier.issueTickets(anyString(), anyInt()))
+            when(ticketSupplier.issueTickets(anyString(), anyList()))
                     .thenReturn(Result.failure("Ticket system completely down"));
             when(paymentGateway.refundPayment(TRANSACTION_ID))
                     .thenReturn(Result.failure("Refund gateway unreachable"));
@@ -409,7 +415,7 @@ class TicketIssuanceRobustnessTest {
         @DisplayName("checkout_ticketIssuanceThrows_refundIsCalledAndNoOrderHistoryCreated: "
                 + "RuntimeException from supplier must not propagate; refund must be triggered")
         void checkout_ticketIssuanceThrows_refundIsCalledAndNoOrderHistoryCreated() {
-            when(ticketSupplier.issueTickets(anyString(), anyInt()))
+            when(ticketSupplier.issueTickets(anyString(), anyList()))
                     .thenThrow(new RuntimeException("Ticket service connection reset by peer"));
 
             String cartId = placeItemInCart();
