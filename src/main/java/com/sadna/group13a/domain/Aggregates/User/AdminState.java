@@ -1,10 +1,14 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 class AdminState implements UserTypeState {
 
     private final String passwordHash;
 
-    AdminState(String passwordHash) {
+    @JsonCreator
+    AdminState(@JsonProperty("passwordHash") String passwordHash) {
         this.passwordHash = passwordHash;
     }
 

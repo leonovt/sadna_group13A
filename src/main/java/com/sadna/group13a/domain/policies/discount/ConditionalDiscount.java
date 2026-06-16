@@ -14,17 +14,16 @@ import com.sadna.group13a.domain.shared.DomainException;
 public class ConditionalDiscount implements DiscountPolicy {
 
     private final double percentage;
-    private final int    minTickets;
+    private final int minTickets;
 
     @JsonCreator
-    public ConditionalDiscount(@JsonProperty("percentage") double percentage,
-                               @JsonProperty("minTickets") int    minTickets) {
+    public ConditionalDiscount(@JsonProperty("percentage") double percentage, @JsonProperty("minTickets") int minTickets) {
         if (percentage < 0.0 || percentage > 1.0)
             throw new DomainException("Discount percentage must be between 0 and 1");
         if (minTickets <= 0)
             throw new DomainException("Illogical rule: minimum tickets must be > 0");
-        this.percentage = percentage;
-        this.minTickets = minTickets;
+        this.percentage  = percentage;
+        this.minTickets  = minTickets;
     }
 
     public double getPercentage() { return percentage; }

@@ -13,6 +13,9 @@ import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.PasswordEncoderImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeAdminJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import com.sadna.group13a.infrastructure.StubTicketSupplier;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,8 +47,8 @@ class PlatformInitializationTest {
 
     @BeforeEach
     void setUp() {
-        userRepository = new UserRepositoryImpl();
-        adminRepository = new AdminRepositoryImpl();
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        adminRepository = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
         authGateway = new AuthImpl();
         passwordEncoder = new PasswordEncoderImpl();
         paymentGateway = new StubPaymentGateway();   // always connected

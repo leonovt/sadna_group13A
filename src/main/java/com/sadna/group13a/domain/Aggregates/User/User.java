@@ -1,9 +1,17 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "userClass")
+@JsonSubTypes({
+        @JsonSubTypes.Type(Guest.class),
+        @JsonSubTypes.Type(Member.class)
+})
 public class User {
 
     private final String id;

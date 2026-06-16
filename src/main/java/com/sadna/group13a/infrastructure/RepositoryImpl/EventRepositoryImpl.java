@@ -1,83 +1,93 @@
 package com.sadna.group13a.infrastructure.RepositoryImpl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.shared.OptimisticLockException;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.EventEntity;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.EventJpaRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 @Repository
 public class EventRepositoryImpl implements IEventRepository {
 
-    private final ConcurrentHashMap<String, Event> store = new ConcurrentHashMap<>();
+    private final EventJpaRepository jpa;
+    private final ObjectMapper objectMapper;
+
+    public EventRepositoryImpl(EventJpaRepository jpa,
+                                @Qualifier("domainObjectMapper") ObjectMapper objectMapper) {
+        this.jpa = jpa;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public Optional<Event> findById(String id) {
-        return Optional.ofNullable(store.get(id));
+        return jpa.findById(id).map(this::toDomain);
     }
 
-    /**
-     * Persists the event.  Detects optimistic-lock conflicts when the caller holds a
-     * different object instance than what is currently in the store (e.g., after
-     * deserialization or a future JPA migration): if the stored version is newer than
-     * the incoming version, the update is rejected.
-     *
-     * In the current in-memory implementation the store usually holds the same object
-     * reference, so version divergence only occurs with explicit concurrency scenarios.
-     */
     @Override
     public synchronized void save(Event event) {
-        Event stored = store.get(event.getId());
-        if (stored != null && stored != event && stored.getVersion() > event.getVersion()) {
-            throw new OptimisticLockException(
-                    "Optimistic lock conflict for Event " + event.getId() +
-                    ": stored version " + stored.getVersion() +
-                    " > incoming version " + event.getVersion());
+        Optional<EventEntity> storedEntity = jpa.findById(event.getId());
+        if (storedEntity.isPresent()) {
+            Event stored = toDomain(storedEntity.get());
+            if (stored.getVersion() >= event.getVersion()) {
+                throw new OptimisticLockException(
+                        "Optimistic lock conflict for Event " + event.getId() +
+                        ": stored version " + stored.getVersion() +
+                        " > incoming version " + event.getVersion());
+            }
         }
-        store.put(event.getId(), event);
+        jpa.save(new EventEntity(event.getId(), event.getCompanyId(), event.getCategory(),
+                event.isPublished(), event.getTitle(), writeJson(event)));
     }
 
     @Override
     public void delete(String id) {
-        store.remove(id);
+        jpa.deleteById(id);
     }
 
     @Override
     public List<Event> findAll() {
-        return new ArrayList<>(store.values());
+        return jpa.findAll().stream().map(this::toDomain).toList();
     }
 
     @Override
     public List<Event> findByCompanyId(String companyId) {
-        return store.values().stream()
-                .filter(e -> e.getCompanyId().equals(companyId))
-                .collect(Collectors.toList());
+        return jpa.findByCompanyId(companyId).stream().map(this::toDomain).toList();
     }
 
     @Override
     public List<Event> findPublished() {
-        return store.values().stream()
-                .filter(Event::isPublished)
-                .collect(Collectors.toList());
+        return jpa.findByPublishedTrue().stream().map(this::toDomain).toList();
     }
 
     @Override
     public List<Event> searchByTitle(String query) {
-        String lower = query.toLowerCase();
-        return store.values().stream()
-                .filter(e -> e.getTitle().toLowerCase().contains(lower))
-                .collect(Collectors.toList());
+        return jpa.findByTitleContainingIgnoreCase(query).stream().map(this::toDomain).toList();
     }
 
     @Override
     public List<Event> findByCategory(String category) {
-        return store.values().stream()
-                .filter(e -> category.equals(e.getCategory()))
-                .collect(Collectors.toList());
+        return jpa.findByCategory(category).stream().map(this::toDomain).toList();
+    }
+
+    private String writeJson(Event event) {
+        try {
+            return objectMapper.writeValueAsString(event);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize Event " + event.getId(), e);
+        }
+    }
+
+    private Event toDomain(EventEntity entity) {
+        try {
+            return objectMapper.readValue(entity.getData(), Event.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to deserialize Event " + entity.getId(), e);
+        }
     }
 }

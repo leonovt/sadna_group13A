@@ -13,11 +13,17 @@ import com.sadna.group13a.domain.Events.UserBannedEvent;
 import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeAdminJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.QueueRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,9 +58,9 @@ class SuspensionPreservesRolesTest {
 
     @BeforeEach
     void setUp() {
-        userRepo = new UserRepositoryImpl();
-        companyRepo = new CompanyRepositoryImpl();
-        AdminRepositoryImpl adminRepo = new AdminRepositoryImpl();
+        userRepo = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        AdminRepositoryImpl adminRepo = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
         auth = new AuthImpl();
         SystemLogService log = mock(SystemLogService.class);
         companyListener = new CompanyEventListener(companyRepo);
@@ -71,8 +77,8 @@ class SuspensionPreservesRolesTest {
         adminRepo.save(new Admin("admin-rec-1", ADMIN_ID));
 
         adminService = new AdminService(
-                userRepo, adminRepo, new EventRepositoryImpl(), companyRepo,
-                new QueueRepositoryImpl(), new OrderHistoryRepositoryImpl(),
+                userRepo, adminRepo, new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper()), companyRepo,
+                new QueueRepositoryImpl(), new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper()),
                 new StubPaymentGateway(), new com.sadna.group13a.infrastructure.StubTicketSupplier(), auth, publisher, log);
     }
 

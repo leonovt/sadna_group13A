@@ -4,6 +4,8 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.shared.PersistenceUnavailableException;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +23,9 @@ class RepositoryAvailabilityBeanPostProcessorTest {
         DatabaseConnectionManager mgr = new DatabaseConnectionManager(probe);
         RepositoryAvailabilityBeanPostProcessor bpp = new RepositoryAvailabilityBeanPostProcessor(mgr);
 
-        Object wrapped = bpp.postProcessAfterInitialization(new EventRepositoryImpl(), "eventRepositoryImpl");
+        Object wrapped = bpp.postProcessAfterInitialization(
+                new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper()),
+                "eventRepositoryImpl");
         assertTrue(wrapped instanceof IEventRepository, "repository must be wrapped behind its interface");
         IEventRepository repo = (IEventRepository) wrapped;
 

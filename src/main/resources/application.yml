@@ -1,17 +1,16 @@
 spring:
   application:
     name: sadna-group13a
-
   datasource:
-    url: jdbc:h2:mem:sadna;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:file:./data/sadna-db;AUTO_SERVER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
-    password:
-
+    password: ""
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
+    open-in-view: false
     show-sql: false
 
   h2:
@@ -66,6 +65,10 @@ app:
     payment:
       # WSEP endpoint; used only in the prod profile.
       url: https://damp-lynna-wsep-1984852e.koyeb.app/
+    # Shared connect/read timeouts for all external calls (payment + ticket issuance) —
+    # issue #241. Bound to ExternalSystemTimeoutProperties.
+    connect-timeout-ms: 5000
+    read-timeout-ms: 10000
 
 logging:
   level:
