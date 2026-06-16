@@ -441,7 +441,17 @@ public class OrderService {
                         parseSeatNumber(i.getSeatLabel())))
                 .collect(Collectors.toList());
 
-        Result<List<String>> ticketResult = ticketSupplier.issueTickets(userId, ticketRequests);
+        Result<List<String>> ticketResult;
+        try {
+            ticketResult = ticketSupplier.issueTickets(userId, ticketRequests);
+        } catch (Exception e) {
+            logger.error("Ticket supplier threw an exception for user {}: {}", userId, e.getMessage());
+            paymentGateway.refundPayment(transactionId);
+            rollbackSoldSeats(processedEvents, order.getItems());
+            orderRepository.deleteById(activeOrderId);
+            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Ticket issuance failed — payment refunded."));
+            return Result.failure("Ticket issuance failed — payment refunded.");
+        }
         if (!ticketResult.isSuccess()) {
             logger.error("Ticket issuance failed for user {}: {}", userId, ticketResult.getErrorMessage());
             paymentGateway.refundPayment(transactionId);
