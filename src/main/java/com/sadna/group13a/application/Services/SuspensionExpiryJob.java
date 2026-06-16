@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +34,7 @@ public class SuspensionExpiryJob {
         this.systemLogService = systemLogService;
     }
 
+    @Transactional
     @Scheduled(fixedDelay = 60_000)
     public void liftExpiredSuspensions() {
         LocalDateTime now = LocalDateTime.now();
