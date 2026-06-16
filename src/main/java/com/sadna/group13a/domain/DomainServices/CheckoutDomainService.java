@@ -5,6 +5,10 @@ import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
+import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
+import com.sadna.group13a.domain.Aggregates.Event.Event;
+import com.sadna.group13a.domain.policies.discount.AdditiveDiscountPolicy;
+import com.sadna.group13a.domain.policies.purchase.AndPolicy;
 import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.DomainException;
@@ -16,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Domain Service — pure Java, no Spring annotations.
@@ -109,5 +114,41 @@ public class CheckoutDomainService {
         logger.debug("Checkout complete for order '{}' (user '{}', event '{}'): {} item(s) sold.",
                 order.getId(), order.getUserId(), event.getId(), historyItems.size());
         return historyItems;
+    }
+
+    /**
+     * Reverts all sold seats for the given events back to their held/available state.
+     * Best-effort: logs but swallows individual failures so every seat is attempted.
+     * Callers are responsible for persisting the mutated event aggregates afterward.
+     *
+     * @param processedEvents map of eventId → event aggregate whose seats should be unsold
+     * @param items           the order items identifying which seats to roll back
+     */
+    public void unsellSeats(Map<String, Event> processedEvents, List<OrderItem> items) {
+        for (OrderItem item : items) {
+            Event event = processedEvents.get(item.getEventId());
+            if (event == null) continue;
+            try {
+                event.unsellItem(item.getZoneId(), item.getSeatId());
+            } catch (Exception e) {
+                logger.warn("Rollback failed for seat '{}' zone '{}': {}", item.getSeatId(), item.getZoneId(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Combines the event-level and company-level purchase policies using AND
+     * semantics: both must be satisfied for a purchase to proceed.
+     */
+    public PurchasePolicy combinePolicies(PurchasePolicy eventPolicy, PurchasePolicy companyPolicy) {
+        return new AndPolicy(eventPolicy, companyPolicy);
+    }
+
+    /**
+     * Combines the event-level and company-level discount policies so that both
+     * discounts are summed (additive).
+     */
+    public DiscountPolicy combineDiscounts(DiscountPolicy eventDiscount, DiscountPolicy companyDiscount) {
+        return new AdditiveDiscountPolicy(List.of(eventDiscount, companyDiscount));
     }
 }

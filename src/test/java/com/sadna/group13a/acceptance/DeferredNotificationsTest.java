@@ -88,8 +88,8 @@ class DeferredNotificationsTest {
         }
 
         @Override
-        public void notifyRaffleDrawn(String eventId, int winnerCount) {
-            // broadcast event — no per-user target in the current model
+        public void notifyRaffleDrawn(java.util.List<String> participantUserIds, String eventId, int winnerCount) {
+            if (participantUserIds != null) participantUserIds.forEach(uid -> push(uid, "Raffle drawn: event=" + eventId + " winners=" + winnerCount));
         }
 
         @Override public void notifyActionFailed(String userId, String reason) {}

@@ -8,6 +8,8 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.DomainServices.EventSearchDomainService;
+import com.sadna.group13a.domain.DomainServices.VenueMapFactory;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
@@ -49,7 +51,7 @@ class EventServiceIntegrationTest {
         auth        = new MultiUserStubAuth();
 
         eventService = new EventService(eventRepo, companyRepo, auth, userRepo,
-                new OrderHistoryRepositoryImpl(), e -> {});
+                new OrderHistoryRepositoryImpl(), e -> {}, new EventSearchDomainService(), new VenueMapFactory());
 
         seedFounderAndCompany();
     }
@@ -101,7 +103,7 @@ class EventServiceIntegrationTest {
             Result<String> result = eventService.createEvent(
                     founderToken(), COMPANY_ID,
                     "Rock Night", "Loud guitars",
-                    LocalDateTime.now().plusDays(10), "Music", "Haifa");
+                    LocalDateTime.now().plusDays(10), "Music", null, "Haifa");
 
             assertTrue(result.isSuccess());
             String id = result.getOrThrow();
@@ -114,7 +116,7 @@ class EventServiceIntegrationTest {
         void givenInvalidToken_whenCreateEvent_thenFailure() {
             assertFalse(eventService.createEvent(
                     "bad-token", COMPANY_ID, "Rock Night", "Desc",
-                    LocalDateTime.now().plusDays(10), "Music", "Haifa").isSuccess());
+                    LocalDateTime.now().plusDays(10), "Music", null, "Haifa").isSuccess());
         }
 
         @Test
@@ -122,7 +124,7 @@ class EventServiceIntegrationTest {
         void givenUnknownCompany_whenCreateEvent_thenFailure() {
             assertFalse(eventService.createEvent(
                     founderToken(), "no-such-company", "Rock Night", "Desc",
-                    LocalDateTime.now().plusDays(10), "Music", "Haifa").isSuccess());
+                    LocalDateTime.now().plusDays(10), "Music", null, "Haifa").isSuccess());
         }
 
         @Test
@@ -133,7 +135,7 @@ class EventServiceIntegrationTest {
 
             assertFalse(eventService.createEvent(
                     outsiderToken, COMPANY_ID, "Rock Night", "Desc",
-                    LocalDateTime.now().plusDays(10), "Music", "Haifa").isSuccess());
+                    LocalDateTime.now().plusDays(10), "Music", null, "Haifa").isSuccess());
         }
     }
 
@@ -241,7 +243,7 @@ class EventServiceIntegrationTest {
             seedUnpublishedEventWithMap("ev-upd-1");
 
             Result<Void> result = eventService.updateEventDetails(
-                    founderToken(), "ev-upd-1", "New Title", "New Desc", null, null);
+                    founderToken(), "ev-upd-1", "New Title", "New Desc", null, null, null);
 
             assertTrue(result.isSuccess());
             Event stored = eventRepo.findById("ev-upd-1").orElseThrow();
@@ -254,7 +256,7 @@ class EventServiceIntegrationTest {
         void givenInvalidToken_whenUpdateDetails_thenFailure() {
             seedUnpublishedEventWithMap("ev-upd-2");
             assertFalse(eventService.updateEventDetails(
-                    "bad-token", "ev-upd-2", "X", null, null, null).isSuccess());
+                    "bad-token", "ev-upd-2", "X", null, null, null, null).isSuccess());
         }
     }
 
@@ -291,7 +293,7 @@ class EventServiceIntegrationTest {
         @DisplayName("Unfiltered search returns only published events")
         void whenSearchAll_thenOnlyPublishedEventsReturned() {
             Result<List<EventDTO>> result = eventService.searchEvents(
-                    null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null);
 
             assertTrue(result.isSuccess());
             List<EventDTO> dtos = result.getOrThrow();
@@ -304,7 +306,7 @@ class EventServiceIntegrationTest {
         @DisplayName("Category filter returns only matching events")
         void givenCategoryFilter_whenSearch_thenOnlyCategoryMatchesReturned() {
             Result<List<EventDTO>> result = eventService.searchEvents(
-                    null, "Music", null, null, null, null, null);
+                    null, "Music", null, null, null, null, null, null);
 
             assertTrue(result.isSuccess());
             List<EventDTO> dtos = result.getOrThrow();
@@ -317,7 +319,7 @@ class EventServiceIntegrationTest {
         @DisplayName("Location filter is case-insensitive")
         void givenLocationFilter_whenSearch_thenCaseInsensitiveMatch() {
             Result<List<EventDTO>> result = eventService.searchEvents(
-                    null, null, null, null, null, null, "tel aviv");
+                    null, null, null, null, null, null, "tel aviv", null);
 
             assertTrue(result.isSuccess());
             List<EventDTO> dtos = result.getOrThrow();
