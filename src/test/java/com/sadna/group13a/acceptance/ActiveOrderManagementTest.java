@@ -72,7 +72,8 @@ class ActiveOrderManagementTest {
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
-                checkoutDomainService, ticketingAccessDomainService, eventPublisher, new CartDomainService(), null
+                checkoutDomainService, ticketingAccessDomainService, eventPublisher, new CartDomainService(), null,
+                new com.sadna.group13a.application.Services.SystemLogService()
         );
 
         // Default: any userId resolves to an active member so user-guard tests pass through
