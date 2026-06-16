@@ -33,10 +33,11 @@ app:
   # Activate the real gateway: --spring.profiles.active=prod
   ticketing:
     url: https://damp-lynna-wsep-1984852e.koyeb.app/
-  # Persistence connection health-check (issue #228 — auto-recovery after data-store outage).
-  # This project uses an in-memory data store rather than a JDBC datasource, so instead of
-  # HikariCP's connection-test-query we run an equivalent scheduled health check that detects
-  # a connection loss and automatically resumes once it is restored — no restart required.
+  # Persistence connection health-check (issue #228 — auto-recovery after a datasource outage).
+  # Repositories are JPA-backed (issue #240): a scheduled probe (DataSourceHealthProbe) borrows
+  # a real JDBC connection and runs Connection.isValid(). A dropped connection (e.g. a remote
+  # PostgreSQL going down) puts the system into degraded mode; once the database is reachable
+  # again the next probe resumes normal operation automatically — no restart required (SL-6).
   persistence:
     health-check-interval-ms: 5000
 
