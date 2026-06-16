@@ -1,10 +1,11 @@
 package com.sadna.group13a.infrastructure;
 
 import com.sadna.group13a.application.Interfaces.ITicketSupplier;
+import com.sadna.group13a.application.Interfaces.TicketIssueRequest;
 import com.sadna.group13a.application.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,8 +13,12 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/**
+ * In-memory fallback ticket supplier. Used in tests and whenever the real
+ * {@link ExternalTicketSupplier} (which is {@code @Primary}) is not wired in.
+ */
 @Service
-@Profile("!prod")
+@ConditionalOnProperty(name = "app.ticketing.mode", havingValue = "stub", matchIfMissing = true)
 public class StubTicketSupplier implements ITicketSupplier {
 
     private static final Logger logger = LoggerFactory.getLogger(StubTicketSupplier.class);
@@ -24,11 +29,12 @@ public class StubTicketSupplier implements ITicketSupplier {
     }
 
     @Override
-    public Result<List<String>> issueTickets(String orderId, int quantity) {
+    public Result<List<String>> issueTickets(String customerId, List<TicketIssueRequest> requests) {
+        int quantity = (requests == null) ? 0 : requests.size();
         List<String> codes = IntStream.range(0, quantity)
                 .mapToObj(i -> "TKT-" + UUID.randomUUID())
                 .collect(Collectors.toList());
-        logger.info("[TICKET] Stub issued {} ticket(s) for order {}.", quantity, orderId);
+        logger.info("[TICKET] Stub issued {} ticket(s) for customer {}.", quantity, customerId);
         return Result.success(codes);
     }
 
