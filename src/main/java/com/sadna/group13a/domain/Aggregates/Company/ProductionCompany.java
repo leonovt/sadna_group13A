@@ -5,6 +5,21 @@ import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.DomainException;
+import com.sadna.group13a.infrastructure.converters.DiscountPolicyConverter;
+import com.sadna.group13a.infrastructure.converters.PurchasePolicyConverter;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKey;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;

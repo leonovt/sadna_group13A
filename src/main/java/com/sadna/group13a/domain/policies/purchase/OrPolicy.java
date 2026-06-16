@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.policies.purchase;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 
@@ -18,7 +20,9 @@ public class OrPolicy implements PurchasePolicy {
         this.children = List.copyOf(children);
     }
 
-    public OrPolicy(PurchasePolicy left, PurchasePolicy right) {
+    @JsonCreator
+    public OrPolicy(@JsonProperty("left")  PurchasePolicy left,
+                    @JsonProperty("right") PurchasePolicy right) {
         if (left == null || right == null) throw new IllegalArgumentException("Policy children cannot be null");
         this.children = List.of(left, right);
     }
