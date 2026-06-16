@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -30,6 +31,7 @@ public class CartCleanupService {
         this.eventPublisher = eventPublisher;
     }
 
+    @Transactional
     @Scheduled(fixedDelay = 15_000)
     public void expireStaleOrders() {
         logger.debug("Cart cleanup scheduled task started.");
