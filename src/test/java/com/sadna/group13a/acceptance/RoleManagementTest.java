@@ -16,6 +16,8 @@ import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,7 +39,7 @@ class RoleManagementTest {
     @BeforeEach
     void setUp() {
         companyRepository = new CompanyRepositoryImpl();
-        userRepository = new UserRepositoryImpl();
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
         historyRepository = new OrderHistoryRepositoryImpl();
         authGateway = new AuthImpl();
 
