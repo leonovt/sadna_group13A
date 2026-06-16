@@ -48,7 +48,8 @@ class TicketIssuanceTest {
         ticketSupplier = mock(ITicketSupplier.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
 
-        orderService = new OrderService(null, historyRepository, null, null, null, null, paymentGateway, ticketSupplier, userRepository, authGateway, null, null, eventPublisher, null, null);
+        orderService = new OrderService(null, historyRepository, null, null, null, null, paymentGateway, ticketSupplier, userRepository, authGateway, null, null, eventPublisher, null, null,
+                new com.sadna.group13a.application.Services.SystemLogService());
     }
 
     @Test
