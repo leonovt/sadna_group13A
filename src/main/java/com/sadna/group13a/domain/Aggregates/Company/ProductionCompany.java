@@ -5,9 +5,12 @@ import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.DomainException;
+import com.sadna.group13a.infrastructure.converters.DiscountPolicyConverter;
+import com.sadna.group13a.infrastructure.converters.PurchasePolicyConverter;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -16,7 +19,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapKey;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
 
 import java.util.Collections;
@@ -59,11 +61,12 @@ public class ProductionCompany {
     @MapKey(name = "nomineeId")
     private Map<String, AppointmentRequest> pendingAppointments;
 
-    // Deferred until policy JPA serialisation is resolved
-    @Transient
+    @Convert(converter = PurchasePolicyConverter.class)
+    @Column(name = "purchase_policy", columnDefinition = "TEXT")
     private PurchasePolicy purchasePolicy;
 
-    @Transient
+    @Convert(converter = DiscountPolicyConverter.class)
+    @Column(name = "discount_policy", columnDefinition = "TEXT")
     private DiscountPolicy discountPolicy;
 
     /** Managed by JPA for optimistic-locking; also incremented manually for in-memory conflict detection. */
