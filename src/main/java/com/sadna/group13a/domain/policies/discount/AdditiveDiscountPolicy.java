@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.policies.discount;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 
@@ -13,7 +15,8 @@ public class AdditiveDiscountPolicy implements DiscountPolicy {
 
     private final List<DiscountPolicy> children;
 
-    public AdditiveDiscountPolicy(List<DiscountPolicy> children) {
+    @JsonCreator
+    public AdditiveDiscountPolicy(@JsonProperty("children") List<DiscountPolicy> children) {
         if (children == null || children.isEmpty())
             throw new IllegalArgumentException("Additive discount policy must have at least one child");
         this.children = List.copyOf(children);

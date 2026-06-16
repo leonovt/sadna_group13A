@@ -1,5 +1,16 @@
 package com.sadna.group13a.domain.Aggregates.TicketQueue;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKey;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -7,29 +18,48 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Aggregate Root for the virtual waiting queue of a single event.
  * Controls how many users can access the ticket-selection screen concurrently.
  * Pure domain logic — no framework dependencies.
  */
+@Entity
+@Table(name = "ticket_queues")
 public class TicketQueue {
 
-    private final String eventId;
+    @Id
+    @Column(name = "event_id", nullable = false)
+    private String eventId;
+
+    @Column(name = "max_concurrent_users", nullable = false)
     private int maxConcurrentUsers;
+
+    @Version
+    @Column(name = "version", nullable = false)
     private volatile long version = 0L;
 
     // userId -> granted ticket (with expiry). Expired entries are lazily evicted.
-    private final Map<String, QueueTicket> activeUsers;
-    private final ConcurrentLinkedQueue<QueueTicket> waitingUsers;
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "active_ticket_queue_id")
+    @MapKey(name = "userId")
+    private Map<String, QueueTicket> activeUsers;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "waiting_ticket_queue_id")
+    @OrderBy("positionInLine ASC")
+    private List<QueueTicket> waitingUsers;
+
+    /** Required by JPA. Do not use in business code. */
+    protected TicketQueue() {}
 
     public TicketQueue(String eventId, int maxConcurrentUsers) {
         if (maxConcurrentUsers < 1) throw new IllegalArgumentException("maxConcurrentUsers must be >= 1");
         this.eventId = eventId;
         this.maxConcurrentUsers = maxConcurrentUsers;
         this.activeUsers = new ConcurrentHashMap<>();
-        this.waitingUsers = new ConcurrentLinkedQueue<>();
+        this.waitingUsers = new CopyOnWriteArrayList<>();
     }
 
     // ── Commands ──────────────────────────────────────────────────
@@ -65,12 +95,16 @@ public class TicketQueue {
 
         List<QueueTicket> granted = new ArrayList<>();
         for (int i = 0; i < toProcess; i++) {
-            QueueTicket ticket = waitingUsers.poll();
-            if (ticket != null) {
-                ticket.grantAccess(validMinutes);
-                activeUsers.put(ticket.getUserId(), ticket);
-                granted.add(ticket);
+            QueueTicket ticket;
+            try {
+                ticket = waitingUsers.remove(0);
+            } catch (IndexOutOfBoundsException e) {
+                // Another thread removed the last waiter between size-check and remove; stop early
+                break;
             }
+            ticket.grantAccess(validMinutes);
+            activeUsers.put(ticket.getUserId(), ticket);
+            granted.add(ticket);
         }
 
         int admitted = granted.size();
