@@ -7,6 +7,8 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.infrastructure.PasswordEncoderImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,7 +34,7 @@ class UserServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        userRepo        = new UserRepositoryImpl();
+        userRepo        = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
         historyRepo     = new OrderHistoryRepositoryImpl();
         passwordEncoder = new PasswordEncoderImpl();
         auth            = new StubAuth();

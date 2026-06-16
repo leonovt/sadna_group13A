@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.Aggregates.ActiveOrder;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.Aggregates.Event.Seat;
 import com.sadna.group13a.domain.shared.OrderStatus;
 
@@ -27,7 +29,8 @@ public class ActiveOrder {
 
     private volatile long version = 0L;
 
-    public ActiveOrder(String id, String userId) {
+    @JsonCreator
+    public ActiveOrder(@JsonProperty("id") String id, @JsonProperty("userId") String userId) {
         if (id == null || id.isBlank()) throw new IllegalArgumentException("id cannot be blank");
         if (userId == null || userId.isBlank()) throw new IllegalArgumentException("userId cannot be blank");
         this.id = id;
