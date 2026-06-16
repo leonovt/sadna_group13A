@@ -13,6 +13,8 @@ import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
 import com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeAdminJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.QueueRepositoryImpl;
@@ -54,7 +56,7 @@ class QueueServiceIntegrationTest {
         eventRepo      = new EventRepositoryImpl();
         companyRepo    = new CompanyRepositoryImpl();
         userRepo       = new UserRepositoryImpl();
-        adminRepo      = new AdminRepositoryImpl();
+        adminRepo      = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
         eventPublisher = new SpyEventPublisher();
 
         queueService = new QueueService(

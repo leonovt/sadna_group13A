@@ -15,6 +15,8 @@ import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeAdminJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +48,8 @@ class SubscriberCancellationTest {
         eventPublisher = mock(ApplicationEventPublisher.class);
 
         userRepository.save(new Member("admin1", "admin", "hash"));
-        IAdminRepository adminRepository = new com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl();
+        IAdminRepository adminRepository = new com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl(
+                new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
         adminRepository.save(new Admin("admin_rec_1", "admin1"));
 
         SystemLogService systemLogService = mock(SystemLogService.class);

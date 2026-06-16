@@ -13,6 +13,8 @@ import com.sadna.group13a.domain.Events.UserBannedEvent;
 import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.StubPaymentGateway;
 import com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeAdminJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
@@ -54,7 +56,7 @@ class SuspensionPreservesRolesTest {
     void setUp() {
         userRepo = new UserRepositoryImpl();
         companyRepo = new CompanyRepositoryImpl();
-        AdminRepositoryImpl adminRepo = new AdminRepositoryImpl();
+        AdminRepositoryImpl adminRepo = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
         auth = new AuthImpl();
         SystemLogService log = mock(SystemLogService.class);
         companyListener = new CompanyEventListener(companyRepo);
