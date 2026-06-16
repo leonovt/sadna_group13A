@@ -45,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -119,6 +120,7 @@ public class OrderService {
      * Adds an item to the user's active cart.  If no cart exists, creates one.
      * Holds the seat/spot immediately to prevent double-booking.
      */
+    @Transactional
     public Result<String> addItemToCart(String token, String eventId, String zoneId, String seatId) {
         if (seatId != null) {
             return addBatchItemsToCart(token, eventId, zoneId, List.of(seatId), null);
@@ -137,6 +139,7 @@ public class OrderService {
      * StandingZone. The {@code reservedSeats} rollback list is a local variable and is
      * never shared between threads.
      */
+    @Transactional
     public Result<String> addBatchItemsToCart(String token, String eventId, String zoneId,
                                                List<String> seatIds, Integer quantity) {
         if (!authGateway.validateToken(token)) {
@@ -222,6 +225,7 @@ public class OrderService {
      * @param optionalAuthCode raffle authorization code (null for REGULAR/QUEUE events)
      * @param paymentDetails  payment instrument data passed to the payment gateway
      */
+    @Transactional
     public Result<OrderHistoryDTO> executeCheckout(
             String token,
             String activeOrderId,
@@ -463,6 +467,7 @@ public class OrderService {
     /**
      * Returns the current contents of the user's active cart.
      */
+    @Transactional(readOnly = true)
     public Result<OrderDTO> viewCart(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to view cart");
@@ -494,6 +499,7 @@ public class OrderService {
     /**
      * Removes a single item from the user's cart and releases its seat hold.
      */
+    @Transactional
     public Result<Void> removeItemFromCart(String token, String eventId, String zoneId, String seatId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to remove item from cart");
@@ -525,6 +531,7 @@ public class OrderService {
     /**
      * Cancels the user's entire cart and releases all held seats.
      */
+    @Transactional
     public Result<Void> cancelCart(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to cancel cart");
