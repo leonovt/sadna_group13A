@@ -8,7 +8,7 @@ import com.sadna.group13a.application.config.ExternalSystemTimeoutProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -23,6 +23,7 @@ import java.util.Map;
 
 /**
  * Real adapter for the external ticket-issuance system (issue #226).
+ * Active only in the {@code prod} profile; {@link StubTicketSupplier} is used in all other profiles.
  *
  * <p>Talks to the configured HTTP endpoint ({@code app.ticketing.url}) using two actions:
  * <ul>
@@ -34,7 +35,7 @@ import java.util.Map;
  * same call are cancelled before a failure is returned, so the caller can refund/roll back.
  */
 @Service
-@ConditionalOnProperty(name = "app.ticketing.mode", havingValue = "wsep")
+@Profile("prod")
 public class ExternalTicketSupplier implements ITicketSupplier {
 
     private static final Logger logger = LoggerFactory.getLogger(ExternalTicketSupplier.class);
