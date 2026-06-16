@@ -6,6 +6,19 @@ import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.DomainException;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKey;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -16,25 +29,50 @@ import java.util.concurrent.ConcurrentHashMap;
  * The root entity of the Company aggregate.
  * Represents a production company that hosts events.
  */
+@Entity
+@Table(name = "companies")
 public class ProductionCompany {
 
-    private final String id;
+    @Id
+    @Column(name = "id", nullable = false)
+    private String id;
+
+    @Column(name = "name", nullable = false)
     private String name;
+
+    @Column(name = "description")
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
     private CompanyStatus status;
 
     // userId -> CompanyStaffMember
-    private final Map<String, CompanyStaffMember> staff;
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "company_id")
+    @MapKey(name = "userId")
+    private Map<String, CompanyStaffMember> staff;
 
     // nomineeId -> AppointmentRequest
-    private final Map<String, AppointmentRequest> pendingAppointments;
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "company_id")
+    @MapKey(name = "nomineeId")
+    private Map<String, AppointmentRequest> pendingAppointments;
 
-    // Single composite-pattern root nodes — defaults are AllowAll / NoDiscount
+    // Deferred until policy JPA serialisation is resolved
+    @Transient
     private PurchasePolicy purchasePolicy;
+
+    @Transient
     private DiscountPolicy discountPolicy;
 
-    /** Incremented on every mutation — used for optimistic-locking conflict detection. */
+    /** Managed by JPA for optimistic-locking; also incremented manually for in-memory conflict detection. */
+    @Version
+    @Column(name = "version", nullable = false)
     private volatile long version = 0L;
+
+    /** Required by JPA. Do not use in business code. */
+    protected ProductionCompany() {}
 
     public ProductionCompany(String id, String name, String description, String ownerId) {
         if (id == null || id.isBlank()) {
