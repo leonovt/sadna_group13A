@@ -4,6 +4,7 @@ import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Interfaces.ITicketSupplier;
+import com.sadna.group13a.application.Interfaces.TicketIssueRequest;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
@@ -23,6 +24,13 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryIm
 import com.sadna.group13a.infrastructure.RepositoryImpl.QueueRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.RaffleRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeActiveOrderJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeRaffleJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -105,13 +113,14 @@ class PaymentFailureRobustnessTest {
 
     @BeforeEach
     void setUp() {
-        orderRepo   = new ActiveOrderRepositoryImpl();
-        historyRepo = new OrderHistoryRepositoryImpl();
-        eventRepo   = new EventRepositoryImpl();
-        companyRepo = new CompanyRepositoryImpl();
+        PersistenceConfig cfg = new PersistenceConfig();
+        orderRepo   = new ActiveOrderRepositoryImpl(new FakeActiveOrderJpaRepository(),  cfg.domainObjectMapper());
+        historyRepo = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), cfg.domainObjectMapper());
+        eventRepo   = new EventRepositoryImpl(new FakeEventJpaRepository(),               cfg.domainObjectMapper());
+        companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(),           cfg.domainObjectMapper());
         queueRepo   = new QueueRepositoryImpl();
-        raffleRepo  = new RaffleRepositoryImpl();
-        userRepo    = new UserRepositoryImpl();
+        raffleRepo  = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(),             cfg.domainObjectMapper());
+        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(),                 cfg.domainObjectMapper());
 
         checkoutDomainService        = new CheckoutDomainService();
         ticketingAccessDomainService = new TicketingAccessDomainService();
@@ -387,9 +396,9 @@ class PaymentFailureRobustnessTest {
         @Override public boolean isConnected() { return true; }
 
         @Override
-        public Result<List<String>> issueTickets(String orderId, int quantity) {
+        public Result<List<String>> issueTickets(String customerId, List<TicketIssueRequest> requests) {
             List<String> codes = new ArrayList<>();
-            for (int i = 0; i < quantity; i++) {
+            for (int i = 0; i < requests.size(); i++) {
                 codes.add("TICKET-STUB-" + UUID.randomUUID());
             }
             return Result.success(codes);
