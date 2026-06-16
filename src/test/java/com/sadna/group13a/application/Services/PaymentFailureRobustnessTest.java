@@ -91,6 +91,7 @@ class PaymentFailureRobustnessTest {
     // ── Mockito mock for the payment gateway ───────────────────────────────────
 
     private IPaymentGateway paymentGateway;
+    private SystemLogService systemLogService;
 
     // ── Lightweight test doubles for non-payment external ports ───────────────
 
@@ -127,7 +128,8 @@ class PaymentFailureRobustnessTest {
         cartDomainService            = new CartDomainService();
 
         // IPaymentGateway is the only Mockito mock — all other collaborators are real.
-        paymentGateway = mock(IPaymentGateway.class);
+        paymentGateway   = mock(IPaymentGateway.class);
+        systemLogService = mock(SystemLogService.class);
 
         auth           = new StubAuth(USER_ID, VALID_TOKEN);
         ticketSupplier = new StubTicketSupplier();
@@ -150,7 +152,8 @@ class PaymentFailureRobustnessTest {
                 ticketingAccessDomainService, // 12. TicketingAccessDomainService
                 noOpPublisher,                // 13. ApplicationEventPublisher
                 cartDomainService,            // 14. CartDomainService
-                null                          // 15. QueueService (not exercised here)
+                null,                         // 15. QueueService (not exercised here)
+                systemLogService              // 16. SystemLogService
         );
 
         seedEventCompanyAndUser();
