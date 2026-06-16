@@ -1,13 +1,14 @@
 package com.sadna.group13a.presentation.views.cart;
 
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.DTO.OrderDTO;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
 import com.sadna.group13a.application.DTO.OrderItemDTO;
+import com.sadna.group13a.application.DTO.PaymentDetailsDTO;
 import com.sadna.group13a.presentation.views.auth.LoginView;
 import com.sadna.group13a.presentation.views.home.HomeView;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
@@ -16,6 +17,7 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -31,6 +33,7 @@ import java.util.List;
 public class CheckoutView extends VerticalLayout implements BeforeEnterObserver {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final CheckoutPresenter presenter;
 
@@ -41,7 +44,16 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
     private final Grid<OrderItemDTO> itemsGrid = new Grid<>(OrderItemDTO.class, false);
     private final Span totalLabel = new Span();
     private final Span expiryLabel = new Span();
-    private final TextField paymentField = new TextField("Payment Details");
+
+    // Card details — maps 1:1 to the WSEP external API fields
+    private final TextField   cardNumberField = new TextField("Card Number");
+    private final TextField   expiryMonthField = new TextField("Month (MM)");
+    private final TextField   expiryYearField  = new TextField("Year (YY)");
+    private final TextField   holderField      = new TextField("Cardholder Name");
+    private final PasswordField cvvField       = new PasswordField("CVV");
+    private final TextField   holderIdField    = new TextField("Holder ID");
+    private final TextField   currencyField    = new TextField("Currency");
+
     private final TextField authCodeField = new TextField("Authorization / Coupon Code");
 
     // ── Receipt section ───────────────────────────────────────────
@@ -99,16 +111,38 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         expiryLabel.getStyle().set("color", "var(--lumo-secondary-text-color)")
                 .set("font-size", "var(--lumo-font-size-s)");
 
-        // ── Payment form ──────────────────────────────────────────
-        paymentField.setWidthFull();
-        paymentField.setPlaceholder("e.g. 4111 1111 1111 1111");
+        // ── Card detail fields ────────────────────────────────────
+        cardNumberField.setPlaceholder("4111 1111 1111 1111");
+        cardNumberField.setWidthFull();
+
+        expiryMonthField.setPlaceholder("01");
+        expiryYearField.setPlaceholder("27");
+        HorizontalLayout expiryRow = new HorizontalLayout(expiryMonthField, expiryYearField);
+        expiryRow.setWidthFull();
+        expiryRow.setFlexGrow(1, expiryMonthField, expiryYearField);
+
+        holderField.setPlaceholder("Full name as on card");
+        holderField.setWidthFull();
+
+        cvvField.setPlaceholder("123");
+
+        holderIdField.setPlaceholder("National ID / Passport number");
+        holderIdField.setWidthFull();
+
+        currencyField.setValue("ILS");
+        currencyField.setHelperText("Default: ILS");
+
+        HorizontalLayout cvvCurrencyRow = new HorizontalLayout(cvvField, currencyField);
+        cvvCurrencyRow.setWidthFull();
+        cvvCurrencyRow.setFlexGrow(1, cvvField, currencyField);
+
         authCodeField.setWidthFull();
         authCodeField.setPlaceholder("Required for raffle events");
-        authCodeField.setHelperText("Raffle winners: enter your authorization code. Other events: enter a coupon code if you have one.");
+        authCodeField.setHelperText("Raffle winners: enter your authorization code. Other events: leave blank.");
 
         Button placeOrderBtn = new Button("Place Order", e -> {
             statusMessage.setVisible(false);
-            presenter.handleCheckout(currentOrderId, authCodeField.getValue(), paymentField.getValue(), this);
+            submitCheckout();
         });
         placeOrderBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -124,7 +158,13 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         cartSection.setPadding(false);
         cartSection.add(
                 itemsGrid, expiryLabel, totalLabel,
-                new H3("Payment"), paymentField, authCodeField,
+                new H3("Payment Details"),
+                cardNumberField,
+                expiryRow,
+                holderField,
+                cvvCurrencyRow,
+                holderIdField,
+                authCodeField,
                 actions
         );
 
@@ -133,6 +173,39 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         receiptSection.setVisible(false);
 
         add(header, statusMessage, new H3("Your Items"), cartSection, receiptSection);
+    }
+
+    private void submitCheckout() {
+        String cardNumber = cardNumberField.getValue().replaceAll("\\s+", "");
+        String month      = expiryMonthField.getValue().trim();
+        String year       = expiryYearField.getValue().trim();
+        String holder     = holderField.getValue().trim();
+        String cvv        = cvvField.getValue().trim();
+        String holderId   = holderIdField.getValue().trim();
+        String currency   = currencyField.getValue().trim();
+
+        if (cardNumber.isBlank() || month.isBlank() || year.isBlank()
+                || holder.isBlank() || cvv.isBlank() || holderId.isBlank()) {
+            showError("Please fill in all payment fields.");
+            return;
+        }
+        if (currency.isBlank()) {
+            currency = "ILS";
+        }
+
+        PaymentDetailsDTO details = new PaymentDetailsDTO(
+                cardNumber, month, year, holder, cvv, holderId, currency);
+
+        String paymentJson;
+        try {
+            paymentJson = MAPPER.writeValueAsString(details);
+        } catch (Exception ex) {
+            showError("Failed to prepare payment details.");
+            return;
+        }
+
+        String authCode = authCodeField.getValue().trim();
+        presenter.handleCheckout(currentOrderId, authCode, paymentJson, this);
     }
 
     // ── View callbacks ────────────────────────────────────────────

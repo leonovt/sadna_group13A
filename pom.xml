@@ -153,6 +153,11 @@
                             <excludes>
                                 <exclude>com/sadna/group13a/presentation/**</exclude>
                                 <exclude>com/sadna/group13a/infrastructure/DemoDataSeeder.class</exclude>
+                                <!-- prod-only HTTP adapters; @Profile("prod") means they are never
+                                     instantiated in the test context and cannot be covered. -->
+                                <exclude>com/sadna/group13a/infrastructure/ExternalSystemClient.class</exclude>
+                                <exclude>com/sadna/group13a/infrastructure/RealPaymentGateway.class</exclude>
+                                <exclude>com/sadna/group13a/infrastructure/RealTicketSupplier.class</exclude>
                             </excludes>
                             <rules>
                                 <rule>
