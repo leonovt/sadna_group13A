@@ -7,7 +7,7 @@ import com.sadna.group13a.application.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Primary;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -32,8 +32,8 @@ import java.util.Map;
  * <p>Issuance is atomic: if any single ticket fails, all tickets already issued in the
  * same call are cancelled before a failure is returned, so the caller can refund/roll back.
  */
-@Primary
 @Service
+@ConditionalOnProperty(name = "app.ticketing.mode", havingValue = "wsep")
 public class ExternalTicketSupplier implements ITicketSupplier {
 
     private static final Logger logger = LoggerFactory.getLogger(ExternalTicketSupplier.class);
