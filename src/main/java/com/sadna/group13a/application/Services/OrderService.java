@@ -42,6 +42,7 @@ import com.sadna.group13a.domain.shared.PermissionDeniedException;
 import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
+import com.sadna.group13a.domain.shared.TicketIssuanceException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +83,7 @@ public class OrderService {
     private final CartDomainService cartDomainService;
     private final ApplicationEventPublisher eventPublisher;
     private final QueueService queueService;
+    private final SystemLogService systemLogService;
 
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
@@ -100,7 +102,8 @@ public class OrderService {
             TicketingAccessDomainService ticketingAccessDomainService,
             ApplicationEventPublisher eventPublisher,
             CartDomainService cartDomainService,
-            QueueService queueService) {
+            QueueService queueService,
+            SystemLogService systemLogService) {
         this.orderRepository = orderRepository;
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
@@ -116,6 +119,7 @@ public class OrderService {
         this.eventPublisher = eventPublisher;
         this.cartDomainService = cartDomainService;
         this.queueService = queueService;
+        this.systemLogService = systemLogService;
     }
 
     /**
@@ -409,7 +413,7 @@ public class OrderService {
             }
         } catch (Exception e) {
             logger.error("Failed to persist seat map after payment: {}", e.getMessage());
-            paymentGateway.refundPayment(transactionId);
+            refundAndAlertOnFailure(transactionId, "concurrent modification during seat persist for user " + userId);
             rollbackSoldSeats(processedEvents, order.getItems());
             orderRepository.deleteById(activeOrderId);
             eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Concurrent modification detected — payment refunded. Please retry."));
@@ -441,20 +445,12 @@ public class OrderService {
                         parseSeatNumber(i.getSeatLabel())))
                 .collect(Collectors.toList());
 
-        Result<List<String>> ticketResult;
+        List<String> ticketCodes;
         try {
-            ticketResult = ticketSupplier.issueTickets(userId, ticketRequests);
-        } catch (Exception e) {
-            logger.error("Ticket supplier threw an exception for user {}: {}", userId, e.getMessage());
-            paymentGateway.refundPayment(transactionId);
-            rollbackSoldSeats(processedEvents, order.getItems());
-            orderRepository.deleteById(activeOrderId);
-            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Ticket issuance failed — payment refunded."));
-            return Result.failure("Ticket issuance failed — payment refunded.");
-        }
-        if (!ticketResult.isSuccess()) {
-            logger.error("Ticket issuance failed for user {}: {}", userId, ticketResult.getErrorMessage());
-            paymentGateway.refundPayment(transactionId);
+            ticketCodes = issueTickets(userId, ticketRequests);
+        } catch (TicketIssuanceException e) {
+            logger.error("Ticket issuance failed for user {}: {}", userId, e.getMessage());
+            refundAndAlertOnFailure(transactionId, "ticket issuance failure for user " + userId);
             rollbackSoldSeats(processedEvents, order.getItems());
             orderRepository.deleteById(activeOrderId);
             eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Ticket issuance failed — payment refunded."));
@@ -463,7 +459,6 @@ public class OrderService {
 
         // ── Post-checkout ─────────────────────────────────────────────────────────
         // Persist the issued ticket codes on the receipt (aligned by index with the items).
-        List<String> ticketCodes = ticketResult.getOrThrow();
         List<OrderHistoryItem> codedItems = new ArrayList<>(allHistoryItems.size());
         for (int i = 0; i < allHistoryItems.size(); i++) {
             OrderHistoryItem item = allHistoryItems.get(i);
@@ -627,6 +622,40 @@ public class OrderService {
             throw new PaymentFailedException(paymentResult.getErrorMessage(), null);
         }
         return paymentResult.getOrThrow();
+    }
+
+    /**
+     * Issues tickets and returns the codes, or throws TicketIssuanceException for any
+     * failure mode — a declined/-1 Result, or an exception escaping the supplier's own
+     * defensive handling (timeout, network error, malformed response).
+     */
+    private List<String> issueTickets(String userId, List<TicketIssueRequest> requests) {
+        Result<List<String>> ticketResult;
+        try {
+            ticketResult = ticketSupplier.issueTickets(userId, requests);
+        } catch (Exception e) {
+            throw new TicketIssuanceException("Ticket issuance service is unavailable.", e);
+        }
+        if (!ticketResult.isSuccess()) {
+            throw new TicketIssuanceException(ticketResult.getErrorMessage(), null);
+        }
+        return ticketResult.getOrThrow();
+    }
+
+    /**
+     * Refunds a payment as a compensating action and, if the refund itself fails, logs
+     * it to the admin-visible error log (issue #243) — a failed refund must never be
+     * silently discarded, since that would mean the customer was charged with no ticket
+     * and no record of the problem.
+     */
+    private void refundAndAlertOnFailure(String transactionId, String context) {
+        Result<Void> refundResult = paymentGateway.refundPayment(transactionId);
+        if (!refundResult.isSuccess()) {
+            String alert = "REFUND FAILED for transaction " + transactionId + " (" + context + "): "
+                    + refundResult.getErrorMessage();
+            logger.error(alert);
+            systemLogService.logError(alert);
+        }
     }
 
     private void rollbackSoldSeats(Map<String, Event> processedEvents, List<OrderItem> items) {
