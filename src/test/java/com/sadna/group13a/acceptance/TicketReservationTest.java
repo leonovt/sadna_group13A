@@ -16,6 +16,7 @@ import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.*;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeRaffleJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeActiveOrderJpaRepository;
@@ -55,7 +56,7 @@ class TicketReservationTest {
     void setUp() {
         eventRepository = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
         userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
-        companyRepository = new CompanyRepositoryImpl();
+        companyRepository = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
         raffleRepository = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(), new PersistenceConfig().domainObjectMapper());
         queueRepository = new QueueRepositoryImpl();
         activeOrderRepository = new ActiveOrderRepositoryImpl(new FakeActiveOrderJpaRepository(), new PersistenceConfig().domainObjectMapper());
