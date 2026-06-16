@@ -2,23 +2,23 @@ package com.sadna.group13a.infrastructure.RepositoryImpl;
 
 import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
-import org.junit.jupiter.api.BeforeEach;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
+@DataJpaTest
+@Import({CompanyRepositoryImpl.class, PersistenceConfig.class})
 class CompanyRepositoryImplTest {
 
+    @Autowired
     private CompanyRepositoryImpl repo;
-
-    @BeforeEach
-    void setUp() {
-        repo = new CompanyRepositoryImpl();
-    }
 
     @Test
     void givenCompany_whenSave_thenFindByIdReturnsIt() {

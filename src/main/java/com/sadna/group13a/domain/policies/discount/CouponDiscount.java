@@ -22,10 +22,8 @@ public class CouponDiscount implements DiscountPolicy {
     private final LocalDate endDate;    // null = no upper bound
 
     @JsonCreator
-    public CouponDiscount(@JsonProperty("percentage") double    percentage,
-                          @JsonProperty("code")       String    code,
-                          @JsonProperty("startDate")  LocalDate startDate,
-                          @JsonProperty("endDate")    LocalDate endDate) {
+    public CouponDiscount(@JsonProperty("percentage") double percentage, @JsonProperty("code") String code,
+                           @JsonProperty("startDate") LocalDate startDate, @JsonProperty("endDate") LocalDate endDate) {
         if (percentage < 0.0 || percentage > 1.0)
             throw new DomainException("Discount percentage must be between 0 and 1");
         if (code == null || code.isBlank())

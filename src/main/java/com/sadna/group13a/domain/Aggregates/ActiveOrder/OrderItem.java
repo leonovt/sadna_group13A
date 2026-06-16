@@ -1,48 +1,26 @@
 package com.sadna.group13a.domain.Aggregates.ActiveOrder;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
 
 /**
  * Value Object representing a single ticket/item in the order.
- * Persisted as an entity to support @OneToMany from ActiveOrder.
  */
-@Entity
-@Table(name = "order_items")
 public class OrderItem {
+    private final String eventId;
+    private final String zoneId;
+    private final String seatId; // Null for standing zones
+    private final double basePrice;
 
-    /** Surrogate primary key — the business identity is the (eventId, zoneId, seatId) triple. */
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "item_id")
-    private String itemId;
-
-    @Column(name = "event_id", nullable = false)
-    private String eventId;
-
-    @Column(name = "zone_id", nullable = false)
-    private String zoneId;
-
-    @Column(name = "seat_id")
-    private String seatId; // null for standing zones
-
-    @Column(name = "base_price", nullable = false)
-    private double basePrice;
-
-    /** Required by JPA. Do not use in business code. */
-    protected OrderItem() {}
-
-    public OrderItem(String eventId, String zoneId, String seatId, double basePrice) {
+    @JsonCreator
+    public OrderItem(@JsonProperty("eventId") String eventId, @JsonProperty("zoneId") String zoneId,
+                      @JsonProperty("seatId") String seatId, @JsonProperty("basePrice") double basePrice) {
         if (eventId == null || eventId.isBlank()) throw new IllegalArgumentException("eventId cannot be blank");
         if (zoneId == null || zoneId.isBlank()) throw new IllegalArgumentException("zoneId cannot be blank");
         if (basePrice < 0) throw new IllegalArgumentException("basePrice cannot be negative");
-
+        
         this.eventId = eventId;
         this.zoneId = zoneId;
         this.seatId = seatId;

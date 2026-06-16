@@ -1,5 +1,8 @@
 package com.sadna.group13a.domain.Aggregates.Admin;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * Aggregate root for system administrators.
  * Separate from the User aggregate — an Admin holds a reference to the
@@ -12,7 +15,8 @@ public class Admin {
     private final String id;
     private final String userId;
 
-    public Admin(String id, String userId) {
+    @JsonCreator
+    public Admin(@JsonProperty("id") String id, @JsonProperty("userId") String userId) {
         if (id == null || id.isBlank()) throw new IllegalArgumentException("Admin id cannot be blank");
         if (userId == null || userId.isBlank()) throw new IllegalArgumentException("userId cannot be blank");
         this.id = id;
