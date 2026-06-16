@@ -8,7 +8,7 @@ import java.util.Objects;
 
 /**
  * Value Object representing a single ticket within a finalized purchase receipt.
- * All details are copied here to ensure mathematical immutability even if 
+ * All details are copied here to ensure mathematical immutability even if
  * the underlying Event, Venue, or Company is later modified or deleted.
  */
 public class OrderHistoryItem {
@@ -20,13 +20,22 @@ public class OrderHistoryItem {
     private final String zoneName;
     private final String seatLabel; // nullable for standing admission
     private final double pricePaid;
+    private String ticketCode; // ticket code issued by the external ticket supplier, nullable
+
+    /** Convenience constructor for receipts without a ticket code yet. */
+    public OrderHistoryItem(String eventId, String eventTitle, LocalDateTime eventDate,
+                            String companyId, String companyName, String zoneName,
+                            String seatLabel, double pricePaid) {
+        this(eventId, eventTitle, eventDate, companyId, companyName, zoneName, seatLabel, pricePaid, null);
+    }
 
     @JsonCreator
     public OrderHistoryItem(@JsonProperty("eventId") String eventId, @JsonProperty("eventTitle") String eventTitle,
                             @JsonProperty("eventDate") LocalDateTime eventDate,
                             @JsonProperty("companyId") String companyId, @JsonProperty("companyName") String companyName,
                             @JsonProperty("zoneName") String zoneName,
-                            @JsonProperty("seatLabel") String seatLabel, @JsonProperty("pricePaid") double pricePaid) {
+                            @JsonProperty("seatLabel") String seatLabel, @JsonProperty("pricePaid") double pricePaid,
+                            @JsonProperty("ticketCode") String ticketCode) {
         if (eventId == null || eventId.isBlank()) throw new IllegalArgumentException("eventId cannot be blank");
         if (eventTitle == null || eventTitle.isBlank()) throw new IllegalArgumentException("eventTitle cannot be blank");
         if (eventDate == null) throw new IllegalArgumentException("eventDate cannot be null");
@@ -43,6 +52,7 @@ public class OrderHistoryItem {
         this.zoneName = zoneName;
         this.seatLabel = seatLabel;
         this.pricePaid = pricePaid;
+        this.ticketCode = ticketCode;
     }
 
     public String getEventId() { return eventId; }
@@ -53,6 +63,11 @@ public class OrderHistoryItem {
     public String getZoneName() { return zoneName; }
     public String getSeatLabel() { return seatLabel; }
     public double getPricePaid() { return pricePaid; }
+    public String getTicketCode() { return ticketCode; }
+
+    public void setTicketCode(String ticketCode) {
+        this.ticketCode = ticketCode;
+    }
 
     @Override
     public boolean equals(Object o) {

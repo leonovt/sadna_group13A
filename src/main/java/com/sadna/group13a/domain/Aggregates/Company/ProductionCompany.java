@@ -7,34 +7,6 @@ import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.DomainException;
-import com.sadna.group13a.infrastructure.converters.DiscountPolicyConverter;
-import com.sadna.group13a.infrastructure.converters.PurchasePolicyConverter;
-
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.MapKey;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import jakarta.persistence.Version;
-
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.MapKey;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
-import jakarta.persistence.Version;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -46,50 +18,25 @@ import java.util.concurrent.ConcurrentHashMap;
  * The root entity of the Company aggregate.
  * Represents a production company that hosts events.
  */
-@Entity
-@Table(name = "companies")
 public class ProductionCompany {
 
-    @Id
-    @Column(name = "id", nullable = false)
-    private String id;
-
-    @Column(name = "name", nullable = false)
+    private final String id;
     private String name;
-
-    @Column(name = "description")
     private String description;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
     private CompanyStatus status;
 
     // userId -> CompanyStaffMember
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "company_id")
-    @MapKey(name = "userId")
-    private Map<String, CompanyStaffMember> staff;
+    private final Map<String, CompanyStaffMember> staff;
 
     // nomineeId -> AppointmentRequest
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "company_id")
-    @MapKey(name = "nomineeId")
-    private Map<String, AppointmentRequest> pendingAppointments;
+    private final Map<String, AppointmentRequest> pendingAppointments;
 
-    // Deferred until policy JPA serialisation is resolved
-    @Transient
+    // Single composite-pattern root nodes — defaults are AllowAll / NoDiscount
     private PurchasePolicy purchasePolicy;
-
-    @Transient
     private DiscountPolicy discountPolicy;
 
-    /** Managed by JPA for optimistic-locking; also incremented manually for in-memory conflict detection. */
-    @Version
-    @Column(name = "version", nullable = false)
+    /** Incremented on every mutation — used for optimistic-locking conflict detection. */
     private volatile long version = 0L;
-
-    /** Required by JPA. Do not use in business code. */
-    protected ProductionCompany() {}
 
     public ProductionCompany(String id, String name, String description, String ownerId) {
         if (id == null || id.isBlank()) {

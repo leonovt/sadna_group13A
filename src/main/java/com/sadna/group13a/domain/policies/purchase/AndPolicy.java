@@ -21,9 +21,7 @@ public class AndPolicy implements PurchasePolicy {
         this.children = List.copyOf(children);
     }
 
-    @JsonCreator
-    public AndPolicy(@JsonProperty("left")  PurchasePolicy left,
-                     @JsonProperty("right") PurchasePolicy right) {
+    public AndPolicy(PurchasePolicy left, PurchasePolicy right) {
         if (left == null || right == null) throw new IllegalArgumentException("Policy children cannot be null");
         this.children = List.of(left, right);
     }

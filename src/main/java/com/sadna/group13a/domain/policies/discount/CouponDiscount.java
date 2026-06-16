@@ -38,6 +38,8 @@ public class CouponDiscount implements DiscountPolicy {
 
     public double getPercentage() { return percentage; }
     public String getCode()       { return code; }
+    public LocalDate getStartDate() { return startDate; }
+    public LocalDate getEndDate()   { return endDate; }
 
     @Override
     public double calculateDiscount(double basePrice, DiscountContext ctx) {
