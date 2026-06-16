@@ -1,5 +1,8 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,7 +14,9 @@ public class SeatedZone extends Zone {
 
     private final List<Seat> seats;
 
-    public SeatedZone(String id, String name, double basePrice, List<Seat> seats) {
+    @JsonCreator
+    public SeatedZone(@JsonProperty("id") String id, @JsonProperty("name") String name,
+                       @JsonProperty("basePrice") double basePrice, @JsonProperty("seats") List<Seat> seats) {
         super(id, name, ZoneType.SEATED, basePrice);
         if (seats == null || seats.isEmpty()) {
             throw new IllegalArgumentException("Seated zone must have at least one seat");

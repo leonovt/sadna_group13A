@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.policies.purchase;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.shared.DomainException;
 import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
@@ -9,7 +11,8 @@ public class MaxTicketsPolicy implements PurchasePolicy {
 
     private final int max;
 
-    public MaxTicketsPolicy(int max) {
+    @JsonCreator
+    public MaxTicketsPolicy(@JsonProperty("max") int max) {
         if (max <= 0) throw new DomainException("Illogical rule: max tickets must be > 0");
         this.max = max;
     }

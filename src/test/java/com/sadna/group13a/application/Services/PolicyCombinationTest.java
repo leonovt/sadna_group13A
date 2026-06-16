@@ -33,6 +33,13 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryIm
 import com.sadna.group13a.infrastructure.RepositoryImpl.QueueRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.RaffleRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeRaffleJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeActiveOrderJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -86,13 +93,13 @@ class PolicyCombinationTest {
 
     @BeforeEach
     void setUp() {
-        orderRepo   = new ActiveOrderRepositoryImpl();
-        historyRepo = new OrderHistoryRepositoryImpl();
-        eventRepo   = new EventRepositoryImpl();
-        companyRepo = new CompanyRepositoryImpl();
+        orderRepo   = new ActiveOrderRepositoryImpl(new FakeActiveOrderJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        historyRepo = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        eventRepo   = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
         queueRepo   = new QueueRepositoryImpl();
-        raffleRepo  = new RaffleRepositoryImpl();
-        userRepo    = new UserRepositoryImpl();
+        raffleRepo  = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
 
         checkoutDomainService        = new CheckoutDomainService();
         ticketingAccessDomainService = new TicketingAccessDomainService();
@@ -449,9 +456,10 @@ class PolicyCombinationTest {
         @Override public boolean isConnected() { return true; }
 
         @Override
-        public Result<List<String>> issueTickets(String orderId, int quantity) {
+        public Result<List<String>> issueTickets(String customerId,
+                java.util.List<com.sadna.group13a.application.Interfaces.TicketIssueRequest> requests) {
             List<String> codes = new java.util.ArrayList<>();
-            for (int i = 0; i < quantity; i++) codes.add("TICKET-" + UUID.randomUUID());
+            for (int i = 0; i < requests.size(); i++) codes.add("TICKET-" + UUID.randomUUID());
             return Result.success(codes);
         }
 

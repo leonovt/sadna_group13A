@@ -14,6 +14,11 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.DisplayName;
@@ -45,13 +50,13 @@ class EventServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        eventRepo   = new EventRepositoryImpl();
-        companyRepo = new CompanyRepositoryImpl();
-        userRepo    = new UserRepositoryImpl();
+        eventRepo   = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
         auth        = new MultiUserStubAuth();
 
         eventService = new EventService(eventRepo, companyRepo, auth, userRepo,
-                new OrderHistoryRepositoryImpl(), e -> {}, new EventSearchDomainService(), new VenueMapFactory());
+                new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper()), e -> {}, new EventSearchDomainService(), new VenueMapFactory());
 
         seedFounderAndCompany();
     }

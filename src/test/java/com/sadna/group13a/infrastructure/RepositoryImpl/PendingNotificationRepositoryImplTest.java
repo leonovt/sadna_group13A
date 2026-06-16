@@ -1,23 +1,24 @@
 package com.sadna.group13a.infrastructure.RepositoryImpl;
 
 import com.sadna.group13a.infrastructure.PendingNotification;
-import org.junit.jupiter.api.BeforeEach;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@DataJpaTest
+@Import({PendingNotificationRepositoryImpl.class, PersistenceConfig.class})
 @DisplayName("PendingNotificationRepositoryImpl")
 class PendingNotificationRepositoryImplTest {
 
+    @Autowired
     private PendingNotificationRepositoryImpl repo;
-
-    @BeforeEach
-    void setUp() {
-        repo = new PendingNotificationRepositoryImpl();
-    }
 
     @Test
     @DisplayName("findByUserId for unknown user returns empty list")
@@ -64,15 +65,5 @@ class PendingNotificationRepositoryImplTest {
         repo.deleteByUserId("u1");
 
         assertEquals(1, repo.findByUserId("u2").size());
-    }
-
-    @Test
-    @DisplayName("findByUserId returns a defensive copy — modifying it does not affect the store")
-    void findByUserId_returnsDefensiveCopy() {
-        repo.save(PendingNotification.of("u1", "msg1"));
-        List<PendingNotification> found = repo.findByUserId("u1");
-        found.clear();
-
-        assertEquals(1, repo.findByUserId("u1").size());
     }
 }

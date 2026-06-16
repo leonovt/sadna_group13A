@@ -67,7 +67,7 @@ class PaymentAndRefundTest {
         queueRepository = mock(IQueueRepository.class);
         raffleRepository = mock(IRaffleRepository.class);
         ticketSupplier = mock(ITicketSupplier.class);
-        when(ticketSupplier.issueTickets(any(), anyInt())).thenReturn(Result.success(List.of("ticket-1")));
+        when(ticketSupplier.issueTickets(any(), any())).thenReturn(Result.success(List.of("ticket-1")));
         paymentGateway = mock(IPaymentGateway.class);
         userRepository = mock(IUserRepository.class);
         authGateway = mock(IAuth.class);
@@ -195,6 +195,59 @@ class PaymentAndRefundTest {
             assertEquals("Payment declined: Card declined", result.getErrorMessage());
             verify(historyRepository, never()).save(any());
             verify(orderRepository, never()).deleteById(any());
+        }
+
+        @Test
+        @DisplayName("Given payment gateway throws (timeout/network error) — When processing payment — Then checkout fails cleanly and seats released")
+        void GivenPaymentGatewayThrows_WhenProcessing_ThenPaymentFailedAndSeatsReleased() throws Exception {
+            // Arrange: mock payment gateway to throw, simulating a timeout/network error
+            // that escaped the gateway's own defensive handling.
+            String token = "valid_token";
+            String userId = "user123";
+            String activeOrderId = "order123";
+            String eventId = "event1";
+            String companyId = "company1";
+            String paymentDetails = "cc_num_timeout";
+
+            when(authGateway.validateToken(token)).thenReturn(true);
+            when(authGateway.extractUserId(token)).thenReturn(userId);
+
+            ActiveOrder order = new ActiveOrder(activeOrderId, userId);
+            order.addItem(new OrderItem(eventId, "zone1", "seat1", 100.0));
+            when(orderRepository.findById(activeOrderId)).thenReturn(Optional.of(order));
+
+            Event event = mock(Event.class);
+            when(event.getId()).thenReturn(eventId);
+            when(event.getCompanyId()).thenReturn(companyId);
+            when(event.getSaleMode()).thenReturn(EventSaleMode.REGULAR);
+            when(event.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(event.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+
+            ProductionCompany company = mock(ProductionCompany.class);
+            when(company.getPurchasePolicy()).thenReturn(new AllowAllPolicy());
+            when(company.getDiscountPolicy()).thenReturn(new NoDiscountPolicy());
+            when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+
+            OrderHistoryItem item = new OrderHistoryItem(eventId, "Title", LocalDateTime.now(), companyId, "Company",
+                    "Zone1", "Seat1", 100.0);
+            when(checkoutDomainService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(List.of(item));
+
+            when(paymentGateway.processPayment(100.0, paymentDetails)).thenThrow(new RuntimeException("connection reset"));
+            // Pre-condition: user is authenticated, order exists with items
+            assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated");
+            assertEquals(1, order.getItems().size(), "Pre: active order must have items to be charged");
+
+            // Act: attempt payment — gateway throws instead of returning a Result
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+
+            // Post-condition: checkout fails cleanly (no propagated exception), no history saved,
+            // cart not deleted (stays open for the user to retry), seats released.
+            assertFalse(result.isSuccess(), "Post: checkout must fail cleanly when the gateway throws");
+            assertNotNull(result.getErrorMessage(), "Post: a friendly error message must be returned");
+            verify(historyRepository, never()).save(any());
+            verify(orderRepository, never()).deleteById(any());
+            verify(checkoutDomainService).unsellSeats(any(), any());
         }
     }
 

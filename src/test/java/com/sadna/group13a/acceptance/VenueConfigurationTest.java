@@ -23,6 +23,11 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,13 +48,13 @@ class VenueConfigurationTest {
 
     @BeforeEach
     void setUp() {
-        companyRepository = new CompanyRepositoryImpl();
-        userRepository = new UserRepositoryImpl();
-        eventRepository = new EventRepositoryImpl();
+        companyRepository = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        eventRepository = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
         authGateway = new AuthImpl();
         
         eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository,
-                new OrderHistoryRepositoryImpl(), e -> {}, new EventSearchDomainService(), new VenueMapFactory());
+                new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper()), e -> {}, new EventSearchDomainService(), new VenueMapFactory());
     }
 
     @Test
@@ -67,8 +72,8 @@ class VenueConfigurationTest {
         assertEquals(SeatStatus.AVAILABLE, preZone.findSeatById("s1").get().getStatus(),
                 "Pre: seat must be AVAILABLE before status change");
 
-        // Logical system changes seat to HELD
-        seat.hold("user1");
+        // Logical system changes seat to HELD (via Event's own facade so version tracks it)
+        event.reserveSeat("z1", "s1", "user1");
         eventRepository.save(event);
 
         // Post-condition: the persisted map reflects the HELD status in real-time

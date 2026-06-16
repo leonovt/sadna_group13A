@@ -19,10 +19,12 @@ import com.sadna.group13a.domain.Events.RaffleDrawnEvent;
 import com.sadna.group13a.domain.Events.RaffleWonEvent;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.domain.Aggregates.User.User;
+import com.sadna.group13a.domain.shared.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -58,6 +60,7 @@ public class RaffleService {
      * 0. Command: Create Raffle
      * Called by the event owner when an event is set to RAFFLE sale mode.
      */
+    @Transactional
     public Result<String> createRaffle(String token, String eventId, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized createRaffle attempt for event '{}'.", eventId);
@@ -108,6 +111,7 @@ public class RaffleService {
      * 0b. Command: Close Raffle
      * Permanently closes the raffle (e.g. event cancelled, or owner decision).
      */
+    @Transactional
     public Result<Void> closeRaffle(String token, String raffleId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized closeRaffle attempt for raffle '{}'.", raffleId);
@@ -146,6 +150,7 @@ public class RaffleService {
     /**
      * 1. Command: Join Raffle
      */
+    @Transactional
     public Result<Void> joinRaffle(String token, RaffleRegistrationDTO requestDto) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized joinRaffle attempt for raffle '{}'.", requestDto.raffleId());
@@ -162,33 +167,53 @@ public class RaffleService {
             return Result.failure("Only active registered members can join a raffle.");
         }
 
-        Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
-        if (raffleOpt.isEmpty()) {
-            logger.warn("User '{}' tried to join non-existent raffle '{}'.", userId, raffleId);
-            return Result.failure("Raffle not found.");
+        // Optimistic-lock conflicts are expected under concurrent registration (each
+        // attempt re-reads the latest raffle state and reapplies the registration) —
+        // retried up to maxAttempts before giving up, rather than dropping the join.
+        final int maxAttempts = 30;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
+            if (raffleOpt.isEmpty()) {
+                logger.warn("User '{}' tried to join non-existent raffle '{}'.", userId, raffleId);
+                return Result.failure("Raffle not found.");
+            }
+
+            Raffle raffle = raffleOpt.get();
+
+            try {
+                raffle.registerParticipant(userId);
+                raffleRepository.save(raffle);
+
+                logger.info("User '{}' joined raffle '{}'.", userId, raffleId);
+                return Result.success();
+
+            } catch (IllegalStateException | IllegalArgumentException e) {
+                logger.warn("User '{}' failed to join raffle '{}': {}", userId, raffleId, e.getMessage());
+                return Result.failure(e.getMessage());
+            } catch (OptimisticLockException e) {
+                logger.debug("User '{}' hit a concurrent update joining raffle '{}' (attempt {}/{}); retrying.",
+                        userId, raffleId, attempt, maxAttempts);
+                // Small jittered backoff so threads that just collided don't immediately
+                // collide again on the very next attempt (thundering-herd avoidance).
+                try {
+                    Thread.sleep(java.util.concurrent.ThreadLocalRandom.current().nextInt(1, 5));
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+            } catch (Exception e) {
+                logger.error("Unexpected error while user '{}' was joining raffle '{}': {}", userId, raffleId, e.getMessage(), e);
+                return Result.failure("An unexpected internal error occurred.");
+            }
         }
-
-        Raffle raffle = raffleOpt.get();
-
-        try {
-            raffle.registerParticipant(userId);
-            raffleRepository.save(raffle);
-
-            logger.info("User '{}' joined raffle '{}'.", userId, raffleId);
-            return Result.success();
-
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            logger.warn("User '{}' failed to join raffle '{}': {}", userId, raffleId, e.getMessage());
-            return Result.failure(e.getMessage());
-        } catch (Exception e) {
-            logger.error("Unexpected error while user '{}' was joining raffle '{}': {}", userId, raffleId, e.getMessage(), e);
-            return Result.failure("An unexpected internal error occurred.");
-        }
+        logger.error("User '{}' failed to join raffle '{}' after {} attempts due to repeated concurrent updates.",
+                userId, raffleId, maxAttempts);
+        return Result.failure("Failed to join raffle due to high contention. Please try again.");
     }
     
     /**
      * 2. Command: Execute Draw
      */
+    @Transactional
     public Result<RaffleResultDTO> drawWinners(String token, String raffleId, int winnersCount, int validMinutes) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized drawWinners attempt for raffle '{}'.", raffleId);
@@ -242,6 +267,7 @@ public class RaffleService {
     /**
      * 2b. Query: Find the raffle linked to an event — used by the event detail page.
      */
+    @Transactional(readOnly = true)
     public Result<RaffleDTO> getRaffleByEventId(String token, String eventId) {
         if (!authGateway.validateToken(token)) {
             return Result.failure("User not authenticated.");
@@ -259,6 +285,7 @@ public class RaffleService {
     /**
      * 3. Query: Get General Status
      */
+    @Transactional(readOnly = true)
     public Result<RaffleDTO> getRaffleDetails(String token, String raffleId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized getRaffleDetails attempt for raffle '{}'.", raffleId);
@@ -289,6 +316,7 @@ public class RaffleService {
     /**
      * 4. Query: Check Winning Status
      */
+    @Transactional(readOnly = true)
     public Result<WinningTicketDTO> checkMyResult(String token, String raffleId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized checkMyResult attempt for raffle '{}'.", raffleId);
@@ -328,6 +356,7 @@ public class RaffleService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Result<List<RaffleDTO>> getRafflesForUser(String token) {
         if (!authGateway.validateToken(token)) {
             return Result.failure("User not authenticated.");
@@ -340,6 +369,7 @@ public class RaffleService {
         return Result.success(raffles);
     }
 
+    @Transactional(readOnly = true)
     public Result<List<RaffleDTO>> getRafflesForCompany(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             return Result.failure("User not authenticated.");
