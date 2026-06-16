@@ -261,7 +261,9 @@ src/
 │   │   ├── infrastructure/       # Repository implementations, gateways, bootstrap
 │   │   └── presentation/         # Vaadin UI views
 │   └── resources/
-│       ├── application.yml       # Default configuration
+│       ├── application.yml       # Default configuration (H2 file DB, stub gateways)
+│       ├── application-local.yml # Local profile (in-memory H2)
+│       ├── application-prod.yml  # Prod profile (remote PostgreSQL + real WSEP gateways)
 │       └── application-demo.yml  # Demo-profile overrides
 └── test/
     └── java/com/sadna/group13a/  # Unit, integration, and acceptance tests

@@ -5,19 +5,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * External payment service configuration (V3 issue #225), bound from {@code app.external.payment.*}.
  *
- * <p>{@code mode} selects which {@code IPaymentGateway} bean is active:</p>
- * <ul>
- *   <li>{@code stub} (default) — the in-memory {@code StubPaymentGateway} (tests / local dev)</li>
- *   <li>{@code wsep} — the real {@code WsepPaymentGateway} calling {@link #getUrl()}</li>
- * </ul>
+ * <p>Gateway <b>selection is profile-driven</b>, not property-driven: the real
+ * {@code WsepPaymentGateway} is {@code @Profile("prod")} and the {@code StubPaymentGateway}
+ * is {@code @Profile("!prod")}. This class only carries the WSEP base {@link #getUrl() url}
+ * used by the real gateway. The {@code mode} field is retained for backward compatibility
+ * with existing config but is not consulted for bean selection.</p>
  */
 @ConfigurationProperties(prefix = "app.external.payment")
 public class ExternalPaymentProperties {
 
-    /** Active gateway: {@code stub} or {@code wsep}. */
+    /** Retained for backward compatibility; bean selection is profile-driven (see class javadoc). */
     private String mode = "stub";
 
-    /** Base URL of the external WSEP payment service (used only when {@code mode=wsep}). */
+    /** Base URL of the external WSEP payment service (used only by the prod-profile gateway). */
     private String url;
 
     public String getMode() {
