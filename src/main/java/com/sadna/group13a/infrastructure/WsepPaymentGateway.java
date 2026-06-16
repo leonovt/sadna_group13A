@@ -7,7 +7,7 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.config.ExternalPaymentProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,13 +22,13 @@ import java.math.BigDecimal;
 /**
  * Real payment gateway backed by the external WSEP service (V3 issue #225).
  *
- * <p>Active only when {@code app.external.payment.mode=wsep}; otherwise {@link StubPaymentGateway}
- * is used. Every call is defensive: timeouts, non-2xx responses, malformed bodies and {@code -1}
+ * <p>Active only in the {@code prod} profile; {@link StubPaymentGateway} is used in all other
+ * profiles. Every call is defensive: timeouts, non-2xx responses, malformed bodies and {@code -1}
  * results are turned into a {@link Result} failure (or {@code false} for {@link #isConnected()})
  * so that no external-system fault escapes as an exception (robustness, spec §5).</p>
  */
 @Service
-@ConditionalOnProperty(name = "app.external.payment.mode", havingValue = "wsep")
+@Profile("prod")
 public class WsepPaymentGateway implements IPaymentGateway {
 
     private static final Logger logger = LoggerFactory.getLogger(WsepPaymentGateway.class);

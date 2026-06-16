@@ -5,7 +5,7 @@ import com.sadna.group13a.application.Interfaces.TicketIssueRequest;
 import com.sadna.group13a.application.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,11 +14,11 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * In-memory fallback ticket supplier. Used in tests and whenever the real
- * {@link ExternalTicketSupplier} (which is {@code @Primary}) is not wired in.
+ * In-memory ticket supplier used in all non-production profiles (test, local, demo).
+ * Activate {@link ExternalTicketSupplier} instead by running with {@code --spring.profiles.active=prod}.
  */
 @Service
-@ConditionalOnProperty(name = "app.ticketing.mode", havingValue = "stub", matchIfMissing = true)
+@Profile("!prod")
 public class StubTicketSupplier implements ITicketSupplier {
 
     private static final Logger logger = LoggerFactory.getLogger(StubTicketSupplier.class);

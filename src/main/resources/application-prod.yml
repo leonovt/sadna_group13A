@@ -18,6 +18,11 @@
 # NOTE: spring.datasource.* / spring.jpa.* only take effect once the JPA starter
 # and the PostgreSQL driver are on the classpath (separate persistence/ORM task).
 
+# Gateway selection: activating this profile automatically enables the real external
+# payment (WsepPaymentGateway) and ticket (ExternalTicketSupplier) implementations.
+# The stub beans are @Profile("!prod") and are excluded from this profile.
+# No additional property is needed — the profile name alone drives the selection.
+
 spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sadna}
