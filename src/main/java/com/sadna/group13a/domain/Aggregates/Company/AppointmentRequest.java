@@ -1,5 +1,8 @@
 package com.sadna.group13a.domain.Aggregates.Company;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -13,7 +16,10 @@ public class AppointmentRequest {
     private final CompanyRole proposedRole;
     private final Set<CompanyPermission> proposedPermissions;
 
-    public AppointmentRequest(String nomineeId, String appointerId, CompanyRole proposedRole, Set<CompanyPermission> proposedPermissions) {
+    @JsonCreator
+    public AppointmentRequest(@JsonProperty("nomineeId") String nomineeId, @JsonProperty("appointerId") String appointerId,
+                               @JsonProperty("proposedRole") CompanyRole proposedRole,
+                               @JsonProperty("proposedPermissions") Set<CompanyPermission> proposedPermissions) {
         this.nomineeId = nomineeId;
         this.appointerId = appointerId;
         this.proposedRole = proposedRole;
