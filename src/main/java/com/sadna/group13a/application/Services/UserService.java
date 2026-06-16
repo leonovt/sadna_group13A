@@ -88,7 +88,7 @@ public class UserService
 
             userRepository.save(newUser);
 
-            UserDTO dto = objectMapper.convertValue(newUser, UserDTO.class);
+            UserDTO dto = new UserDTO(newUser.getUsername(), newUser.getRole());
             logger.info("Successfully registered user: {}", username);
             
             return Result.success(dto);
@@ -154,8 +154,8 @@ public class UserService
         }
 
         User user = userOpt.get();
-        UserDTO dto = objectMapper.convertValue(user, UserDTO.class);
-        
+        UserDTO dto = new UserDTO(user.getUsername(), user.getRole());
+
         logger.info("Successfully retrieved profile for user: {}", user.getUsername());
         return Result.success(dto);
     }
@@ -204,7 +204,7 @@ public class UserService
         userRepository.save(user);
 
         logger.info("User '{}' changed username to '{}'.", userId, newUsername);
-        return Result.success(objectMapper.convertValue(user, UserDTO.class));
+        return Result.success(new UserDTO(user.getUsername(), user.getRole()));
     }
 
     // ── Order History ─────────────────────────────────────────────

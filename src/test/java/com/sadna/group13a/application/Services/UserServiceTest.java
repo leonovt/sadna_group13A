@@ -50,8 +50,6 @@ class UserServiceTest {
     void givenNewUsername_whenRegister_thenUserSavedAndDtoReturned() {
         when(userRepository.findByUsername("alice")).thenReturn(Optional.empty());
         when(passwordEncoder.encodePassword("pass")).thenReturn("hashed");
-        when(objectMapper.convertValue(any(User.class), eq(UserDTO.class)))
-                .thenReturn(new UserDTO("alice", UserRole.MEMBER));
 
         Result<UserDTO> result = userService.register("alice", "pass");
 
@@ -125,8 +123,6 @@ class UserServiceTest {
         when(authGateway.validateToken(TOKEN)).thenReturn(true);
         when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-        when(objectMapper.convertValue(any(User.class), eq(UserDTO.class)))
-                .thenReturn(new UserDTO("alice", UserRole.MEMBER));
 
         Result<UserDTO> result = userService.getUserProfile(TOKEN);
 
@@ -199,8 +195,6 @@ class UserServiceTest {
         when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         when(userRepository.findByUsername("newname")).thenReturn(Optional.empty());
-        when(objectMapper.convertValue(any(User.class), eq(UserDTO.class)))
-                .thenReturn(new UserDTO("newname", UserRole.MEMBER));
 
         Result<UserDTO> result = userService.updateProfile(TOKEN, "newname");
 
