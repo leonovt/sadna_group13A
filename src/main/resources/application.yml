@@ -34,6 +34,15 @@ app:
     username: admin
     password: admin123
 
+  # System initialization parameters (Version 3 — see README "Startup configuration").
+  # Bound to SystemInitProperties and validated: invalid/missing values stop startup.
+  init:
+    # Max users who may hold tickets for one event simultaneously before queuing (>= 1).
+    max-concurrent-users-per-event: 100
+    # Optional path to an initial-state JSON file executed at startup (issue #224).
+    # Leave blank to skip initial-state loading.
+    initial-state-file:
+
 logging:
   level:
     com.sadna.group13a.domain: DEBUG
