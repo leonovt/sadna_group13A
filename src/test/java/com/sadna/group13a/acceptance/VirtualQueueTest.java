@@ -14,6 +14,8 @@ import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.infrastructure.AuthImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.QueueRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +36,7 @@ class VirtualQueueTest {
     @BeforeEach
     void setUp() {
         queueRepository = new QueueRepositoryImpl();
-        userRepository = new UserRepositoryImpl();
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
         authGateway = new AuthImpl();
         eventPublisher = mock(ApplicationEventPublisher.class);
 

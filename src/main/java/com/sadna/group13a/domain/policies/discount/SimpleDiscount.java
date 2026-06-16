@@ -14,14 +14,13 @@ import java.time.LocalDate;
  */
 public class SimpleDiscount implements DiscountPolicy {
 
-    private final double    percentage;
+    private final double percentage;
     private final LocalDate startDate;
     private final LocalDate endDate;
 
     @JsonCreator
-    public SimpleDiscount(@JsonProperty("percentage") double    percentage,
-                          @JsonProperty("startDate")  LocalDate startDate,
-                          @JsonProperty("endDate")    LocalDate endDate) {
+    public SimpleDiscount(@JsonProperty("percentage") double percentage, @JsonProperty("startDate") LocalDate startDate,
+                           @JsonProperty("endDate") LocalDate endDate) {
         if (percentage < 0.0 || percentage > 1.0)
             throw new DomainException("Discount percentage must be between 0 and 1");
         if (startDate == null || endDate == null)

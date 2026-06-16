@@ -1,11 +1,18 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  * Abstract entity within the Event aggregate — represents a zone in a venue.
  *
  * Subclasses handle specific logic for SEATED vs STANDING capacity.
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "zoneClass")
+@JsonSubTypes({
+        @JsonSubTypes.Type(SeatedZone.class),
+        @JsonSubTypes.Type(StandingZone.class)
+})
 public abstract class Zone {
 
     private final String id;
