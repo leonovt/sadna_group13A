@@ -20,6 +20,7 @@ import com.sadna.group13a.domain.Aggregates.Raffle.AuthorizationCode;
 import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyStaffMember;
@@ -33,8 +34,6 @@ import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IQueueRepository;
 import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
-import com.sadna.group13a.domain.policies.discount.AdditiveDiscountPolicy;
-import com.sadna.group13a.domain.policies.purchase.AndPolicy;
 import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
@@ -46,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -77,7 +77,9 @@ public class OrderService {
     private final IAuth authGateway;
     private final CheckoutDomainService checkoutDomainService;
     private final TicketingAccessDomainService ticketingAccessDomainService;
+    private final CartDomainService cartDomainService;
     private final ApplicationEventPublisher eventPublisher;
+    private final QueueService queueService;
 
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
@@ -94,7 +96,9 @@ public class OrderService {
             IAuth authGateway,
             CheckoutDomainService checkoutDomainService,
             TicketingAccessDomainService ticketingAccessDomainService,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            CartDomainService cartDomainService,
+            QueueService queueService) {
         this.orderRepository = orderRepository;
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
@@ -108,12 +112,15 @@ public class OrderService {
         this.checkoutDomainService = checkoutDomainService;
         this.ticketingAccessDomainService = ticketingAccessDomainService;
         this.eventPublisher = eventPublisher;
+        this.cartDomainService = cartDomainService;
+        this.queueService = queueService;
     }
 
     /**
      * Adds an item to the user's active cart.  If no cart exists, creates one.
      * Holds the seat/spot immediately to prevent double-booking.
      */
+    @Transactional
     public Result<String> addItemToCart(String token, String eventId, String zoneId, String seatId) {
         if (seatId != null) {
             return addBatchItemsToCart(token, eventId, zoneId, List.of(seatId), null);
@@ -132,6 +139,7 @@ public class OrderService {
      * StandingZone. The {@code reservedSeats} rollback list is a local variable and is
      * never shared between threads.
      */
+    @Transactional
     public Result<String> addBatchItemsToCart(String token, String eventId, String zoneId,
                                                List<String> seatIds, Integer quantity) {
         if (!authGateway.validateToken(token)) {
@@ -177,24 +185,10 @@ public class OrderService {
             seatsToReserve = new ArrayList<>(Collections.nCopies(quantity, null));
         }
 
-        List<String> reservedSeats = new ArrayList<>();
         try {
-            for (String seatId : seatsToReserve) {
-                event.reserveSeat(zoneId, seatId, userId);
-                reservedSeats.add(seatId);
-            }
+            cartDomainService.reserveSeatsAtomically(event, zoneId, seatsToReserve, userId);
             eventRepository.save(event);
         } catch (Exception e) {
-            for (String reservedSeatId : reservedSeats) {
-                try {
-                    event.releaseItem(zoneId, reservedSeatId, userId);
-                } catch (Exception re) {
-                    logger.warn("Failed to release seat {} during batch rollback: {}",
-                            reservedSeatId, re.getMessage());
-                }
-            }
-            logger.warn("Batch reservation failed for user {} in zone {}: {}",
-                    userId, zoneId, e.getMessage());
             return Result.failure("Failed to reserve seats: " + e.getMessage());
         }
 
@@ -231,6 +225,7 @@ public class OrderService {
      * @param optionalAuthCode raffle authorization code (null for REGULAR/QUEUE events)
      * @param paymentDetails  payment instrument data passed to the payment gateway
      */
+    @Transactional
     public Result<OrderHistoryDTO> executeCheckout(
             String token,
             String activeOrderId,
@@ -274,6 +269,14 @@ public class OrderService {
         Map<String, List<OrderItem>> itemsByEvent = order.getItems().stream()
                 .collect(Collectors.groupingBy(OrderItem::getEventId));
 
+        // Pre-compute per-company ticket totals so company-level policies see the
+        // full company count across all events in the cart, not just the current event.
+        Map<String, Integer> companyTicketCounts = new java.util.HashMap<>();
+        for (Map.Entry<String, List<OrderItem>> e : itemsByEvent.entrySet()) {
+            eventRepository.findById(e.getKey())
+                    .ifPresent(ev -> companyTicketCounts.merge(ev.getCompanyId(), e.getValue().size(), Integer::sum));
+        }
+
         // Track processed events for rollback
         Map<String, Event> processedEvents = new LinkedHashMap<>();
         Map<String, TicketQueue> processedQueues = new LinkedHashMap<>();
@@ -307,12 +310,18 @@ public class OrderService {
             if (event.getSaleMode() == EventSaleMode.QUEUE) {
                 queue = queueRepository.findByEventId(eventId).orElse(null);
             } else if (event.getSaleMode() == EventSaleMode.RAFFLE) {
-                final String eid = eventId;
-                authCode = raffleRepository.findByEventId(eid).stream()
-                        .findFirst()
-                        .flatMap(r -> r.getAuthorizationCodeFor(userId))
-                        .filter(c -> c.isValidFor(userId, eid))
-                        .orElse(null);
+                if (optionalAuthCode == null || optionalAuthCode.isBlank()) {
+                    rollbackSoldSeats(processedEvents, order.getItems());
+                    return Result.failure("A raffle authorization code is required to complete this purchase.");
+                }
+                java.util.Optional<AuthorizationCode> resolvedCode = ticketingAccessDomainService
+                        .resolveRaffleAuthCode(raffleRepository.findByEventId(eventId), userId, eventId);
+                if (resolvedCode.isEmpty() || !resolvedCode.get().getCode().equals(optionalAuthCode.trim())) {
+                    rollbackSoldSeats(processedEvents, order.getItems());
+                    eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Invalid raffle authorization code."));
+                    return Result.failure("Invalid raffle authorization code.");
+                }
+                authCode = resolvedCode.get();
             }
 
             try {
@@ -325,20 +334,28 @@ public class OrderService {
                 return Result.failure(e.getMessage());
             }
 
-            // Combine purchase policies: both event AND company rules must pass
-            PurchasePolicy combinedPurchase = new AndPolicy(
-                    event.getPurchasePolicy(), company.getPurchasePolicy());
-
             // Combine discount policies: sum discounts from event and company (additive by default)
-            DiscountPolicy combinedDiscount = new AdditiveDiscountPolicy(
-                    List.of(event.getDiscountPolicy(), company.getDiscountPolicy()));
+            DiscountPolicy combinedDiscount = checkoutDomainService.combineDiscounts(
+                    event.getDiscountPolicy(), company.getDiscountPolicy());
 
-            // Build checkout contexts — userAge defaults to 0 until user age storage is added.
-            // optionalAuthCode doubles as coupon code for non-raffle events.
-            int ticketCount = eventItems.size();
+            // Event-level ticket count: items in this event only.
+            // Company-level ticket count: all items in the cart that belong to this company.
+            int eventTicketCount   = eventItems.size();
+            int companyTicketCount = companyTicketCounts.getOrDefault(event.getCompanyId(), eventTicketCount);
             int userAge = (checkoutUserOpt.get() instanceof Member m) ? m.getAge() : 0;
-            PurchaseContext purchaseCtx = new PurchaseContext(userId, ticketCount, userAge, optionalAuthCode);
-            DiscountContext  discountCtx = new DiscountContext(userId, ticketCount, optionalAuthCode);
+
+            PurchaseContext eventPurchaseCtx   = new PurchaseContext(userId, eventTicketCount, userAge, optionalAuthCode);
+            PurchaseContext companyPurchaseCtx = new PurchaseContext(userId, companyTicketCount, userAge, optionalAuthCode);
+            DiscountContext discountCtx        = new DiscountContext(userId, eventTicketCount, optionalAuthCode);
+
+            // Check company-level policy first using the company-total count.
+            if (!company.getPurchasePolicy().isSatisfied(companyPurchaseCtx)) {
+                logger.warn("Checkout blocked for order '{}' (user '{}', company '{}'): company purchase policy not satisfied.",
+                        order.getId(), userId, event.getCompanyId());
+                rollbackSoldSeats(processedEvents, order.getItems());
+                eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Purchase not permitted by the company's purchase policy."));
+                return Result.failure("Purchase not permitted by the company's purchase policy.");
+            }
 
             // Seat-level synchronization (on Seat and StandingZone methods) ensures
             // that two users competing for the same seat get correct all-or-nothing
@@ -346,7 +363,7 @@ public class OrderService {
             try {
                 List<OrderHistoryItem> items = checkoutDomainService.checkoutItemsForEvent(
                         eventItems, order, event, company,
-                        combinedPurchase, combinedDiscount, purchaseCtx, discountCtx);
+                        event.getPurchasePolicy(), combinedDiscount, eventPurchaseCtx, discountCtx);
                 allHistoryItems.addAll(items);
                 totalPaid += items.stream().mapToDouble(OrderHistoryItem::getPricePaid).sum();
                 processedEvents.put(eventId, event);
@@ -420,9 +437,8 @@ public class OrderService {
         historyRepository.save(history);
         orderRepository.deleteById(activeOrderId);
 
-        for (Map.Entry<String, TicketQueue> qe : processedQueues.entrySet()) {
-            qe.getValue().removeActiveUser(userId);
-            queueRepository.save(qe.getValue());
+        for (String queueEventId : processedQueues.keySet()) {
+            queueService.releaseAndAdvance(userId, queueEventId);
         }
 
         eventPublisher.publishEvent(new OrderCompletedEvent(history.getReceiptId(), userId, history.getTotalPaid()));
@@ -451,6 +467,7 @@ public class OrderService {
     /**
      * Returns the current contents of the user's active cart.
      */
+    @Transactional(readOnly = true)
     public Result<OrderDTO> viewCart(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to view cart");
@@ -482,6 +499,7 @@ public class OrderService {
     /**
      * Removes a single item from the user's cart and releases its seat hold.
      */
+    @Transactional
     public Result<Void> removeItemFromCart(String token, String eventId, String zoneId, String seatId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to remove item from cart");
@@ -513,6 +531,7 @@ public class OrderService {
     /**
      * Cancels the user's entire cart and releases all held seats.
      */
+    @Transactional
     public Result<Void> cancelCart(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to cancel cart");
@@ -538,20 +557,8 @@ public class OrderService {
 
     // ── Private helpers ───────────────────────────────────────────────────────────
 
-    /**
-     * Rolls back all sold seats for the given processed events.
-     * Best-effort: logs but swallows individual rollback errors so all seats are attempted.
-     */
     private void rollbackSoldSeats(Map<String, Event> processedEvents, List<OrderItem> items) {
-        for (OrderItem item : items) {
-            Event event = processedEvents.get(item.getEventId());
-            if (event == null) continue;
-            try {
-                event.unsellItem(item.getZoneId(), item.getSeatId());
-            } catch (Exception e) {
-                logger.warn("Rollback failed for seat {} zone {}: {}", item.getSeatId(), item.getZoneId(), e.getMessage());
-            }
-        }
+        checkoutDomainService.unsellSeats(processedEvents, items);
         for (Event event : processedEvents.values()) {
             try {
                 eventRepository.save(event);

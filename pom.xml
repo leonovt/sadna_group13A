@@ -48,6 +48,13 @@
             <artifactId>vaadin-spring-boot-starter</artifactId>
         </dependency>
 
+        <!-- Bean Validation (JSR-380) - validates @ConfigurationProperties so the
+             application fails fast on invalid/missing startup configuration (V3 #223) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
         <!-- Security - for BCrypt password encoder -->
         <dependency>
             <groupId>org.springframework.security</groupId>
@@ -94,10 +101,20 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-        <!-- JPA API — annotations only; no datasource wired unless spring-boot-starter-data-jpa is added -->
+        <!-- JPA / Database -->
         <dependency>
-            <groupId>jakarta.persistence</groupId>
-            <artifactId>jakarta.persistence-api</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Testing -->
@@ -158,23 +175,16 @@
                         <configuration>
                             <excludes>
                                 <exclude>com/sadna/group13a/presentation/**</exclude>
+                                <exclude>com/sadna/group13a/infrastructure/DemoDataSeeder.class</exclude>
                             </excludes>
                             <rules>
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
-                                        <!--
-                                            Minimum line coverage: 60%.
-                                            Current coverage is ~68% (as of the logging-across-services
-                                            work in issues #54-#64). The threshold is set 8 points below
-                                            the current level to catch significant regressions without
-                                            failing the build for minor fluctuations. Raise this value
-                                            as coverage improves over time.
-                                        -->
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.60</minimum>
+                                            <minimum>0.75</minimum>
                                         </limit>
                                     </limits>
                                 </rule>

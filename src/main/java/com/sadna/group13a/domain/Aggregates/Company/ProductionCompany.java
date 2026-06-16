@@ -21,6 +21,19 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKey;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -61,12 +74,11 @@ public class ProductionCompany {
     @MapKey(name = "nomineeId")
     private Map<String, AppointmentRequest> pendingAppointments;
 
-    @Convert(converter = PurchasePolicyConverter.class)
-    @Column(name = "purchase_policy", columnDefinition = "TEXT")
+    // Deferred until policy JPA serialisation is resolved
+    @Transient
     private PurchasePolicy purchasePolicy;
 
-    @Convert(converter = DiscountPolicyConverter.class)
-    @Column(name = "discount_policy", columnDefinition = "TEXT")
+    @Transient
     private DiscountPolicy discountPolicy;
 
     /** Managed by JPA for optimistic-locking; also incremented manually for in-memory conflict detection. */

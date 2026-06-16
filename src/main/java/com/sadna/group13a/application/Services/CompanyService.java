@@ -21,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.sadna.group13a.application.Interfaces.IAuth;
+import com.sadna.group13a.domain.DomainServices.CompanyStaffDomainService;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ import com.sadna.group13a.domain.Events.CompanySuspendedEvent;
 import com.sadna.group13a.domain.Events.PermissionsUpdatedEvent;
 import com.sadna.group13a.domain.Events.StaffNominatedEvent;
 import com.sadna.group13a.domain.Events.StaffRemovedEvent;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CompanyService {
@@ -49,19 +51,23 @@ public class CompanyService {
     private final IAuth authGateway;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final CompanyStaffDomainService companyStaffDomainService;
 
     public CompanyService(ICompanyRepository companyRepository, IUserRepository userRepository,
                           IOrderHistoryRepository historyRepository,
                           IAuth authGateway, ObjectMapper objectMapper,
-                          ApplicationEventPublisher eventPublisher) {
+                          ApplicationEventPublisher eventPublisher,
+                          CompanyStaffDomainService companyStaffDomainService) {
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.historyRepository = historyRepository;
         this.authGateway = authGateway;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
+        this.companyStaffDomainService = companyStaffDomainService;
     }
 
+    @Transactional
     public Result<Boolean> createCompany(String token, String name, String description) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to create company '{}'.", name);
@@ -91,6 +97,7 @@ public class CompanyService {
         return Result.success();
     }
 
+    @Transactional
     public Result<Void> appointManager(String token, String companyId, String targetUsername,
                                        Set<CompanyPermission> permissions) {
         if (!authGateway.validateToken(token)) {
@@ -127,6 +134,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Result<CompanyDTO> getCompany(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to get details for company '{}'.", companyId);
@@ -151,6 +159,7 @@ public class CompanyService {
                 company.getStatus(), founderId, staffDTOs));
     }
 
+    @Transactional
     public Result<Void> suspendCompany(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to suspend company '{}'.", companyId);
@@ -177,6 +186,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional
     public Result<Void> reopenCompany(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to reopen company '{}'.", companyId);
@@ -203,6 +213,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Result<List<StaffMemberDTO>> getRoleTree(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to get role tree for company '{}'.", companyId);
@@ -228,6 +239,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional
     public Result<Void> fireManager(String token, String companyId, String targetUsername) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to fire manager '{}' from company '{}'.", targetUsername, companyId);
@@ -248,13 +260,7 @@ public class CompanyService {
         }
         try {
             ProductionCompany company = compOpt.get();
-            Set<String> subtree = company.getStaffSubTree(targetUserId);
-            company.fireStaff(actingUserId, targetUserId);
-            for (String uid : subtree) {
-                if (!uid.equals(targetUserId) && company.getStaff().containsKey(uid)) {
-                    company.fireStaff(actingUserId, uid);
-                }
-            }
+            Set<String> subtree = companyStaffDomainService.cascadeRemove(company, actingUserId, targetUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
 
@@ -270,6 +276,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional
     public Result<Void> removeOwner(String token, String companyId, String targetUsername) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to remove owner '{}' from company '{}'.", targetUsername, companyId);
@@ -303,13 +310,7 @@ public class CompanyService {
         }
 
         try {
-            Set<String> subtree = company.getStaffSubTree(targetUserId);
-            company.fireStaff(actingUserId, targetUserId);
-            for (String uid : subtree) {
-                if (!uid.equals(targetUserId) && company.getStaff().containsKey(uid)) {
-                    company.fireStaff(actingUserId, uid);
-                }
-            }
+            Set<String> subtree = companyStaffDomainService.cascadeRemove(company, actingUserId, targetUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
 
@@ -325,6 +326,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional
     public Result<Void> resign(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to resign from company '{}'.", companyId);
@@ -338,8 +340,7 @@ public class CompanyService {
         }
         try {
             ProductionCompany company = compOpt.get();
-            Set<String> subtree = company.getStaffSubTree(actingUserId);
-            company.resign(actingUserId);
+            Set<String> subtree = companyStaffDomainService.resignAndGetSubtree(company, actingUserId);
             companyRepository.save(company);
             removeRolesForSubtree(subtree, companyId);
 
@@ -354,6 +355,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional
     public Result<Void> appointOwner(String token, String companyId, String targetUsername) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to appoint owner in company '{}'.", companyId);
@@ -389,6 +391,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional
     public Result<Void> acceptNomination(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to accept nomination in company '{}'.", companyId);
@@ -436,6 +439,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional
     public Result<Void> rejectNomination(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to reject nomination in company '{}'.", companyId);
@@ -462,6 +466,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Result<List<OrderHistoryDTO>> viewCompanyOrders(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to view orders for company '{}'.", companyId);
@@ -486,6 +491,7 @@ public class CompanyService {
         return Result.success(dtos);
     }
 
+    @Transactional(readOnly = true)
     public Result<SalesReportDTO> generateSalesReport(String token, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to generate sales report for company '{}'.", companyId);
@@ -516,6 +522,7 @@ public class CompanyService {
         return Result.success(new SalesReportDTO(companyId, company.getName(), orders.size(), totalRevenue, dtos));
     }
 
+    @Transactional
     public Result<Void> updatePermissions(String token, String companyId, String targetManagerUsername,
                                           Set<CompanyPermission> permissions) {
         if (!authGateway.validateToken(token)) {
@@ -557,6 +564,7 @@ public class CompanyService {
      * Replaces the purchase policy root for a company.
      * Caller must be a Founder or Owner of the company.
      */
+    @Transactional
     public Result<Void> setPurchasePolicy(String token, String companyId, PurchasePolicy policy) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized setPurchasePolicy attempt for company '{}'.", companyId);
@@ -588,6 +596,7 @@ public class CompanyService {
      * Replaces the discount policy root for a company.
      * Caller must be a Founder or Owner of the company.
      */
+    @Transactional
     public Result<Void> setDiscountPolicy(String token, String companyId, DiscountPolicy policy) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized setDiscountPolicy attempt for company '{}'.", companyId);
@@ -615,6 +624,22 @@ public class CompanyService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public Result<String> getPurchasePolicyDescription(String token, String companyId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return companyRepository.findById(companyId)
+                .map(c -> Result.success(com.sadna.group13a.application.PolicyFormatter.describe(c.getPurchasePolicy())))
+                .orElse(Result.failure("Company not found."));
+    }
+
+    @Transactional(readOnly = true)
+    public Result<String> getDiscountPolicyDescription(String token, String companyId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return companyRepository.findById(companyId)
+                .map(c -> Result.success(com.sadna.group13a.application.PolicyFormatter.describe(c.getDiscountPolicy())))
+                .orElse(Result.failure("Company not found."));
+    }
+
     // ── Private helpers ───────────────────────────────────────────
 
     private void removeRolesForSubtree(Set<String> userIds, String companyId) {
@@ -628,6 +653,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Result<List<CompanyDTO>> getMyCompanies(String token) {
         if (!authGateway.validateToken(token)) {
             return Result.failure("User not authenticated.");

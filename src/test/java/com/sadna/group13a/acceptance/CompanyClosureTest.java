@@ -5,6 +5,7 @@ import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.INotificationService;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import com.sadna.group13a.domain.DomainServices.CompanyStaffDomainService;
 import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.infrastructure.InMemoryNotificationService;
@@ -54,7 +55,7 @@ class CompanyClosureTest {
 
         ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
-                objectMapper, publisher);
+                objectMapper, publisher, new CompanyStaffDomainService());
     }
 
     @Test

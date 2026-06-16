@@ -15,6 +15,7 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistoryItem;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.DomainServices.CartDomainService;
 import com.sadna.group13a.domain.DomainServices.CheckoutDomainService;
 import com.sadna.group13a.domain.DomainServices.TicketingAccessDomainService;
 import com.sadna.group13a.domain.Events.CompanyClosedByAdminEvent;
@@ -153,12 +154,12 @@ class SubscriberNotificationTest {
         String eventId  = "event-1";
         int winnerCount = 5;
         // Pre-condition: no raffle-drawn notifications sent yet
-        verify(notificationService, never()).notifyRaffleDrawn(anyString(), anyInt());
+        verify(notificationService, never()).notifyRaffleDrawn(anyList(), anyString(), anyInt());
 
-        notificationEventListener.onRaffleDrawn(new RaffleDrawnEvent(raffleId, eventId, winnerCount));
+        notificationEventListener.onRaffleDrawn(new RaffleDrawnEvent(raffleId, eventId, winnerCount, List.of("participant-1")));
 
         // Post-condition: notification dispatched with correct event ID and winner count
-        verify(notificationService, times(1)).notifyRaffleDrawn(eventId, winnerCount);
+        verify(notificationService, times(1)).notifyRaffleDrawn(anyList(), eq(eventId), eq(winnerCount));
     }
 
     @Test
@@ -183,7 +184,8 @@ class SubscriberNotificationTest {
         OrderService orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier,
-                userRepository, authGateway, checkoutService, accessService, eventPublisher);
+                userRepository, authGateway, checkoutService, accessService, eventPublisher,
+                mock(CartDomainService.class), null);
 
         String token     = "tok";
         String userId    = "user1";

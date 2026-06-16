@@ -9,6 +9,8 @@ import com.sadna.group13a.domain.Aggregates.Event.Event;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
+import com.sadna.group13a.domain.DomainServices.EventSearchDomainService;
+import com.sadna.group13a.domain.DomainServices.VenueMapFactory;
 import com.sadna.group13a.domain.Interfaces.IOrderHistoryRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +51,7 @@ class EventManagementTest {
         IOrderHistoryRepository historyRepository = mock(IOrderHistoryRepository.class);
         ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository,
-                historyRepository, publisher);
+                historyRepository, publisher, new EventSearchDomainService(), new VenueMapFactory());
     }
 
     @Test
@@ -175,7 +177,7 @@ class EventManagementTest {
         assertFalse(company.hasPermission("unauthorized_user", CompanyPermission.MANAGE_EVENTS), "Pre: user must not have MANAGE_EVENTS permission");
 
         Result<Void> result = eventService.updateEventDetails(token, eventId, "New Title", "New Desc",
-                LocalDateTime.now(), "Concerts");
+                LocalDateTime.now(), "Concerts", null);
 
         // Post-condition: editing is denied and event is not saved
         assertFalse(result.isSuccess(), "Post: user must be denied to edit event without permission");

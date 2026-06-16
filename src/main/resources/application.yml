@@ -2,6 +2,23 @@ spring:
   application:
     name: sadna-group13a
 
+  datasource:
+    url: jdbc:h2:mem:sadna;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
 # JWT Configuration
 app:
   jwt:
@@ -12,10 +29,26 @@ app:
   seat:
     hold-duration-minutes: 10
 
+  # Persistence connection health-check (issue #228 — auto-recovery after data-store outage).
+  # This project uses an in-memory data store rather than a JDBC datasource, so instead of
+  # HikariCP's connection-test-query we run an equivalent scheduled health check that detects
+  # a connection loss and automatically resumes once it is restored — no restart required.
+  persistence:
+    health-check-interval-ms: 5000
+
   # Bootstrap admin credentials
   admin:
     username: admin
     password: admin123
+
+  # System initialization parameters (Version 3 — see README "Startup configuration").
+  # Bound to SystemInitProperties and validated: invalid/missing values stop startup.
+  init:
+    # Max users who may hold tickets for one event simultaneously before queuing (>= 1).
+    max-concurrent-users-per-event: 100
+    # Optional path to an initial-state JSON file executed at startup (issue #224).
+    # Leave blank to skip initial-state loading.
+    initial-state-file:
 
 logging:
   level:

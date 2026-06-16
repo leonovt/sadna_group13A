@@ -21,6 +21,7 @@ import com.sadna.group13a.domain.Aggregates.User.Guest;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService
@@ -47,6 +48,7 @@ public class UserService
      * Any service that calls userRepository.findById() with this token's userId will get
      * empty, which is how the system recognises guest-level permissions.
      */
+    @Transactional(readOnly = true)
     public Result<String> enterAsGuest() {
         String guestId = "guest-" + UUID.randomUUID();
         String token = authGateway.generateToken(guestId);
@@ -57,6 +59,7 @@ public class UserService
     /**
      * Registers a new customer in the system.
      */
+    @Transactional
     public Result<UserDTO> register(String username, String rawPassword) {
         logger.debug("Attempting to register new user: {}", username);
 
@@ -99,6 +102,7 @@ public class UserService
     /**
      * Authenticates a user and generates a JWT token for session management.
      */
+    @Transactional(readOnly = true)
     public Result<String> login(String username, String rawPassword) {
         logger.debug("Attempting login for user: {}", username);
 
@@ -132,6 +136,7 @@ public class UserService
     /**
      * Retrieves the safe, public profile details of a user via their ID.
      */
+    @Transactional(readOnly = true)
     public Result<UserDTO> getUserProfile(String token)
     {
         if(!authGateway.validateToken(token)) 
@@ -159,6 +164,7 @@ public class UserService
      * Logs the current session out and returns a fresh guest token,
      * transitioning the caller back to guest mode.
      */
+    @Transactional(readOnly = true)
     public Result<String> logout(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized logout attempt with invalid token.");
@@ -169,6 +175,7 @@ public class UserService
         return enterAsGuest();
     }
 
+    @Transactional
     public Result<UserDTO> updateProfile(String token, String newUsername) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized updateProfile attempt.");
@@ -202,6 +209,7 @@ public class UserService
 
     // ── Order History ─────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public Result<List<OrderHistoryDTO>> viewOrderHistory(String token)
     {
         if(!authGateway.validateToken(token))

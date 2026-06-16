@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -60,6 +61,7 @@ public class QueueService {
     /**
      * Creates a virtual queue for an event. Called by the event owner when enabling queue mode.
      */
+    @Transactional
     public Result<Void> createQueue(String token, String eventId, int maxConcurrentUsers) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized createQueue attempt for event '{}'.", eventId);
@@ -105,6 +107,7 @@ public class QueueService {
     /**
      * Admin operation: clears all waiting and active users from a queue.
      */
+    @Transactional
     public Result<Void> clearQueue(String token, String eventId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized clearQueue attempt for event '{}'.", eventId);
@@ -133,6 +136,7 @@ public class QueueService {
     /**
      * Admin operation: adjusts how many users may be in the active (purchasing) state simultaneously.
      */
+    @Transactional
     public Result<Void> adjustQueueRate(String token, String eventId, int newMaxConcurrentUsers) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized adjustQueueRate attempt for event '{}'.", eventId);
@@ -168,6 +172,7 @@ public class QueueService {
     /**
      * Admin operation: process the next batch manually for a specific event.
      */
+    @Transactional
     public Result<List<QueueTicket>> processBatch(String token, String eventId, int batchSize) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized processBatch attempt for event '{}'.", eventId);
@@ -204,6 +209,7 @@ public class QueueService {
      * If capacity is available, the user is admitted right away.
      * Otherwise, they receive a position number and must wait.
      */
+    @Transactional
     public Result<QueueStatusDTO> joinQueue(String token, String eventId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized joinQueue attempt for event '{}'.", eventId);
@@ -272,6 +278,7 @@ public class QueueService {
     /**
      * Returns the user's current status in the queue without modifying it.
      */
+    @Transactional(readOnly = true)
     public Result<QueueStatusDTO> getStatus(String token, String eventId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized getStatus attempt for event '{}'.", eventId);
@@ -307,8 +314,28 @@ public class QueueService {
     }
 
     /**
+     * Internal: called by OrderService after a successful checkout to free the active
+     * slot and admit the next waiting user without requiring a token.
+     */
+    @Transactional
+    void releaseAndAdvance(String userId, String eventId) {
+        Optional<TicketQueue> queueOpt = queueRepository.findByEventId(eventId);
+        if (queueOpt.isEmpty()) {
+            return;
+        }
+        TicketQueue queue = queueOpt.get();
+        queue.removeActiveUser(userId);
+        List<QueueTicket> admitted = queue.processBatch(1, DEFAULT_ACCESS_MINUTES);
+        queueRepository.save(queue);
+        admitted.forEach(t -> eventPublisher.publishEvent(
+                new QueueTurnArrivedEvent(eventId, t.getUserId(), t.getExpiresAt())));
+        logger.info("Checkout-triggered release: user '{}' freed slot for event '{}'; {} user(s) admitted.", userId, eventId, admitted.size());
+    }
+
+    /**
      * Removes a user from the active set when they finish or abandon the checkout process.
      */
+    @Transactional
     public Result<Void> releaseAccess(String token, String eventId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized releaseAccess attempt for event '{}'.", eventId);
@@ -341,6 +368,7 @@ public class QueueService {
     /**
      * Returns all active queues in the system. Admin-only.
      */
+    @Transactional(readOnly = true)
     public Result<List<TicketQueue>> getAllQueues(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized getAllQueues attempt.");

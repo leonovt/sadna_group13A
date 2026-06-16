@@ -42,7 +42,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
     private final Span totalLabel = new Span();
     private final Span expiryLabel = new Span();
     private final TextField paymentField = new TextField("Payment Details");
-    private final TextField authCodeField = new TextField("Auth Code");
+    private final TextField authCodeField = new TextField("Authorization / Coupon Code");
 
     // ── Receipt section ───────────────────────────────────────────
     private final VerticalLayout receiptSection = new VerticalLayout();
@@ -103,8 +103,8 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         paymentField.setWidthFull();
         paymentField.setPlaceholder("e.g. 4111 1111 1111 1111");
         authCodeField.setWidthFull();
-        authCodeField.setPlaceholder("Leave blank for regular / queue sales");
-        authCodeField.setHelperText("Required for raffle sales only");
+        authCodeField.setPlaceholder("Required for raffle events");
+        authCodeField.setHelperText("Raffle winners: enter your authorization code. Other events: enter a coupon code if you have one.");
 
         Button placeOrderBtn = new Button("Place Order", e -> {
             statusMessage.setVisible(false);

@@ -13,6 +13,8 @@ import com.sadna.group13a.domain.Aggregates.Event.StandingZone;
 import com.sadna.group13a.domain.Aggregates.Event.VenueMap;
 import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
 import com.sadna.group13a.domain.Aggregates.User.Member;
+import com.sadna.group13a.domain.DomainServices.EventSearchDomainService;
+import com.sadna.group13a.domain.DomainServices.VenueMapFactory;
 import com.sadna.group13a.domain.Interfaces.ICompanyRepository;
 import com.sadna.group13a.domain.Interfaces.IEventRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
@@ -47,7 +49,7 @@ class VenueConfigurationTest {
         authGateway = new AuthImpl();
         
         eventService = new EventService(eventRepository, companyRepository, authGateway, userRepository,
-                new OrderHistoryRepositoryImpl(), e -> {});
+                new OrderHistoryRepositoryImpl(), e -> {}, new EventSearchDomainService(), new VenueMapFactory());
     }
 
     @Test

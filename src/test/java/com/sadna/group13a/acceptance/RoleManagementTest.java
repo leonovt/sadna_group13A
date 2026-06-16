@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
+import com.sadna.group13a.domain.DomainServices.CompanyStaffDomainService;
 import org.springframework.context.ApplicationEventPublisher;
 import com.sadna.group13a.domain.Aggregates.Company.ProductionCompany;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
@@ -41,7 +42,7 @@ class RoleManagementTest {
         authGateway = new AuthImpl();
 
         companyService = new CompanyService(companyRepository, userRepository, historyRepository, authGateway,
-                new ObjectMapper(), e -> {});
+                new ObjectMapper(), e -> {}, new CompanyStaffDomainService());
     }
 
     private void setupUsersAndCompany(String founderId, String otherUserId) {

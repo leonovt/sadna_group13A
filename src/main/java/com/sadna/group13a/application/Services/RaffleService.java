@@ -1,6 +1,5 @@
 package com.sadna.group13a.application.Services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.DTO.RaffleDTO;
 import com.sadna.group13a.application.DTO.RaffleRegistrationDTO;
@@ -24,7 +23,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,21 +39,19 @@ public class RaffleService {
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
     private final IAuth authGateway;
-    private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
 
     public RaffleService(IRaffleRepository raffleRepository,
                          IEventRepository eventRepository,
                          ICompanyRepository companyRepository,
                          IUserRepository userRepository,
-                         IAuth authGateway, ObjectMapper objectMapper,
+                         IAuth authGateway,
                          ApplicationEventPublisher eventPublisher) {
         this.raffleRepository = raffleRepository;
         this.eventRepository = eventRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.authGateway = authGateway;
-        this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
     }
 
@@ -60,6 +59,7 @@ public class RaffleService {
      * 0. Command: Create Raffle
      * Called by the event owner when an event is set to RAFFLE sale mode.
      */
+    @Transactional
     public Result<String> createRaffle(String token, String eventId, String companyId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized createRaffle attempt for event '{}'.", eventId);
@@ -110,6 +110,7 @@ public class RaffleService {
      * 0b. Command: Close Raffle
      * Permanently closes the raffle (e.g. event cancelled, or owner decision).
      */
+    @Transactional
     public Result<Void> closeRaffle(String token, String raffleId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized closeRaffle attempt for raffle '{}'.", raffleId);
@@ -148,6 +149,7 @@ public class RaffleService {
     /**
      * 1. Command: Join Raffle
      */
+    @Transactional
     public Result<Void> joinRaffle(String token, RaffleRegistrationDTO requestDto) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized joinRaffle attempt for raffle '{}'.", requestDto.raffleId());
@@ -191,6 +193,7 @@ public class RaffleService {
     /**
      * 2. Command: Execute Draw
      */
+    @Transactional
     public Result<RaffleResultDTO> drawWinners(String token, String raffleId, int winnersCount, int validMinutes) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized drawWinners attempt for raffle '{}'.", raffleId);
@@ -225,8 +228,9 @@ public class RaffleService {
                 eventPublisher.publishEvent(new RaffleWonEvent(
                         code.getUserId(), raffle.getEventId(), code.getCode(), code.getExpirationTime()));
             }
-            // Broadcast result count to event channel
-            eventPublisher.publishEvent(new RaffleDrawnEvent(raffleId, raffle.getEventId(), actuallyDrawn));
+            // Notify all participants that the raffle has been drawn
+            List<String> allParticipants = new java.util.ArrayList<>(raffle.getParticipantUserIds());
+            eventPublisher.publishEvent(new RaffleDrawnEvent(raffleId, raffle.getEventId(), actuallyDrawn, allParticipants));
             logger.info("User '{}' executed draw for raffle '{}' — {} winner(s) selected.", actingUserId, raffleId, actuallyDrawn);
 
             return Result.success(new RaffleResultDTO(raffle.getId(), "Draw executed successfully.", actuallyDrawn));
@@ -241,8 +245,27 @@ public class RaffleService {
     }
 
     /**
+     * 2b. Query: Find the raffle linked to an event — used by the event detail page.
+     */
+    @Transactional(readOnly = true)
+    public Result<RaffleDTO> getRaffleByEventId(String token, String eventId) {
+        if (!authGateway.validateToken(token)) {
+            return Result.failure("User not authenticated.");
+        }
+        List<Raffle> raffles = raffleRepository.findByEventId(eventId);
+        if (raffles.isEmpty()) {
+            return Result.failure("No raffle found for this event.");
+        }
+        Raffle raffle = raffles.get(0);
+        return Result.success(new RaffleDTO(
+            raffle.getId(), raffle.getEventId(), raffle.getCompanyId(),
+            raffle.getStatus(), raffle.getParticipantUserIds().size()));
+    }
+
+    /**
      * 3. Query: Get General Status
      */
+    @Transactional(readOnly = true)
     public Result<RaffleDTO> getRaffleDetails(String token, String raffleId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized getRaffleDetails attempt for raffle '{}'.", raffleId);
@@ -258,30 +281,22 @@ public class RaffleService {
 
         Raffle raffle = raffleOpt.get();
 
-        try {
-            RaffleDTO baseDto = objectMapper.convertValue(raffle, RaffleDTO.class);
+        RaffleDTO dto = new RaffleDTO(
+            raffle.getId(),
+            raffle.getEventId(),
+            raffle.getCompanyId(),
+            raffle.getStatus(),
+            raffle.getParticipantUserIds().size()
+        );
 
-            // Inject the manual calculation for privacy (so we don't expose the user IDs list)
-            RaffleDTO finalDto = new RaffleDTO(
-                baseDto.id(),
-                baseDto.eventId(),
-                baseDto.companyId(),
-                baseDto.status(),
-                raffle.getParticipantUserIds().size()
-            );
-
-            logger.debug("getRaffleDetails: raffle '{}' retrieved by '{}' ({} participant(s)).", raffleId, callerId, finalDto.totalParticipants());
-            return Result.success(finalDto);
-
-        } catch (Exception e) {
-            logger.error("Failed to map raffle '{}' to DTO: {}", raffleId, e.getMessage(), e);
-            return Result.failure("Internal mapping error.");
-        }
+        logger.debug("getRaffleDetails: raffle '{}' retrieved by '{}' ({} participant(s)).", raffleId, callerId, dto.totalParticipants());
+        return Result.success(dto);
     }
 
     /**
      * 4. Query: Check Winning Status
      */
+    @Transactional(readOnly = true)
     public Result<WinningTicketDTO> checkMyResult(String token, String raffleId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized checkMyResult attempt for raffle '{}'.", raffleId);
@@ -319,5 +334,37 @@ public class RaffleService {
             logger.error("Failed to map AuthorizationCode to DTO for user '{}' raffle '{}': {}", userId, raffleId, e.getMessage(), e);
             return Result.failure("Internal mapping error.");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Result<List<RaffleDTO>> getRafflesForUser(String token) {
+        if (!authGateway.validateToken(token)) {
+            return Result.failure("User not authenticated.");
+        }
+        String userId = authGateway.extractUserId(token);
+        List<RaffleDTO> raffles = raffleRepository.findByUserId(userId).stream()
+                .filter(r -> r.getStatus() != com.sadna.group13a.domain.Aggregates.Raffle.RaffleStatus.CLOSED)
+                .map(r -> new RaffleDTO(r.getId(), r.getEventId(), r.getCompanyId(), r.getStatus(), r.getParticipantUserIds().size()))
+                .collect(java.util.stream.Collectors.toList());
+        return Result.success(raffles);
+    }
+
+    @Transactional(readOnly = true)
+    public Result<List<RaffleDTO>> getRafflesForCompany(String token, String companyId) {
+        if (!authGateway.validateToken(token)) {
+            return Result.failure("User not authenticated.");
+        }
+        String actingUserId = authGateway.extractUserId(token);
+        Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
+        if (compOpt.isEmpty()) {
+            return Result.failure("Company not found.");
+        }
+        if (!compOpt.get().hasPermission(actingUserId, CompanyPermission.MANAGE_EVENTS)) {
+            return Result.failure("User lacks permission to manage events for this company.");
+        }
+        List<RaffleDTO> raffles = raffleRepository.findByCompanyId(companyId).stream()
+                .map(r -> new RaffleDTO(r.getId(), r.getEventId(), r.getCompanyId(), r.getStatus(), r.getParticipantUserIds().size()))
+                .collect(java.util.stream.Collectors.toList());
+        return Result.success(raffles);
     }
 }

@@ -3,7 +3,6 @@ package com.sadna.group13a.presentation.views.queue;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.QueueStatusDTO;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -54,6 +53,9 @@ public class QueueView extends VerticalLayout implements BeforeEnterObserver {
         errorMessage.getStyle().set("color", "var(--lumo-error-color)");
         errorMessage.setVisible(false);
         statusMessage.getStyle().set("font-weight", "bold");
+        positionLabel.setVisible(false);
+        waitingLabel.setVisible(false);
+        expiryLabel.setVisible(false);
 
         proceedButton.setVisible(false);
         proceedButton.addClickListener(e -> presenter.proceedToPurchase(eventId));
@@ -82,6 +84,7 @@ public class QueueView extends VerticalLayout implements BeforeEnterObserver {
      */
     public void showStatus(QueueStatusDTO status) {
         errorMessage.setVisible(false);
+        statusMessage.setVisible(true);
 
         if (status.isActive()) {
             statusMessage.setText("It's your turn — you may now purchase tickets.");
