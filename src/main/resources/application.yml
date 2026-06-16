@@ -1,6 +1,15 @@
 spring:
   application:
     name: sadna-group13a
+  datasource:
+    url: jdbc:h2:file:./data/sadna-db;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
 
 # JWT Configuration
 app:
