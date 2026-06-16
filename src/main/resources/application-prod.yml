@@ -1,0 +1,32 @@
+# Prod profile — activated via: --spring.profiles.active=prod
+# (or: mvn spring-boot:run -Dspring-boot.run.profiles=prod)
+#
+# Connects to a REMOTE PostgreSQL database (e.g. hosted on GCP), i.e. NOT on the
+# same machine as the application — satisfying the Version 3 remote-DB requirement.
+#
+# Connection details come from ENVIRONMENT VARIABLES so that no secret is ever
+# committed to source control. Required env vars (defaults after the colon):
+#   DB_HOST      database host           (default: localhost)
+#   DB_PORT      database port           (default: 5432)
+#   DB_NAME      database name           (default: sadna)
+#   DB_USERNAME  database user           (default: sadna)
+#   DB_PASSWORD  database password       (NO default — must be provided)
+#
+# Example (PowerShell):
+#   $env:DB_HOST="...gcp-host..."; $env:DB_PASSWORD="..."; mvn spring-boot:run -Dspring-boot.run.profiles=prod
+#
+# NOTE: spring.datasource.* / spring.jpa.* only take effect once the JPA starter
+# and the PostgreSQL driver are on the classpath (separate persistence/ORM task).
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sadna}
+    username: ${DB_USERNAME:sadna}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      # validate: never auto-mutate a remote schema; migrations are managed separately.
+      ddl-auto: validate
+    show-sql: false

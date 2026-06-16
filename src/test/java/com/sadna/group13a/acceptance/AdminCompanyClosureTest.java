@@ -61,6 +61,7 @@ class AdminCompanyClosureTest {
                 userRepository, adminRepository, eventRepository, companyRepository,
                 queueRepository, historyRepository,
                 mock(com.sadna.group13a.application.Interfaces.IPaymentGateway.class),
+                mock(com.sadna.group13a.application.Interfaces.ITicketSupplier.class),
                 authGateway, eventPublisher, systemLogService);
     }
 

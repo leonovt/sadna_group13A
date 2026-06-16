@@ -6,10 +6,12 @@ import com.sadna.group13a.application.DTO.OrderDTO;
 import com.sadna.group13a.application.DTO.OrderHistoryDTO;
 import com.sadna.group13a.application.DTO.OrderHistoryItemDTO;
 import com.sadna.group13a.application.DTO.OrderItemDTO;
+import com.sadna.group13a.application.DTO.PaymentDetails;
 import com.sadna.group13a.presentation.views.auth.LoginView;
 import com.sadna.group13a.presentation.views.home.HomeView;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
@@ -41,7 +43,14 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
     private final Grid<OrderItemDTO> itemsGrid = new Grid<>(OrderItemDTO.class, false);
     private final Span totalLabel = new Span();
     private final Span expiryLabel = new Span();
-    private final TextField paymentField = new TextField("Payment Details");
+    // ── Card details (sent to the external payment service) ──────────
+    private final TextField cardNumberField = new TextField("Card Number");
+    private final TextField holderField = new TextField("Cardholder Name");
+    private final TextField monthField = new TextField("Exp. Month");
+    private final TextField yearField = new TextField("Exp. Year");
+    private final TextField cvvField = new TextField("CVV");
+    private final TextField idField = new TextField("ID Number");
+    private final TextField currencyField = new TextField("Currency");
     private final TextField authCodeField = new TextField("Authorization / Coupon Code");
 
     // ── Receipt section ───────────────────────────────────────────
@@ -100,15 +109,27 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                 .set("font-size", "var(--lumo-font-size-s)");
 
         // ── Payment form ──────────────────────────────────────────
-        paymentField.setWidthFull();
-        paymentField.setPlaceholder("e.g. 4111 1111 1111 1111");
+        cardNumberField.setPlaceholder("e.g. 4111111111111111");
+        monthField.setPlaceholder("MM");
+        yearField.setPlaceholder("YYYY");
+        cvvField.setPlaceholder("3 digits");
+        idField.setPlaceholder("Cardholder ID");
+        currencyField.setValue("USD");
+
+        FormLayout cardForm = new FormLayout(
+                cardNumberField, holderField, monthField, yearField, cvvField, idField, currencyField);
+        cardForm.setWidthFull();
+
         authCodeField.setWidthFull();
         authCodeField.setPlaceholder("Required for raffle events");
         authCodeField.setHelperText("Raffle winners: enter your authorization code. Other events: enter a coupon code if you have one.");
 
         Button placeOrderBtn = new Button("Place Order", e -> {
             statusMessage.setVisible(false);
-            presenter.handleCheckout(currentOrderId, authCodeField.getValue(), paymentField.getValue(), this);
+            PaymentDetails details = new PaymentDetails(
+                    cardNumberField.getValue(), monthField.getValue(), yearField.getValue(),
+                    holderField.getValue(), cvvField.getValue(), idField.getValue(), currencyField.getValue());
+            presenter.handleCheckout(currentOrderId, authCodeField.getValue(), details, this);
         });
         placeOrderBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -124,7 +145,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         cartSection.setPadding(false);
         cartSection.add(
                 itemsGrid, expiryLabel, totalLabel,
-                new H3("Payment"), paymentField, authCodeField,
+                new H3("Payment"), cardForm, authCodeField,
                 actions
         );
 

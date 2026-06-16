@@ -7,6 +7,7 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.EventService;
 import com.sadna.group13a.application.Services.QueueService;
 import com.sadna.group13a.application.Services.RaffleService;
+import com.sadna.group13a.application.config.SystemInitProperties;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
 import com.sadna.group13a.domain.policies.discount.SimpleDiscount;
@@ -28,12 +29,14 @@ public class EventManagementPresenter {
     private final EventService eventService;
     private final QueueService queueService;
     private final RaffleService raffleService;
+    private final SystemInitProperties initProperties;
 
     public EventManagementPresenter(EventService eventService, QueueService queueService,
-                                    RaffleService raffleService) {
+                                    RaffleService raffleService, SystemInitProperties initProperties) {
         this.eventService = eventService;
         this.queueService = queueService;
         this.raffleService = raffleService;
+        this.initProperties = initProperties;
     }
 
     private String getToken() {
@@ -140,7 +143,9 @@ public class EventManagementPresenter {
         if (token == null) { UI.getCurrent().navigate("login"); return; }
 
         if (mode == EventSaleMode.QUEUE) {
-            int capacity = (queueCapacity != null && queueCapacity > 0) ? queueCapacity : 50;
+            int capacity = (queueCapacity != null && queueCapacity > 0)
+                    ? queueCapacity
+                    : initProperties.getMaxConcurrentUsersPerEvent();
             Result<Void> result = queueService.createQueue(token, eventId, capacity);
             if (!result.isSuccess()) {
                 String err = result.getErrorMessage();
