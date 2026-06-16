@@ -1,45 +1,53 @@
 package com.sadna.group13a.infrastructure.RepositoryImpl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Interfaces.IActiveOrderRepository;
 import com.sadna.group13a.domain.shared.OptimisticLockException;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.ActiveOrderEntity;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.ActiveOrderJpaRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 @Repository
 public class ActiveOrderRepositoryImpl implements IActiveOrderRepository {
 
-    private final ConcurrentHashMap<String, ActiveOrder> store = new ConcurrentHashMap<>();
-    // Secondary index: userId → orderId. Kept consistent with store under the same lock.
-    private final ConcurrentHashMap<String, String> userIndex = new ConcurrentHashMap<>();
+    private final ActiveOrderJpaRepository jpa;
+    private final ObjectMapper objectMapper;
+
+    public ActiveOrderRepositoryImpl(ActiveOrderJpaRepository jpa,
+                                      @Qualifier("domainObjectMapper") ObjectMapper objectMapper) {
+        this.jpa = jpa;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public synchronized void save(ActiveOrder order) {
-        ActiveOrder stored = store.get(order.getId());
-        if (stored != null && stored != order && stored.getVersion() > order.getVersion()) {
-            throw new OptimisticLockException(
-                    "Optimistic lock conflict for ActiveOrder " + order.getId() +
-                    ": stored version " + stored.getVersion() +
-                    " > incoming version " + order.getVersion());
+        Optional<ActiveOrderEntity> storedEntity = jpa.findById(order.getId());
+        if (storedEntity.isPresent()) {
+            ActiveOrder stored = toDomain(storedEntity.get());
+            if (stored.getVersion() > order.getVersion()) {
+                throw new OptimisticLockException(
+                        "Optimistic lock conflict for ActiveOrder " + order.getId() +
+                        ": stored version " + stored.getVersion() +
+                        " > incoming version " + order.getVersion());
+            }
         }
-        store.put(order.getId(), order);
-        userIndex.put(order.getUserId(), order.getId());
+        jpa.save(new ActiveOrderEntity(order.getId(), order.getUserId(), writeJson(order)));
     }
 
     @Override
     public Optional<ActiveOrder> findById(String orderId) {
-        return Optional.ofNullable(store.get(orderId));
+        return jpa.findById(orderId).map(this::toDomain);
     }
 
     @Override
     public Optional<ActiveOrder> findActiveByUserId(String userId) {
-        String orderId = userIndex.get(userId);
-        return orderId == null ? Optional.empty() : Optional.ofNullable(store.get(orderId));
+        return jpa.findByUserId(userId).map(this::toDomain);
     }
 
     /**
@@ -49,29 +57,38 @@ public class ActiveOrderRepositoryImpl implements IActiveOrderRepository {
      */
     @Override
     public synchronized ActiveOrder getOrCreate(String userId, Supplier<ActiveOrder> factory) {
-        String orderId = userIndex.get(userId);
-        if (orderId != null) {
-            ActiveOrder existing = store.get(orderId);
-            if (existing != null) {
-                return existing;
-            }
+        Optional<ActiveOrderEntity> existing = jpa.findByUserId(userId);
+        if (existing.isPresent()) {
+            return toDomain(existing.get());
         }
         ActiveOrder newOrder = factory.get();
-        store.put(newOrder.getId(), newOrder);
-        userIndex.put(userId, newOrder.getId());
+        jpa.save(new ActiveOrderEntity(newOrder.getId(), newOrder.getUserId(), writeJson(newOrder)));
         return newOrder;
     }
 
     @Override
     public synchronized void deleteById(String orderId) {
-        ActiveOrder removed = store.remove(orderId);
-        if (removed != null) {
-            userIndex.remove(removed.getUserId());
-        }
+        jpa.deleteById(orderId);
     }
 
     @Override
     public List<ActiveOrder> findAll() {
-        return new ArrayList<>(store.values());
+        return jpa.findAll().stream().map(this::toDomain).toList();
+    }
+
+    private String writeJson(ActiveOrder order) {
+        try {
+            return objectMapper.writeValueAsString(order);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize ActiveOrder " + order.getId(), e);
+        }
+    }
+
+    private ActiveOrder toDomain(ActiveOrderEntity entity) {
+        try {
+            return objectMapper.readValue(entity.getData(), ActiveOrder.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to deserialize ActiveOrder " + entity.getId(), e);
+        }
     }
 }

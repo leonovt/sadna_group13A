@@ -1,5 +1,8 @@
 package com.sadna.group13a.domain.Aggregates.ActiveOrder;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Objects;
 
 /**
@@ -11,7 +14,9 @@ public class OrderItem {
     private final String seatId; // Null for standing zones
     private final double basePrice;
 
-    public OrderItem(String eventId, String zoneId, String seatId, double basePrice) {
+    @JsonCreator
+    public OrderItem(@JsonProperty("eventId") String eventId, @JsonProperty("zoneId") String zoneId,
+                      @JsonProperty("seatId") String seatId, @JsonProperty("basePrice") double basePrice) {
         if (eventId == null || eventId.isBlank()) throw new IllegalArgumentException("eventId cannot be blank");
         if (zoneId == null || zoneId.isBlank()) throw new IllegalArgumentException("zoneId cannot be blank");
         if (basePrice < 0) throw new IllegalArgumentException("basePrice cannot be negative");
