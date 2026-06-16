@@ -13,10 +13,15 @@ import com.sadna.group13a.domain.Aggregates.TicketQueue.TicketQueue;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Events.QueueTurnArrivedEvent;
 import com.sadna.group13a.infrastructure.RepositoryImpl.AdminRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeAdminJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
 import com.sadna.group13a.infrastructure.RepositoryImpl.CompanyRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.EventRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.QueueRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,10 +56,10 @@ class QueueServiceIntegrationTest {
     @BeforeEach
     void setUp() {
         queueRepo      = new QueueRepositoryImpl();
-        eventRepo      = new EventRepositoryImpl();
-        companyRepo    = new CompanyRepositoryImpl();
-        userRepo       = new UserRepositoryImpl();
-        adminRepo      = new AdminRepositoryImpl();
+        eventRepo      = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        companyRepo    = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo       = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        adminRepo      = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
         eventPublisher = new SpyEventPublisher();
 
         queueService = new QueueService(

@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.Aggregates.Event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
 import java.time.Duration;
 import java.time.Instant;
@@ -15,7 +17,9 @@ public class StandingZone extends Zone {
     private final List<StandingHold> standingHolds;
     private int soldCount;
 
-    public StandingZone(String id, String name, double basePrice, int maxCapacity) {
+    @JsonCreator
+    public StandingZone(@JsonProperty("id") String id, @JsonProperty("name") String name,
+                         @JsonProperty("basePrice") double basePrice, @JsonProperty("maxCapacity") int maxCapacity) {
         super(id, name, ZoneType.STANDING, basePrice);
         if (maxCapacity <= 0) {
             throw new IllegalArgumentException("Standing zone capacity must be positive");
@@ -105,7 +109,8 @@ public class StandingZone extends Zone {
         final String userId;
         final Instant expiresAt;
 
-        StandingHold(String userId, Instant expiresAt) {
+        @JsonCreator
+        StandingHold(@JsonProperty("userId") String userId, @JsonProperty("expiresAt") Instant expiresAt) {
             this.userId = userId;
             this.expiresAt = expiresAt;
         }
