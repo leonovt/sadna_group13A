@@ -8,6 +8,7 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.AdminService;
 import com.sadna.group13a.application.Services.CompanyService;
 import com.sadna.group13a.application.Services.EventService;
+import com.sadna.group13a.application.Services.PendingNotificationService;
 import com.sadna.group13a.application.Services.UserService;
 import com.sadna.group13a.infrastructure.notification.NotificationBroadcaster;
 import com.vaadin.flow.component.UI;
@@ -26,16 +27,19 @@ public class HomePresenter {
     private final AdminService adminService;
     private final IAuth authGateway;
     private final NotificationBroadcaster broadcaster;
+    private final PendingNotificationService pendingNotificationService;
 
     public HomePresenter(EventService eventService, UserService userService,
                          CompanyService companyService, AdminService adminService,
-                         IAuth authGateway, NotificationBroadcaster broadcaster) {
+                         IAuth authGateway, NotificationBroadcaster broadcaster,
+                         PendingNotificationService pendingNotificationService) {
         this.eventService = eventService;
         this.userService = userService;
         this.companyService = companyService;
         this.adminService = adminService;
         this.authGateway = authGateway;
         this.broadcaster = broadcaster;
+        this.pendingNotificationService = pendingNotificationService;
     }
 
     public boolean isAdmin(String token) {
@@ -68,7 +72,14 @@ public class HomePresenter {
     }
 
     public void registerForNotifications(String userId, UI ui) {
+        // Register the live UI session (in-memory) and then deliver any notifications that
+        // arrived while the user was offline. The read-and-clear runs inside the application
+        // layer's transaction (PendingNotificationService) — the Vaadin UI thread has no
+        // active transaction, so doing the JPA delete here directly would throw
+        // TransactionRequiredException.
         broadcaster.register(userId, ui);
+        List<String> pending = pendingNotificationService.drainPending(userId);
+        broadcaster.deliverPending(ui, pending);
     }
 
     public void unregisterFromNotifications(String userId) {

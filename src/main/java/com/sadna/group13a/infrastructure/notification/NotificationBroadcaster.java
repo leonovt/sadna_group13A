@@ -23,16 +23,23 @@ public class NotificationBroadcaster {
     }
 
     /**
-     * Called when a user's Vaadin UI session attaches (typically after login).
-     * Delivers any notifications that arrived while the user was offline.
+     * Registers a user's live Vaadin UI session (typically on attach / after login). This is an
+     * in-memory concern only — it performs <b>no</b> database access, because it runs on the
+     * Vaadin UI thread with no active transaction. Delivery of any notifications that arrived
+     * while the user was offline is driven by the presenter via
+     * {@link com.sadna.group13a.application.Services.PendingNotificationService#drainPending(String)}
+     * (a transactional read-and-clear) followed by {@link #deliverPending(UI, List)}.
      */
     public void register(String userId, UI ui) {
         sessions.put(userId, ui);
-        List<PendingNotification> pending = pendingRepo.findByUserId(userId);
-        if (!pending.isEmpty()) {
-            pendingRepo.deleteByUserId(userId);
-            pending.forEach(n -> pushToUi(ui, n.message()));
+    }
+
+    /** Pushes already-drained pending messages to the freshly attached UI (no DB access). */
+    public void deliverPending(UI ui, List<String> messages) {
+        if (messages == null) {
+            return;
         }
+        messages.forEach(message -> pushToUi(ui, message));
     }
 
     public void unregister(String userId) {
