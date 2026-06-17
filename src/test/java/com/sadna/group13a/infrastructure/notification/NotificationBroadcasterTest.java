@@ -32,34 +32,44 @@ class NotificationBroadcasterTest {
     }
 
     @Test
-    @DisplayName("register with no pending notifications — pending store is not cleared")
-    void register_noPendingNotifications_doesNotDelete() {
+    @DisplayName("register only stores the session — it performs NO database access (no transaction on the UI thread)")
+    void register_doesNotTouchPendingRepo() {
         UI mockUi = mock(UI.class);
-        when(pendingRepo.findByUserId("u1")).thenReturn(List.of());
 
         broadcaster.register("u1", mockUi);
 
-        verify(pendingRepo, never()).deleteByUserId(any());
+        // The fix: draining pending notifications moved to PendingNotificationService
+        // (transactional). register() must never read/delete from the repository.
+        verifyNoInteractions(pendingRepo);
     }
 
     @Test
-    @DisplayName("register with pending notifications — pending store is cleared and UI is accessed")
-    void register_withPendingNotifications_deliversAndClears() {
+    @DisplayName("deliverPending pushes each already-drained message to the UI and never touches the DB")
+    void deliverPending_pushesEachMessage() {
         UI mockUi = mock(UI.class);
-        PendingNotification pending = PendingNotification.of("u1", "deferred message");
-        when(pendingRepo.findByUserId("u1")).thenReturn(List.of(pending));
 
-        broadcaster.register("u1", mockUi);
+        broadcaster.deliverPending(mockUi, List.of("deferred one", "deferred two"));
 
-        verify(pendingRepo).deleteByUserId("u1");
-        verify(mockUi, timeout(500)).access(any());
+        verify(mockUi, timeout(500).times(2)).access(any());
+        verifyNoInteractions(pendingRepo);
+    }
+
+    @Test
+    @DisplayName("deliverPending with null/empty list is a no-op")
+    void deliverPending_nullOrEmpty_noop() {
+        UI mockUi = mock(UI.class);
+
+        broadcaster.deliverPending(mockUi, null);
+        broadcaster.deliverPending(mockUi, List.of());
+
+        verify(mockUi, never()).access(any());
+        verifyNoInteractions(pendingRepo);
     }
 
     @Test
     @DisplayName("send to registered user — calls ui.access to push the message")
     void send_onlineUser_callsUiAccess() {
         UI mockUi = mock(UI.class);
-        when(pendingRepo.findByUserId("u1")).thenReturn(List.of());
         broadcaster.register("u1", mockUi);
 
         broadcaster.send("u1", "live message");
@@ -71,7 +81,6 @@ class NotificationBroadcasterTest {
     @DisplayName("unregister — subsequent send goes to offline path and saves to pending repo")
     void unregister_subsequentSendIsOffline() {
         UI mockUi = mock(UI.class);
-        when(pendingRepo.findByUserId("u1")).thenReturn(List.of());
         broadcaster.register("u1", mockUi);
         broadcaster.unregister("u1");
 
