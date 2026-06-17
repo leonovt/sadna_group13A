@@ -1,0 +1,823 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="sadna-system" name="System Architecture">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="2400" pageHeight="1350" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ═══════════════════════════════════════════════════════════
+             LAYER BANDS (background rectangles)
+        ═══════════════════════════════════════════════════════════ -->
+
+        <!-- Presentation Band -->
+        <mxCell id="band-pres" parent="1" value="" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=30;">
+          <mxGeometry x="20" y="10" width="2360" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="label-pres" parent="1" value="&lt;b&gt;PRESENTATION LAYER&lt;/b&gt; — Vaadin / MVP" vertex="1"
+          style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;fontSize=13;align=left;verticalAlign=top;">
+          <mxGeometry x="30" y="14" width="360" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- Application Band -->
+        <mxCell id="band-app" parent="1" value="" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=30;">
+          <mxGeometry x="20" y="250" width="2360" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="label-app" parent="1" value="&lt;b&gt;APPLICATION LAYER&lt;/b&gt; — Services / Gateway Interfaces" vertex="1"
+          style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;fontSize=13;align=left;verticalAlign=top;">
+          <mxGeometry x="30" y="254" width="420" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- Domain Band -->
+        <mxCell id="band-dom" parent="1" value="" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=30;">
+          <mxGeometry x="20" y="460" width="2360" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="label-dom" parent="1" value="&lt;b&gt;DOMAIN LAYER&lt;/b&gt; — Aggregates / Repository Interfaces / Policy Engine / Domain Services" vertex="1"
+          style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;fontSize=13;align=left;verticalAlign=top;">
+          <mxGeometry x="30" y="464" width="600" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- Infrastructure Band -->
+        <mxCell id="band-infra" parent="1" value="" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;opacity=30;">
+          <mxGeometry x="20" y="850" width="2360" height="310" as="geometry" />
+        </mxCell>
+        <mxCell id="label-infra" parent="1" value="&lt;b&gt;INFRASTRUCTURE LAYER&lt;/b&gt; — Repository Implementations / JPA / External Adapters" vertex="1"
+          style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;fontSize=13;align=left;verticalAlign=top;">
+          <mxGeometry x="30" y="854" width="560" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             PRESENTATION LAYER — Feature Group Boxes
+        ═══════════════════════════════════════════════════════════ -->
+
+        <!-- Auth group -->
+        <mxCell id="grp-auth" parent="1" value="&lt;b&gt;Auth&lt;/b&gt;" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=11;">
+          <mxGeometry x="40" y="50" width="170" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="p-login" parent="1" value="LoginPresenter" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="50" y="85" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="v-login" parent="1" value="LoginView" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="50" y="120" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p-register" parent="1" value="RegisterPresenter" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="50" y="155" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="v-register" parent="1" value="RegisterView" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="50" y="190" width="150" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Home / Event group -->
+        <mxCell id="grp-home" parent="1" value="&lt;b&gt;Home / Event&lt;/b&gt;" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=11;">
+          <mxGeometry x="225" y="50" width="180" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="p-home" parent="1" value="HomePresenter" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="235" y="85" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="v-home" parent="1" value="HomeView" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="235" y="120" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p-event" parent="1" value="EventDetailPresenter" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="235" y="155" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="v-event" parent="1" value="EventDetailView" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="235" y="190" width="160" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Cart / Checkout / Queue group -->
+        <mxCell id="grp-cart" parent="1" value="&lt;b&gt;Cart / Checkout / Queue&lt;/b&gt;" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=11;">
+          <mxGeometry x="420" y="50" width="190" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="p-cart" parent="1" value="CartPresenter / CartView" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="430" y="85" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p-checkout" parent="1" value="CheckoutPresenter / CheckoutView" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="430" y="120" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p-queue" parent="1" value="QueuePresenter / QueueView" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="430" y="155" width="170" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Member Dashboard group -->
+        <mxCell id="grp-member" parent="1" value="&lt;b&gt;Member Dashboard&lt;/b&gt;" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=11;">
+          <mxGeometry x="625" y="50" width="215" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="p-mdash" parent="1" value="MemberDashboardPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="635" y="85" width="195" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-orders" parent="1" value="OrderHistoryPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="635" y="115" width="195" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-profile" parent="1" value="ProfilePresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="635" y="145" width="195" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-raffle" parent="1" value="RafflePresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="635" y="175" width="195" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-complaint" parent="1" value="ComplaintPresenter / InquiryPresenter + Views" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="635" y="205" width="195" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- Company Dashboard group -->
+        <mxCell id="grp-company" parent="1" value="&lt;b&gt;Company Dashboard&lt;/b&gt;" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=11;">
+          <mxGeometry x="855" y="50" width="285" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="p-cdash" parent="1" value="CompanyDashboardPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="865" y="85" width="265" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-eventmgmt" parent="1" value="EventManagementPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="865" y="115" width="265" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-sales" parent="1" value="SalesReportPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="865" y="145" width="265" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-staff" parent="1" value="StaffManagementPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="865" y="175" width="265" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-pol" parent="1" value="CompanyPoliciesPresenter / EventPoliciesPresenter + Views" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="865" y="205" width="265" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- Admin Dashboard group -->
+        <mxCell id="grp-admin" parent="1" value="&lt;b&gt;Admin Dashboard&lt;/b&gt;" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=11;">
+          <mxGeometry x="1155" y="50" width="240" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="p-adash" parent="1" value="AdminDashboardPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="1165" y="85" width="220" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-ausermgmt" parent="1" value="AdminUserManagementPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="1165" y="115" width="220" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-acomplaints" parent="1" value="AdminComplaintsPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="1165" y="145" width="220" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-aanalytics" parent="1" value="AdminAnalyticsPresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="1165" y="175" width="220" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="p-aqueue" parent="1" value="AdminQueuePresenter / View" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;">
+          <mxGeometry x="1165" y="205" width="220" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             APPLICATION LAYER — Services
+        ═══════════════════════════════════════════════════════════ -->
+
+        <!-- Services label -->
+        <mxCell id="lbl-svc" parent="1" value="Services" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="40" y="278" width="100" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="svc-user" parent="1" value="UserService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="40" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-event" parent="1" value="EventService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="180" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-order" parent="1" value="OrderService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="320" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-company" parent="1" value="CompanyService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="460" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-admin" parent="1" value="AdminService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="600" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-queue" parent="1" value="QueueService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="740" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-raffle" parent="1" value="RaffleService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="880" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-complaint" parent="1" value="ComplaintService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="1020" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-inquiry" parent="1" value="InquiryService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="1160" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-system" parent="1" value="SystemService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="1300" y="300" width="130" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Event Listeners -->
+        <mxCell id="lbl-listeners" parent="1" value="Event Listeners" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="40" y="358" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-notif-listener" parent="1" value="NotificationEventListener" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="40" y="380" width="190" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-company-listener" parent="1" value="CompanyEventListener" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;">
+          <mxGeometry x="240" y="380" width="180" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Gateway Interfaces -->
+        <mxCell id="lbl-gw" parent="1" value="Gateway Interfaces" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="1540" y="278" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="iface-auth" parent="1" value="«interface»&#xa;IAuth" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=2;">
+          <mxGeometry x="1540" y="300" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="iface-pwd" parent="1" value="«interface»&#xa;IPasswordEncoder" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=2;">
+          <mxGeometry x="1700" y="300" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="iface-pay" parent="1" value="«interface»&#xa;IPaymentGateway" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=2;">
+          <mxGeometry x="1540" y="350" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="iface-ticket" parent="1" value="«interface»&#xa;ITicketSupplier" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=2;">
+          <mxGeometry x="1700" y="350" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="iface-notif" parent="1" value="«interface»&#xa;INotificationService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=2;">
+          <mxGeometry x="1880" y="300" width="180" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             DOMAIN LAYER — Aggregates
+        ═══════════════════════════════════════════════════════════ -->
+
+        <!-- Aggregate header labels -->
+        <mxCell id="lbl-agg" parent="1" value="Aggregates" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="40" y="490" width="120" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- User Aggregate -->
+        <mxCell id="agg-user-hdr" parent="1" value="&lt;b&gt;User&lt;/b&gt;" vertex="1"
+          style="text;html=1;align=center;fontSize=10;strokeColor=none;fontStyle=1;">
+          <mxGeometry x="40" y="512" width="120" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-user" parent="1" value="User «abstract»" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="40" y="530" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-guest" parent="1" value="Guest" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="40" y="565" width="55" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-member" parent="1" value="Member" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="100" y="565" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-admin" parent="1" value="Admin" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="40" y="600" width="120" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Event Aggregate -->
+        <mxCell id="agg-event-hdr" parent="1" value="&lt;b&gt;Event&lt;/b&gt;" vertex="1"
+          style="text;html=1;align=center;fontSize=10;strokeColor=none;fontStyle=1;">
+          <mxGeometry x="175" y="512" width="145" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-event" parent="1" value="Event" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="175" y="530" width="145" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-venuemap" parent="1" value="VenueMap" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="175" y="565" width="145" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-zone" parent="1" value="Zone «abstract»" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="175" y="600" width="145" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-seated" parent="1" value="SeatedZone" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="175" y="635" width="68" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-standing" parent="1" value="StandingZone" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="248" y="635" width="72" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-seat" parent="1" value="Seat" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="175" y="670" width="145" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ProductionCompany Aggregate -->
+        <mxCell id="agg-pc-hdr" parent="1" value="&lt;b&gt;ProductionCompany&lt;/b&gt;" vertex="1"
+          style="text;html=1;align=center;fontSize=10;strokeColor=none;fontStyle=1;">
+          <mxGeometry x="335" y="512" width="175" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-pc" parent="1" value="ProductionCompany" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="335" y="530" width="175" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-staff" parent="1" value="CompanyStaffMember" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="335" y="565" width="175" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-appt" parent="1" value="AppointmentRequest" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="335" y="600" width="175" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Order Aggregates -->
+        <mxCell id="agg-ord-hdr" parent="1" value="&lt;b&gt;ActiveOrder / OrderHistory&lt;/b&gt;" vertex="1"
+          style="text;html=1;align=center;fontSize=10;strokeColor=none;fontStyle=1;">
+          <mxGeometry x="525" y="512" width="175" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-activeorder" parent="1" value="ActiveOrder" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="525" y="530" width="175" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-orderitem" parent="1" value="OrderItem" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="525" y="565" width="175" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-orderhist" parent="1" value="OrderHistory" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="525" y="600" width="175" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-orderhistitem" parent="1" value="OrderHistoryItem" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="525" y="635" width="175" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Queue / Raffle Aggregates -->
+        <mxCell id="agg-qr-hdr" parent="1" value="&lt;b&gt;TicketQueue / Raffle&lt;/b&gt;" vertex="1"
+          style="text;html=1;align=center;fontSize=10;strokeColor=none;fontStyle=1;">
+          <mxGeometry x="715" y="512" width="160" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-queue" parent="1" value="TicketQueue" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="715" y="530" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-qticket" parent="1" value="QueueTicket" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="715" y="565" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-raffle" parent="1" value="Raffle" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="715" y="600" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-authcode" parent="1" value="AuthorizationCode" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="715" y="635" width="160" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Complaint / Inquiry -->
+        <mxCell id="agg-ci-hdr" parent="1" value="&lt;b&gt;Complaint / Inquiry&lt;/b&gt;" vertex="1"
+          style="text;html=1;align=center;fontSize=10;strokeColor=none;fontStyle=1;">
+          <mxGeometry x="890" y="512" width="150" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-complaint" parent="1" value="Complaint" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="890" y="530" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="agg-inquiry" parent="1" value="Inquiry" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="890" y="565" width="150" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Policy Engine -->
+        <mxCell id="lbl-policy" parent="1" value="Policy Engine" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="1060" y="490" width="130" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pol-pp" parent="1" value="«interface»&#xa;PurchasePolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=2;">
+          <mxGeometry x="1060" y="512" width="150" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-allow" parent="1" value="AllowAllPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1060" y="552" width="150" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-age" parent="1" value="AgeRestrictionPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1060" y="585" width="150" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-min" parent="1" value="MinTicketsPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1060" y="618" width="150" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-max" parent="1" value="MaxTicketsPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1060" y="651" width="150" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-and" parent="1" value="AndPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1060" y="684" width="73" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-or" parent="1" value="OrPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1137" y="684" width="73" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pol-dp" parent="1" value="«interface»&#xa;DiscountPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=2;">
+          <mxGeometry x="1225" y="512" width="155" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-nodiscount" parent="1" value="NoDiscountPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1225" y="552" width="155" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-simple" parent="1" value="SimpleDiscount" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1225" y="585" width="155" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-cond" parent="1" value="ConditionalDiscount" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1225" y="618" width="155" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-coupon" parent="1" value="CouponDiscount" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1225" y="651" width="155" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-maxd" parent="1" value="MaxDiscountPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1225" y="684" width="155" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="pol-additive" parent="1" value="AdditiveDiscountPolicy" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1225" y="717" width="155" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- Domain Services -->
+        <mxCell id="lbl-ds" parent="1" value="Domain Services" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="1400" y="490" width="170" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-cart" parent="1" value="CartDomainService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1400" y="512" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-checkout" parent="1" value="CheckoutDomainService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1400" y="547" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-ticketing" parent="1" value="TicketingAccessDomainService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1400" y="582" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-companystaff" parent="1" value="CompanyStaffDomainService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1400" y="617" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-search" parent="1" value="EventSearchDomainService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1400" y="652" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-venue" parent="1" value="VenueMapFactory" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;">
+          <mxGeometry x="1400" y="687" width="170" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Repository Interfaces -->
+        <mxCell id="lbl-ri" parent="1" value="Repository Interfaces" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="40" y="748" width="200" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ri-user" parent="1" value="«interface»&#xa;IUserRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="40" y="770" width="155" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-event" parent="1" value="«interface»&#xa;IEventRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="205" y="770" width="155" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-company" parent="1" value="«interface»&#xa;ICompanyRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="370" y="770" width="165" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-activeorder" parent="1" value="«interface»&#xa;IActiveOrderRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="545" y="770" width="175" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-orderhistory" parent="1" value="«interface»&#xa;IOrderHistoryRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="730" y="770" width="175" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-raffle" parent="1" value="«interface»&#xa;IRaffleRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="915" y="770" width="155" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-queue" parent="1" value="«interface»&#xa;IQueueRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="1080" y="770" width="155" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-complaint" parent="1" value="«interface»&#xa;IComplaintRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="1245" y="770" width="165" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-inquiry" parent="1" value="«interface»&#xa;IInquiryRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="1420" y="770" width="155" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-admin" parent="1" value="«interface»&#xa;IAdminRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="1585" y="770" width="155" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ri-notif" parent="1" value="«interface»&#xa;IPendingNotificationRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=2;">
+          <mxGeometry x="1750" y="770" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             INFRASTRUCTURE LAYER — Repo Implementations
+        ═══════════════════════════════════════════════════════════ -->
+
+        <mxCell id="lbl-impl" parent="1" value="Repository Implementations" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="40" y="878" width="260" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="impl-user" parent="1" value="UserRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="40" y="900" width="160" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-event" parent="1" value="EventRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="210" y="900" width="160" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-company" parent="1" value="CompanyRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="380" y="900" width="175" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-activeorder" parent="1" value="ActiveOrderRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="565" y="900" width="185" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-orderhistory" parent="1" value="OrderHistoryRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="760" y="900" width="185" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-raffle" parent="1" value="RaffleRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="955" y="900" width="165" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-queue" parent="1" value="QueueRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1130" y="900" width="165" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-complaint" parent="1" value="ComplaintRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1305" y="900" width="175" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-inquiry" parent="1" value="InquiryRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1490" y="900" width="165" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-admin" parent="1" value="AdminRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1665" y="900" width="165" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="impl-notif" parent="1" value="PendingNotificationRepositoryImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1840" y="900" width="210" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- JPA Repositories -->
+        <mxCell id="lbl-jpa" parent="1" value="Spring Data JPA Repositories" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="40" y="948" width="260" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="jpa-user" parent="1" value="UserJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="40" y="968" width="155" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="jpa-event" parent="1" value="EventJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="205" y="968" width="155" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="jpa-company" parent="1" value="CompanyJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="370" y="968" width="165" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="jpa-activeorder" parent="1" value="ActiveOrderJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="545" y="968" width="175" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="jpa-orderhistory" parent="1" value="OrderHistoryJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="730" y="968" width="175" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="jpa-raffle" parent="1" value="RaffleJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="915" y="968" width="155" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="jpa-admin" parent="1" value="AdminJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="1080" y="968" width="155" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="jpa-notif" parent="1" value="NotificationJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="1245" y="968" width="175" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="jpa-complaint" parent="1" value="ComplaintJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="1430" y="968" width="165" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="jpa-inquiry" parent="1" value="InquiryJpaRepository" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=4;">
+          <mxGeometry x="1605" y="968" width="155" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- External Adapters -->
+        <mxCell id="lbl-adapters" parent="1" value="External Adapters" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="40" y="1010" width="180" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="adp-auth" parent="1" value="AuthImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="40" y="1032" width="110" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-pwd" parent="1" value="PasswordEncoderImpl" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="160" y="1032" width="160" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-wsep" parent="1" value="WsepPaymentGateway" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="330" y="1032" width="165" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-stubpay" parent="1" value="StubPaymentGateway" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="505" y="1032" width="155" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-extticket" parent="1" value="ExternalTicketSupplier" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="670" y="1032" width="165" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-stubticket" parent="1" value="StubTicketSupplier" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="845" y="1032" width="155" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Notification -->
+        <mxCell id="lbl-notif" parent="1" value="Notification" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="1020" y="1010" width="130" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-wsnotif" parent="1" value="WebSocketNotificationService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1020" y="1032" width="200" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-inmemnotif" parent="1" value="InMemoryNotificationService" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1230" y="1032" width="200" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-broadcaster" parent="1" value="NotificationBroadcaster" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1440" y="1032" width="175" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Persistence Health Monitor -->
+        <mxCell id="lbl-health" parent="1" value="DB Health Monitor" vertex="1"
+          style="text;html=1;align=left;fontStyle=1;fontSize=11;strokeColor=none;">
+          <mxGeometry x="1640" y="1010" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-probe" parent="1" value="DataSourceHealthProbe" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1640" y="1032" width="175" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-dbconn" parent="1" value="DatabaseConnectionManager" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="1825" y="1032" width="185" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="adp-proxy" parent="1" value="PersistenceAvailabilityInvocationHandler" vertex="1"
+          style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry x="2020" y="1032" width="220" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             KEY RELATIONSHIPS / ARROWS
+        ═══════════════════════════════════════════════════════════ -->
+
+        <!-- Presentation → Application (calls) -->
+        <mxCell id="arrow-pres-app" parent="1" edge="1" source="grp-home" target="svc-event"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=open;endFill=0;dashed=0;strokeColor=#6c8ebf;fontSize=10;"
+          value="calls">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Application Services → Domain Repository Interfaces (use) -->
+        <mxCell id="arrow-usersvc-ri" parent="1" edge="1" source="svc-user" target="ri-user"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#82b366;fontSize=10;"
+          value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-eventsvc-ri" parent="1" edge="1" source="svc-event" target="ri-event"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#82b366;fontSize=10;"
+          value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-ordersvc-ri" parent="1" edge="1" source="svc-order" target="ri-activeorder"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#82b366;fontSize=10;"
+          value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-companysvc-ri" parent="1" edge="1" source="svc-company" target="ri-company"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#82b366;fontSize=10;"
+          value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Infrastructure Repo Impls implement Domain Repository Interfaces -->
+        <mxCell id="arrow-impl-user" parent="1" edge="1" source="impl-user" target="ri-user"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#b85450;fontSize=10;"
+          value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-impl-event" parent="1" edge="1" source="impl-event" target="ri-event"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#b85450;fontSize=10;"
+          value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-impl-company" parent="1" edge="1" source="impl-company" target="ri-company"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#b85450;fontSize=10;"
+          value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Repo Impls → JPA Repos (uses) -->
+        <mxCell id="arrow-impl-jpa-user" parent="1" edge="1" source="impl-user" target="jpa-user"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-impl-jpa-event" parent="1" edge="1" source="impl-event" target="jpa-event"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#b85450;fontSize=10;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- External Adapters implement Gateway Interfaces -->
+        <mxCell id="arrow-auth-impl" parent="1" edge="1" source="adp-auth" target="iface-auth"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#b85450;fontSize=10;"
+          value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-wsep-impl" parent="1" edge="1" source="adp-wsep" target="iface-pay"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#b85450;fontSize=10;"
+          value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-ticket-impl" parent="1" edge="1" source="adp-extticket" target="iface-ticket"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#b85450;fontSize=10;"
+          value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-wsnotif-impl" parent="1" edge="1" source="adp-wsnotif" target="iface-notif"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=0;dashed=1;strokeColor=#b85450;fontSize=10;"
+          value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
