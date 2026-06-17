@@ -167,4 +167,9 @@ public class WebSocketNotificationService implements INotificationService {
     public void notifyAdminMessage(String userId, String message) {
         broadcaster.send(userId, "Message from admin: " + message);
     }
+
+    @Override
+    public void notifyInquiryAnswered(String userId, String companyName, String response) {
+        broadcaster.send(userId, "\"" + companyName + "\" replied to your inquiry: " + response);
+    }
 }

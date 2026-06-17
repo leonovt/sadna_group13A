@@ -155,77 +155,72 @@ app:
 
 ---
 
-## Initial-State File Format
+## Initialization (config + initial-state file)
 
-The system supports loading an initial state from a plain-text file on startup
-(implemented as part of issue [#224](https://github.com/leonovt/sadna_group13A/issues/224)).
-This lets you define users, companies, and events declaratively
-without the demo data seeder.
+Startup has two independent stages (requirement **I.1**):
 
-### Syntax rules
+1. **Config-file init.** `app.init.*` in `application.yml` (or any active profile / external
+   config) is bound to `SystemInitProperties` and **validated** — an invalid/missing value
+   makes the context fail to start (e.g. `max-concurrent-users-per-event` must be ≥ 1). DB
+   connection details come from config/env only, never hard-coded. The system **fails to
+   start** on invalid config.
+2. **Initial-state file (optional).** After the root admin is bootstrapped, an optional file
+   replays a **series of use-case stories** through the application layer so the system reaches
+   a defined state. It is **all-or-nothing**: the first failed or illegal operation aborts the
+   whole startup with a clear error.
 
-- One operation per line.
-- Lines starting with `#` are comments and are ignored.
-- Blank lines are ignored.
-- Format: `operation-name(arg1, arg2, ...)`
-- Arguments are trimmed of leading/trailing whitespace.
-- `login` stores the returned JWT as a named variable `<username>_token`
-  which can be referenced in later lines.
-- `open-production-company` stores the returned company ID as
-  `<company-name>_id` (spaces replaced with underscores, lower-cased).
+### Initial-state file — canonical JSON format (`app.init.initial-state-file`)
 
-### Supported operations
+The canonical loader is JSON: a list of operations, each `{ "action", "args", "bindTo" }`.
+`bindTo` names the value an operation returns (a JWT or an id) so later operations can reference
+it; any `args` value equal to a previously bound name resolves to that value.
 
-| Operation | Arguments | Description |
-|-----------|-----------|-------------|
-| `guest-registration` | `username, password` | Registers a new member account. |
-| `login` | `username, password` | Authenticates the user; stores the JWT as `{username}_token`. |
-| `open-production-company` | `{username}_token, name, description` | Creates a production company owned by the authenticated user. Stores the new ID as `{name}_id`. |
-| `appoint-manager` | `{username}_token, company_id, target_username, PERMISSION...` | Appoints a manager; one or more permissions from `MANAGE_EVENTS`, `MANAGE_POLICIES`, `MANAGE_DISCOUNTS`, `VIEW_REPORTS`. |
-| `accept-nomination` | `{username}_token, company_id` | The nominated user accepts a management appointment. |
-
-> The loader is implemented in `#224`. Until that issue is merged, use the
-> `demo` Spring profile or the `DemoDataSeeder` for programmatic seeding.
-
-### Example file
-
-See [`init-state-example.txt`](./init-state-example.txt) at the repo root for a
-runnable example. Abbreviated version:
-
-```
-# ── Users ────────────────────────────────────────────────────────────────────
-guest-registration(alice, securePass1)
-guest-registration(bob,   securePass2)
-
-# ── Authentication ───────────────────────────────────────────────────────────
-login(alice, securePass1)
-# alice_token is now available for subsequent calls
-
-# ── Company ──────────────────────────────────────────────────────────────────
-open-production-company(alice_token, SoundWave, Live music events company)
-# soundwave_id is now available
-
-# ── Staff appointment ────────────────────────────────────────────────────────
-login(bob, securePass2)
-appoint-manager(alice_token, soundwave_id, bob, MANAGE_EVENTS, VIEW_REPORTS)
-accept-nomination(bob_token, soundwave_id)
+```json
+[
+  { "action": "register", "args": { "username": "alice", "password": "password123" } },
+  { "action": "login",    "args": { "username": "alice", "password": "password123" }, "bindTo": "alice_token" },
+  { "action": "create-company",
+    "args": { "token": "alice_token", "name": "SoundWave", "description": "Live music" },
+    "bindTo": "soundwave" },
+  { "action": "register", "args": { "username": "bob", "password": "password123" } },
+  { "action": "login",    "args": { "username": "bob", "password": "password123" }, "bindTo": "bob_token" },
+  { "action": "appoint-manager",
+    "args": { "token": "alice_token", "companyId": "soundwave", "targetUsername": "bob",
+              "permissions": "MANAGE_EVENTS, VIEW_REPORTS" } },
+  { "action": "accept-nomination", "args": { "token": "bob_token", "companyId": "soundwave" } },
+  { "action": "create-event",
+    "args": { "token": "alice_token", "companyId": "soundwave", "title": "Jazz Night",
+              "date": "2026-08-01T20:00" }, "bindTo": "jazz" },
+  { "action": "publish-event", "args": { "token": "alice_token", "eventId": "jazz" } }
+]
 ```
 
-### Activating the initial-state file
+**Supported actions** (see `infrastructure/initstate/InitialStateExecutor`): `register`,
+`login`, `logout`, `enter-as-guest`, `create-company`, `appoint-owner`, `appoint-manager`
+(`permissions` = comma-separated `MANAGE_EVENTS,MANAGE_POLICIES,MANAGE_DISCOUNTS,VIEW_REPORTS`),
+`accept-nomination`, `reject-nomination`, `suspend-company`, `reopen-company`, `create-event`,
+`publish-event`, `set-sale-mode` (`REGULAR|QUEUE|RAFFLE`), `add-to-cart`
+(`seatId` or `quantity`, binds the order id), and `checkout` (`orderId`, optional `authCode`,
+`paymentDetails`). The set is broad enough to drive the system into any required state.
 
-Point the application to the file via `application.yml`:
+A runnable example lives at [`src/main/resources/init-state.sample.json`](./src/main/resources/init-state.sample.json).
+Activate it via config or at runtime:
 
 ```yaml
 app:
   init:
-    state-file: classpath:initial-state.txt   # or an absolute file path
+    initial-state-file: classpath:init-state.sample.json   # or an absolute file path
 ```
-
-Or pass it at runtime:
-
 ```bash
-java -jar sadna-group13a.jar --app.init.state-file=/etc/ticketing/initial-state.txt
+java -jar sadna-group13a.jar --app.init.initial-state-file=/etc/ticketing/init-state.json
 ```
+
+### Legacy text loader (`app.init.state-file`)
+
+A second, **simpler** loader accepts a whitespace-delimited text file — one command per line
+from `register` / `login` / `logout` / `create-company` (double quotes group multi-word
+arguments). It is kept for quick local seeding only; prefer the JSON loader above for anything
+non-trivial. See [`init-state-example.txt`](./init-state-example.txt) at the repo root.
 
 ---
 
