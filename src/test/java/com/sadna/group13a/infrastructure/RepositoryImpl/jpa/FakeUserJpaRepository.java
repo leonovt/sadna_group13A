@@ -1,15 +1,17 @@
 package com.sadna.group13a.infrastructure.RepositoryImpl.jpa;
 
+import com.sadna.group13a.domain.Aggregates.User.User;
+
 import java.util.Optional;
 
-public class FakeUserJpaRepository extends AbstractFakeJpaRepository<UserEntity, String> implements UserJpaRepository {
+public class FakeUserJpaRepository extends AbstractFakeJpaRepository<User, String> implements UserJpaRepository {
 
     public FakeUserJpaRepository() {
-        super(UserEntity::getId);
+        super(User::getId);
     }
 
     @Override
-    public Optional<UserEntity> findByUsername(String username) {
+    public Optional<User> findByUsername(String username) {
         return findAll().stream().filter(e -> e.getUsername().equals(username)).findFirst();
     }
 

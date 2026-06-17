@@ -41,7 +41,7 @@ class TicketIssuanceTest {
 
     @BeforeEach
     void setUp() {
-        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository());
         historyRepository = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper());
         authGateway = new AuthImpl();
         paymentGateway = new StubPaymentGateway(); // Used user's stub!

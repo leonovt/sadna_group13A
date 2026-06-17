@@ -35,7 +35,7 @@ class UserServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        userRepo        = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo        = new UserRepositoryImpl(new FakeUserJpaRepository());
         historyRepo     = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper());
         passwordEncoder = new PasswordEncoderImpl();
         auth            = new StubAuth();

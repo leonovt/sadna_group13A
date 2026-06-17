@@ -2,11 +2,14 @@ package com.sadna.group13a.domain.Aggregates.User;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-
+@Entity
+@Table(name = "users")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "user_type", discriminatorType = DiscriminatorType.STRING)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "userClass")
 @JsonSubTypes({
         @JsonSubTypes.Type(Guest.class),
@@ -14,15 +17,32 @@ import java.util.UUID;
 })
 public class User {
 
-    private final String id;
-    private String username;
-    private UserState state;
-    private UserTypeState typeState;
-    private String activeOrderId;
-    private LocalDateTime suspendedAt;
-    private LocalDateTime suspendedUntil; // null = permanent suspension
+    @Id
+    private String id;
 
-    private volatile int version = 0;
+    @Column(nullable = false, unique = true)
+    private String username;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserState state;
+
+    @Transient
+    private UserTypeState typeState;
+
+    @Column(name = "active_order_id")
+    private String activeOrderId;
+
+    @Column(name = "suspended_at")
+    private LocalDateTime suspendedAt;
+
+    @Column(name = "suspended_until")
+    private LocalDateTime suspendedUntil;
+
+    @Column(name = "version", nullable = false)
+    private int version;
+
+    protected User() {}
 
     protected User(String id, String username, UserTypeState initialState) {
         this.id = id;
@@ -32,7 +52,6 @@ public class User {
         this.activeOrderId = null;
     }
 
-    // Convenience constructors — default to Guest
     protected User(String id, String username) {
         this(id, username, new GuestState());
     }
@@ -78,9 +97,6 @@ public class User {
 
     // ── Suspension ────────────────────────────────────────────────
 
-    /**
-     * Suspends the user. Pass null for suspendedUntil to make the suspension permanent.
-     */
     public void suspend(LocalDateTime suspendedAt, LocalDateTime suspendedUntil) {
         this.state = UserState.INACTIVE;
         this.suspendedAt = suspendedAt;

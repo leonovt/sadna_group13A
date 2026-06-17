@@ -13,6 +13,7 @@ spring:
     open-in-view: false
     show-sql: false
 
+
   h2:
     console:
       enabled: true

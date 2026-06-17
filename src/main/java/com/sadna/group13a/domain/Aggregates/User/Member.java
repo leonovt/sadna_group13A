@@ -3,25 +3,55 @@ package com.sadna.group13a.domain.Aggregates.User;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
+import jakarta.persistence.*;
 
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Entity
+@DiscriminatorValue("MEMBER")
 public class Member extends User {
 
+    @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
+
+    @Column(name = "hashed_password")
+    private String hashedPassword;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "member_company_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @MapKeyColumn(name = "company_id")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role")
+    private Map<String, CompanyRole> companyRoles = new HashMap<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "member_appointed_by", joinColumns = @JoinColumn(name = "user_id"))
+    @MapKeyColumn(name = "company_id")
+    @Column(name = "appointer_id")
+    private Map<String, String> appointedBy = new HashMap<>();
+
+    protected Member() {}
 
     @JsonCreator
     public Member(@JsonProperty("id") String id, @JsonProperty("username") String username,
                   @JsonProperty("passwordHash") String passwordHash) {
         super(id, username, new MemberState(passwordHash));
+        this.hashedPassword = passwordHash;
     }
 
     public Member(String username, String passwordHash) {
         super(UUID.randomUUID().toString(), username, new MemberState(passwordHash));
+        this.hashedPassword = passwordHash;
+    }
+
+    @PostLoad
+    private void onLoad() {
+        setTypeState(new MemberState(hashedPassword, companyRoles, appointedBy));
     }
 
     // ── Age ───────────────────────────────────────────────────────
@@ -35,7 +65,6 @@ public class Member extends User {
         return dateOfBirth;
     }
 
-    /** Returns the member's current age in years, or 0 if date of birth is not set. */
     public int getAge() {
         if (dateOfBirth == null) return 0;
         return Period.between(dateOfBirth, LocalDate.now()).getYears();
@@ -44,6 +73,7 @@ public class Member extends User {
     // ── Authentication ────────────────────────────────────────────
 
     public void setPasswordHash(String passwordHash) {
+        this.hashedPassword = passwordHash;
         memberState().setPasswordHash(passwordHash);
         incrementVersion();
     }
@@ -52,11 +82,17 @@ public class Member extends User {
 
     public void addCompanyRole(String companyId, CompanyRole role, String appointedByUserId) {
         memberState().addCompanyRole(companyId, role, appointedByUserId);
+        this.companyRoles.put(companyId, role);
+        if (appointedByUserId != null) {
+            this.appointedBy.put(companyId, appointedByUserId);
+        }
         incrementVersion();
     }
 
     public void removeCompanyRole(String companyId) {
         memberState().removeCompanyRole(companyId);
+        this.companyRoles.remove(companyId);
+        this.appointedBy.remove(companyId);
         incrementVersion();
     }
 
