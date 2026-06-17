@@ -8,6 +8,8 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.PendingNotificationE
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Repository
@@ -33,6 +35,7 @@ public class PendingNotificationRepositoryImpl implements IPendingNotificationRe
     }
 
     @Override
+    @Transactional
     public void deleteByUserId(String userId) {
         jpa.deleteByUserId(userId);
     }
