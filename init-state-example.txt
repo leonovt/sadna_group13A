@@ -1,43 +1,33 @@
 # =============================================================================
-# init-state-example.txt — Example initial-state file for the ticketing system
+# init-state-example.txt — Example for the LEGACY text initial-state loader
+# (app.init.state-file). For richer use-case stories prefer the JSON loader
+# (app.init.initial-state-file) — see src/main/resources/init-state.sample.json.
 #
-# Format rules:
-#   - One operation per line.
-#   - Lines starting with '#' are comments (ignored).
-#   - Blank lines are ignored.
-#   - Syntax: operation-name(arg1, arg2, ...)
-#   - 'login' stores the returned JWT as {username}_token for later use.
-#   - 'open-production-company' stores the returned ID as {name}_id
-#     (name lower-cased, spaces replaced with underscores).
+# Format rules (see infrastructure/init/InitialStateLoader):
+#   - One command per line; whitespace-separated arguments.
+#   - Double quotes group multi-word arguments, e.g. "Live music events".
+#   - Lines starting with '#' are comments (ignored); blank lines are ignored.
+#   - A token from 'login' is remembered per username for later 'create-company'
+#     / 'logout' on the same username.
+#   - Any failed or illegal operation aborts the whole startup with an error.
+#
+# Supported commands:
+#   register <username> <password>
+#   login    <username> <password>
+#   logout   <username>
+#   create-company <username> <name> [description]
 # =============================================================================
 
 # ── Register users ───────────────────────────────────────────────────────────
+register alice securePass1
+register bob   securePass2
 
-guest-registration(alice, securePass1)
-guest-registration(bob,   securePass2)
-guest-registration(carol, securePass3)
+# ── Authenticate (token is remembered per username) ──────────────────────────
+login alice securePass1
+login bob   securePass2
 
-# ── Authenticate users ───────────────────────────────────────────────────────
-# Each successful login stores the token as {username}_token.
+# ── Create a production company (alice is logged in above) ────────────────────
+create-company alice "SoundWave" "Premier live music and entertainment events"
 
-login(alice, securePass1)
-login(bob,   securePass2)
-login(carol, securePass3)
-
-# ── Create a production company ───────────────────────────────────────────────
-# alice_token is used here (set by the login call above).
-# The company ID is stored as soundwave_id.
-
-open-production-company(alice_token, SoundWave, Premier live music and entertainment events)
-
-# ── Appoint staff members ─────────────────────────────────────────────────────
-# bob  → MANAGE_EVENTS + VIEW_REPORTS
-# carol → MANAGE_POLICIES + MANAGE_DISCOUNTS
-
-appoint-manager(alice_token, soundwave_id, bob,   MANAGE_EVENTS, VIEW_REPORTS)
-appoint-manager(alice_token, soundwave_id, carol, MANAGE_POLICIES, MANAGE_DISCOUNTS)
-
-# Staff must accept their nomination before they can act on behalf of the company.
-
-accept-nomination(bob_token,   soundwave_id)
-accept-nomination(carol_token, soundwave_id)
+# ── Log a user out ───────────────────────────────────────────────────────────
+logout bob
