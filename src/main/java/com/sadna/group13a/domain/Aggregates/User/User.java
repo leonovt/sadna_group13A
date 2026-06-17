@@ -39,7 +39,7 @@ public class User {
     @Column(name = "suspended_until")
     private LocalDateTime suspendedUntil;
 
-    @Version
+    @Column(name = "version", nullable = false)
     private int version;
 
     protected User() {}
