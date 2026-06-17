@@ -55,7 +55,7 @@ class TicketReservationTest {
     @BeforeEach
     void setUp() {
         eventRepository = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
-        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository());
         companyRepository = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
         raffleRepository = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(), new PersistenceConfig().domainObjectMapper());
         queueRepository = new QueueRepositoryImpl();

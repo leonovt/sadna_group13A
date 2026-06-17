@@ -43,7 +43,7 @@ class PurchaseHistoryTest {
 
     @BeforeEach
     void setUp() {
-        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository());
         authGateway = new AuthImpl();
         IPasswordEncoder passwordEncoder = new PasswordEncoderImpl();
         historyRepository = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper());

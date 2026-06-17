@@ -58,7 +58,7 @@ class QueueServiceIntegrationTest {
         queueRepo      = new QueueRepositoryImpl();
         eventRepo      = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
         companyRepo    = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
-        userRepo       = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo       = new UserRepositoryImpl(new FakeUserJpaRepository());
         adminRepo      = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
         eventPublisher = new SpyEventPublisher();
 

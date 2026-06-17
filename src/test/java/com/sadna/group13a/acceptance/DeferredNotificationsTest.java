@@ -128,7 +128,7 @@ class DeferredNotificationsTest {
 
     @BeforeEach
     void setUp() {
-        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository());
         IAuth authGateway = new AuthImpl();
 
         // Password encoder: encodePassword wraps with a prefix so matches() can verify consistently

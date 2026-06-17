@@ -67,7 +67,7 @@ class AdminServiceIntegrationTest {
     @BeforeEach
     void setUp() {
         adminRepo   = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
-        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository());
         eventRepo   = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
         companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
         queueRepo   = new QueueRepositoryImpl();

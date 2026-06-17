@@ -49,7 +49,7 @@ class VenueConfigurationTest {
     @BeforeEach
     void setUp() {
         companyRepository = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
-        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository());
         eventRepository = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
         authGateway = new AuthImpl();
         

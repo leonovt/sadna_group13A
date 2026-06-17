@@ -52,7 +52,7 @@ class EventServiceIntegrationTest {
     void setUp() {
         eventRepo   = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
         companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
-        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository());
         auth        = new MultiUserStubAuth();
 
         eventService = new EventService(eventRepo, companyRepo, auth, userRepo,

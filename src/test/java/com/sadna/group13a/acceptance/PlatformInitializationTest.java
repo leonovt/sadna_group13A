@@ -47,7 +47,7 @@ class PlatformInitializationTest {
 
     @BeforeEach
     void setUp() {
-        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository());
         adminRepository = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
         authGateway = new AuthImpl();
         passwordEncoder = new PasswordEncoderImpl();

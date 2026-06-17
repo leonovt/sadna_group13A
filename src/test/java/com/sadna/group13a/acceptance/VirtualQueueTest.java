@@ -36,7 +36,7 @@ class VirtualQueueTest {
     @BeforeEach
     void setUp() {
         queueRepository = new QueueRepositoryImpl();
-        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepository = new UserRepositoryImpl(new FakeUserJpaRepository());
         authGateway = new AuthImpl();
         eventPublisher = mock(ApplicationEventPublisher.class);
 
