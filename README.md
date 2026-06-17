@@ -49,51 +49,45 @@ Demo accounts (password for all: `pass123`):
 
 ---
 
-## Running against PostgreSQL (production / GCP)
+## Running against PostgreSQL (remote DB — SL-7)
 
-1. Create a PostgreSQL database and note the connection details.
+`src/main/resources/application-prod.yml` already ships with the `prod` profile. It reads
+the **remote** database connection from **environment variables** (so no secret is committed)
+and sets the PostgreSQL dialect with `ddl-auto: validate`. Switching H2 ↔ PostgreSQL is a
+**config/profile change only — no code change.**
 
-2. Create `src/main/resources/application-prod.yml` (never commit credentials):
+1. Create a PostgreSQL database (it must be on a different host than the app — remote-DB
+   requirement) and note its connection details.
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://<host>:<port>/<dbname>
-    username: <db-user>
-    password: <db-password>
-  jpa:
-    hibernate:
-      ddl-auto: validate          # schema managed by Flyway / migration script
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+2. Export the connection env vars (defaults shown after the colon; `DB_PASSWORD` has none):
 
-external:
-  system:
-    url: https://damp-lynna-wsep-1984852e.koyeb.app/
-
-app:
-  admin:
-    username: <your-admin-username>
-    password: <your-admin-password>
-```
+   | Env var | Default | Meaning |
+   |---------|---------|---------|
+   | `DB_HOST` | `localhost` | database host |
+   | `DB_PORT` | `5432` | database port |
+   | `DB_NAME` | `sadna` | database name |
+   | `DB_USERNAME` | `sadna` | database user |
+   | `DB_PASSWORD` | *(required)* | database password |
 
 3. Start with the `prod` profile:
 
 ```bash
-java -jar target/sadna-group13a-1.0.0-SNAPSHOT.jar --spring.profiles.active=prod
+# PowerShell
+$env:DB_HOST="<host>"; $env:DB_PASSWORD="<password>"; mvn spring-boot:run -Dspring-boot.run.profiles=prod
+
+# bash
+DB_HOST=<host> DB_PORT=5432 DB_NAME=sadna DB_USERNAME=<user> DB_PASSWORD=<password> \
+  mvn spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
-Or via Maven:
-
-```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=prod
-```
-
-> **Note:** The `prod` profile activates the real payment and ticket HTTP clients.
-> Make sure the external system is reachable before starting — the application
-> performs a handshake on startup and refuses to initialize if either gateway
-> is unreachable.
+> **Note:** Activating the `prod` profile is what selects the **real** external gateways
+> (`WsepPaymentGateway` + `ExternalTicketSupplier`, both `@Profile("prod")`); in every other
+> profile the stub gateways (`@Profile("!prod")`) are used. Selection is **profile-driven**,
+> not property-driven. Make the external system reachable before starting.
+>
+> A free **local Docker PostgreSQL** is the cheapest way to prove the remote-DB path without
+> a cloud account, e.g.:
+> `docker run -e POSTGRES_DB=sadna -e POSTGRES_USER=sadna -e POSTGRES_PASSWORD=pw -p 5432:5432 postgres:16`
 
 ---
 
@@ -123,14 +117,17 @@ Override any key in a profile-specific file (`application-prod.yml`,
 | `spring.datasource.password` | `s3cr3t` | Database login password. |
 | `spring.jpa.hibernate.ddl-auto` | `create-drop` (H2) / `validate` (prod) | Schema management strategy. Use `create-drop` for local dev and `validate` for production (schema managed by migration scripts). |
 
-### External system keys (V3 — required for payment and ticket services)
+### External system keys (V3 — payment and ticket services)
+
+> **Gateway selection is profile-driven, not property-driven.** The real
+> `WsepPaymentGateway` and `ExternalTicketSupplier` are `@Profile("prod")`; the stub
+> gateways are `@Profile("!prod")`. There is **no** `mode` switch — activate `prod` to use
+> the real WSEP systems. The URLs below are only consulted by the real (prod) gateways.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `app.external.payment.mode` | `stub` | `stub` (in-memory, tests/local) or `wsep` (real external payment service). |
-| `app.external.payment.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external payment API (used only when `mode=wsep`). |
-| `app.ticketing.mode` | `stub` | `stub` (in-memory, tests/local) or `wsep` (real external ticket-issuance service). |
-| `app.ticketing.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external ticket-issuance API (used only when `mode=wsep`). |
+| `app.external.payment.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external WSEP payment API (used by the prod-profile gateway). |
+| `app.ticketing.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external WSEP ticket-issuance API (used by the prod-profile gateway). |
 | `app.external.connect-timeout-ms` | `5000` | TCP connection timeout in milliseconds, shared by every call to the external payment and ticket-issuance system (issue #241) — never hangs indefinitely on an unresponsive service. |
 | `app.external.read-timeout-ms` | `10000` | Socket read timeout in milliseconds while waiting for the external system's response, shared by both external call sites. |
 
@@ -158,77 +155,72 @@ app:
 
 ---
 
-## Initial-State File Format
+## Initialization (config + initial-state file)
 
-The system supports loading an initial state from a plain-text file on startup
-(implemented as part of issue [#224](https://github.com/leonovt/sadna_group13A/issues/224)).
-This lets you define users, companies, and events declaratively
-without the demo data seeder.
+Startup has two independent stages (requirement **I.1**):
 
-### Syntax rules
+1. **Config-file init.** `app.init.*` in `application.yml` (or any active profile / external
+   config) is bound to `SystemInitProperties` and **validated** — an invalid/missing value
+   makes the context fail to start (e.g. `max-concurrent-users-per-event` must be ≥ 1). DB
+   connection details come from config/env only, never hard-coded. The system **fails to
+   start** on invalid config.
+2. **Initial-state file (optional).** After the root admin is bootstrapped, an optional file
+   replays a **series of use-case stories** through the application layer so the system reaches
+   a defined state. It is **all-or-nothing**: the first failed or illegal operation aborts the
+   whole startup with a clear error.
 
-- One operation per line.
-- Lines starting with `#` are comments and are ignored.
-- Blank lines are ignored.
-- Format: `operation-name(arg1, arg2, ...)`
-- Arguments are trimmed of leading/trailing whitespace.
-- `login` stores the returned JWT as a named variable `<username>_token`
-  which can be referenced in later lines.
-- `open-production-company` stores the returned company ID as
-  `<company-name>_id` (spaces replaced with underscores, lower-cased).
+### Initial-state file — canonical JSON format (`app.init.initial-state-file`)
 
-### Supported operations
+The canonical loader is JSON: a list of operations, each `{ "action", "args", "bindTo" }`.
+`bindTo` names the value an operation returns (a JWT or an id) so later operations can reference
+it; any `args` value equal to a previously bound name resolves to that value.
 
-| Operation | Arguments | Description |
-|-----------|-----------|-------------|
-| `guest-registration` | `username, password` | Registers a new member account. |
-| `login` | `username, password` | Authenticates the user; stores the JWT as `{username}_token`. |
-| `open-production-company` | `{username}_token, name, description` | Creates a production company owned by the authenticated user. Stores the new ID as `{name}_id`. |
-| `appoint-manager` | `{username}_token, company_id, target_username, PERMISSION...` | Appoints a manager; one or more permissions from `MANAGE_EVENTS`, `MANAGE_POLICIES`, `MANAGE_DISCOUNTS`, `VIEW_REPORTS`. |
-| `accept-nomination` | `{username}_token, company_id` | The nominated user accepts a management appointment. |
-
-> The loader is implemented in `#224`. Until that issue is merged, use the
-> `demo` Spring profile or the `DemoDataSeeder` for programmatic seeding.
-
-### Example file
-
-See [`init-state-example.txt`](./init-state-example.txt) at the repo root for a
-runnable example. Abbreviated version:
-
-```
-# ── Users ────────────────────────────────────────────────────────────────────
-guest-registration(alice, securePass1)
-guest-registration(bob,   securePass2)
-
-# ── Authentication ───────────────────────────────────────────────────────────
-login(alice, securePass1)
-# alice_token is now available for subsequent calls
-
-# ── Company ──────────────────────────────────────────────────────────────────
-open-production-company(alice_token, SoundWave, Live music events company)
-# soundwave_id is now available
-
-# ── Staff appointment ────────────────────────────────────────────────────────
-login(bob, securePass2)
-appoint-manager(alice_token, soundwave_id, bob, MANAGE_EVENTS, VIEW_REPORTS)
-accept-nomination(bob_token, soundwave_id)
+```json
+[
+  { "action": "register", "args": { "username": "alice", "password": "password123" } },
+  { "action": "login",    "args": { "username": "alice", "password": "password123" }, "bindTo": "alice_token" },
+  { "action": "create-company",
+    "args": { "token": "alice_token", "name": "SoundWave", "description": "Live music" },
+    "bindTo": "soundwave" },
+  { "action": "register", "args": { "username": "bob", "password": "password123" } },
+  { "action": "login",    "args": { "username": "bob", "password": "password123" }, "bindTo": "bob_token" },
+  { "action": "appoint-manager",
+    "args": { "token": "alice_token", "companyId": "soundwave", "targetUsername": "bob",
+              "permissions": "MANAGE_EVENTS, VIEW_REPORTS" } },
+  { "action": "accept-nomination", "args": { "token": "bob_token", "companyId": "soundwave" } },
+  { "action": "create-event",
+    "args": { "token": "alice_token", "companyId": "soundwave", "title": "Jazz Night",
+              "date": "2026-08-01T20:00" }, "bindTo": "jazz" },
+  { "action": "publish-event", "args": { "token": "alice_token", "eventId": "jazz" } }
+]
 ```
 
-### Activating the initial-state file
+**Supported actions** (see `infrastructure/initstate/InitialStateExecutor`): `register`,
+`login`, `logout`, `enter-as-guest`, `create-company`, `appoint-owner`, `appoint-manager`
+(`permissions` = comma-separated `MANAGE_EVENTS,MANAGE_POLICIES,MANAGE_DISCOUNTS,VIEW_REPORTS`),
+`accept-nomination`, `reject-nomination`, `suspend-company`, `reopen-company`, `create-event`,
+`publish-event`, `set-sale-mode` (`REGULAR|QUEUE|RAFFLE`), `add-to-cart`
+(`seatId` or `quantity`, binds the order id), and `checkout` (`orderId`, optional `authCode`,
+`paymentDetails`). The set is broad enough to drive the system into any required state.
 
-Point the application to the file via `application.yml`:
+A runnable example lives at [`src/main/resources/init-state.sample.json`](./src/main/resources/init-state.sample.json).
+Activate it via config or at runtime:
 
 ```yaml
 app:
   init:
-    state-file: classpath:initial-state.txt   # or an absolute file path
+    initial-state-file: classpath:init-state.sample.json   # or an absolute file path
 ```
-
-Or pass it at runtime:
-
 ```bash
-java -jar sadna-group13a.jar --app.init.state-file=/etc/ticketing/initial-state.txt
+java -jar sadna-group13a.jar --app.init.initial-state-file=/etc/ticketing/init-state.json
 ```
+
+### Legacy text loader (`app.init.state-file`)
+
+A second, **simpler** loader accepts a whitespace-delimited text file — one command per line
+from `register` / `login` / `logout` / `create-company` (double quotes group multi-word
+arguments). It is kept for quick local seeding only; prefer the JSON loader above for anything
+non-trivial. See [`init-state-example.txt`](./init-state-example.txt) at the repo root.
 
 ---
 
@@ -261,7 +253,9 @@ src/
 │   │   ├── infrastructure/       # Repository implementations, gateways, bootstrap
 │   │   └── presentation/         # Vaadin UI views
 │   └── resources/
-│       ├── application.yml       # Default configuration
+│       ├── application.yml       # Default configuration (H2 file DB, stub gateways)
+│       ├── application-local.yml # Local profile (in-memory H2)
+│       ├── application-prod.yml  # Prod profile (remote PostgreSQL + real WSEP gateways)
 │       └── application-demo.yml  # Demo-profile overrides
 └── test/
     └── java/com/sadna/group13a/  # Unit, integration, and acceptance tests

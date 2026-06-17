@@ -90,6 +90,11 @@ class DeferredNotificationsTest {
         }
 
         @Override
+        public void notifyInquiryAnswered(String userId, String companyName, String response) {
+            push(userId, "\"" + companyName + "\" replied to your inquiry: " + response);
+        }
+
+        @Override
         public void notifyRaffleDrawn(java.util.List<String> participantUserIds, String eventId, int winnerCount) {
             if (participantUserIds != null) participantUserIds.forEach(uid -> push(uid, "Raffle drawn: event=" + eventId + " winners=" + winnerCount));
         }
