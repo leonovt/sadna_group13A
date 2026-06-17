@@ -107,6 +107,16 @@ class EventServiceTest {
         verify(eventRepository).save(any(Event.class));
     }
 
+    @Test
+    void givenNullDate_whenCreateEvent_thenFailsClearlyAndNothingSaved() {
+        Result<String> result = eventService.createEvent(TOKEN, COMPANY_ID, "Rock Night", "Desc", null, "Music", null, null);
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getErrorMessage().toLowerCase().contains("date"),
+                "failure should explain a date is required; was: " + result.getErrorMessage());
+        verify(eventRepository, never()).save(any(Event.class));
+    }
+
     // ── publishEvent ──────────────────────────────────────────────
 
     @Test

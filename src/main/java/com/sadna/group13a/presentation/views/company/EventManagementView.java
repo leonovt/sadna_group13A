@@ -71,7 +71,7 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         eventsGrid.addColumn(EventDTO::title).setHeader("Title").setFlexGrow(2);
         eventsGrid.addColumn(e -> e.artist() != null ? e.artist() : "").setHeader("Artist");
         eventsGrid.addColumn(EventDTO::category).setHeader("Category");
-        eventsGrid.addColumn(e -> e.eventDate().toLocalDate().toString()).setHeader("Date");
+        eventsGrid.addColumn(e -> e.eventDate() != null ? e.eventDate().toLocalDate().toString() : "—").setHeader("Date");
         eventsGrid.addColumn(e -> e.isPublished() ? "Published" : "Draft").setHeader("Status");
         eventsGrid.addColumn(e -> e.isPublished() ? String.valueOf(e.totalAvailableTickets()) : "—")
                 .setHeader("Available");
@@ -135,6 +135,7 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         TextField titleField     = new TextField("Title");
         TextArea  descField      = new TextArea("Description");
         DateTimePicker dateField = new DateTimePicker("Date & Time");
+        dateField.setRequiredIndicatorVisible(true);
         TextField categoryField  = new TextField("Category");
         TextField artistField    = new TextField("Artist");
         TextField locationField  = new TextField("Location");

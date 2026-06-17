@@ -108,7 +108,7 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
         add(
             new H2(event.title()),
             new Paragraph("Artist: " + (event.artist() != null ? event.artist() : "TBD")),
-            new Paragraph("Date: " + event.eventDate().format(fmt)),
+            new Paragraph("Date: " + (event.eventDate() != null ? event.eventDate().format(fmt) : "TBD")),
             new Paragraph("Location: " + (event.location() != null ? event.location() : "TBD")),
             new Paragraph("Category: " + event.category()),
             new Paragraph("Sale type: " + saleModeLabel),
