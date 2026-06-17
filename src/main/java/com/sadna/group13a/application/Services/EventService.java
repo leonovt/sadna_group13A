@@ -97,6 +97,13 @@ public class EventService
             return Result.failure("User lacks permission to manage events");
         }
 
+        // A date is a mandatory event attribute (REQUIREMENTS §1). Rejecting it here keeps
+        // the system out of a state where a dateless event later NPEs the views that render it.
+        if (date == null) {
+            logger.warn("User '{}' tried to create an event without a date in company '{}'.", initiatorId, companyId);
+            return Result.failure("An event date is required.");
+        }
+
         Event event = new Event(UUID.randomUUID().toString(), title, description, companyId, date, category);
         event.setArtist(artist);
         event.setLocation(location);
