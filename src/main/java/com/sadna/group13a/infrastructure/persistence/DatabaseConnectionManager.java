@@ -35,6 +35,16 @@ public class DatabaseConnectionManager {
         return connected.get();
     }
 
+    /** Forces the degraded (disconnected) state, bypassing the probe. Used by ops/tests to simulate an outage. */
+    public void markUnavailable() {
+        connected.set(false);
+    }
+
+    /** Forces the normal (connected) state, bypassing the probe. Used by ops/tests to simulate recovery. */
+    public void markAvailable() {
+        connected.set(true);
+    }
+
     /**
      * Guard used at the persistence boundary.
      *

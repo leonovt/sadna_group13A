@@ -154,62 +154,67 @@ public class OrderService {
         }
         String userId = authGateway.extractUserId(token);
 
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
-            logger.warn("User '{}' cannot purchase tickets — not an active member.", userId);
-            return Result.failure("Only active members can purchase tickets.");
-        }
-
-        Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) {
-            logger.warn("User '{}' tried to add items for non-existent event '{}'.", userId, eventId);
-            return Result.failure("Event not found");
-        }
-
-        Event event = eventOpt.get();
-        if (!event.isPublished()) {
-            logger.warn("User '{}' tried to add items for unpublished event '{}'.", userId, eventId);
-            return Result.failure("Event is not published");
-        }
-
-        Optional<ProductionCompany> companyOpt = companyRepository.findById(event.getCompanyId());
-        if (companyOpt.isEmpty() || companyOpt.get().getStatus() != CompanyStatus.ACTIVE) {
-            logger.warn("User '{}' tried to add items for event '{}' but company '{}' is not active.",
-                    userId, eventId, event.getCompanyId());
-            return Result.failure("Company is not active");
-        }
-
-        List<String> seatsToReserve;
-        if (seatIds != null && !seatIds.isEmpty()) {
-            seatsToReserve = new ArrayList<>(seatIds);
-        } else {
-            if (quantity == null || quantity <= 0) {
-                logger.warn("User '{}' supplied invalid quantity '{}' for standing zone '{}' in event '{}'.",
-                        userId, quantity, zoneId, eventId);
-                return Result.failure("Quantity must be positive for standing zones");
-            }
-            seatsToReserve = new ArrayList<>(Collections.nCopies(quantity, null));
-        }
-
         try {
-            cartDomainService.reserveSeatsAtomically(event, zoneId, seatsToReserve, userId);
-            eventRepository.save(event);
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
+                logger.warn("User '{}' cannot purchase tickets — not an active member.", userId);
+                return Result.failure("Only active members can purchase tickets.");
+            }
+
+            Optional<Event> eventOpt = eventRepository.findById(eventId);
+            if (eventOpt.isEmpty()) {
+                logger.warn("User '{}' tried to add items for non-existent event '{}'.", userId, eventId);
+                return Result.failure("Event not found");
+            }
+
+            Event event = eventOpt.get();
+            if (!event.isPublished()) {
+                logger.warn("User '{}' tried to add items for unpublished event '{}'.", userId, eventId);
+                return Result.failure("Event is not published");
+            }
+
+            Optional<ProductionCompany> companyOpt = companyRepository.findById(event.getCompanyId());
+            if (companyOpt.isEmpty() || companyOpt.get().getStatus() != CompanyStatus.ACTIVE) {
+                logger.warn("User '{}' tried to add items for event '{}' but company '{}' is not active.",
+                        userId, eventId, event.getCompanyId());
+                return Result.failure("Company is not active");
+            }
+
+            List<String> seatsToReserve;
+            if (seatIds != null && !seatIds.isEmpty()) {
+                seatsToReserve = new ArrayList<>(seatIds);
+            } else {
+                if (quantity == null || quantity <= 0) {
+                    logger.warn("User '{}' supplied invalid quantity '{}' for standing zone '{}' in event '{}'.",
+                            userId, quantity, zoneId, eventId);
+                    return Result.failure("Quantity must be positive for standing zones");
+                }
+                seatsToReserve = new ArrayList<>(Collections.nCopies(quantity, null));
+            }
+
+            try {
+                cartDomainService.reserveSeatsAtomically(event, zoneId, seatsToReserve, userId);
+                eventRepository.save(event);
+            } catch (Exception e) {
+                return Result.failure("Failed to reserve seats: " + e.getMessage());
+            }
+
+            double price = event.getZoneBasePrice(zoneId);
+            ActiveOrder order = orderRepository.getOrCreate(userId,
+                    () -> new ActiveOrder(UUID.randomUUID().toString(), userId));
+
+            for (String seatId : seatsToReserve) {
+                order.addItem(new OrderItem(eventId, zoneId, seatId, price));
+            }
+            orderRepository.save(order);
+
+            logger.info("User {} added {} item(s) to cart {} for event {}",
+                    userId, seatsToReserve.size(), order.getId(), eventId);
+            return Result.success(order.getId());
         } catch (Exception e) {
-            return Result.failure("Failed to reserve seats: " + e.getMessage());
+            logger.error("addBatchItemsToCart failed for user '{}' on event '{}': {}", userId, eventId, e.getMessage(), e);
+            return Result.failure("Failed to add item to cart: " + e.getMessage());
         }
-
-        double price = event.getZoneBasePrice(zoneId);
-        ActiveOrder order = orderRepository.getOrCreate(userId,
-                () -> new ActiveOrder(UUID.randomUUID().toString(), userId));
-
-        for (String seatId : seatsToReserve) {
-            order.addItem(new OrderItem(eventId, zoneId, seatId, price));
-        }
-        orderRepository.save(order);
-
-        logger.info("User {} added {} item(s) to cart {} for event {}",
-                userId, seatsToReserve.size(), order.getId(), eventId);
-        return Result.success(order.getId());
     }
 
     /**
