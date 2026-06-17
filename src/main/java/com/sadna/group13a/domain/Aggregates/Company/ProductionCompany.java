@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.Aggregates.Company;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.policies.discount.NoDiscountPolicy;
 import com.sadna.group13a.domain.policies.purchase.AllowAllPolicy;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
@@ -59,6 +61,31 @@ public class ProductionCompany {
 
         this.purchasePolicy = new AllowAllPolicy();
         this.discountPolicy = new NoDiscountPolicy();
+    }
+
+    /**
+     * Reconstructs a company exactly as persisted. Deliberately separate from the
+     * (id, name, description, ownerId) constructor above: ownerId isn't a real,
+     * serializable field (there's no getter/field for it — it only exists transiently
+     * to seed the founder's staff entry), and that constructor rejects a null/blank
+     * ownerId, so it can't be reused for deserialization.
+     */
+    @JsonCreator
+    private ProductionCompany(@JsonProperty("id") String id, @JsonProperty("name") String name,
+                               @JsonProperty("description") String description,
+                               @JsonProperty("status") CompanyStatus status,
+                               @JsonProperty("staff") Map<String, CompanyStaffMember> staff,
+                               @JsonProperty("pendingAppointments") Map<String, AppointmentRequest> pendingAppointments,
+                               @JsonProperty("purchasePolicy") PurchasePolicy purchasePolicy,
+                               @JsonProperty("discountPolicy") DiscountPolicy discountPolicy) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.status = status;
+        this.staff = new ConcurrentHashMap<>(staff != null ? staff : Map.of());
+        this.pendingAppointments = new ConcurrentHashMap<>(pendingAppointments != null ? pendingAppointments : Map.of());
+        this.purchasePolicy = purchasePolicy;
+        this.discountPolicy = discountPolicy;
     }
 
     public String getId() {

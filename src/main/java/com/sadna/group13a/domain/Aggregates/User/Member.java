@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import jakarta.persistence.*;
 
@@ -35,7 +37,9 @@ public class Member extends User {
 
     protected Member() {}
 
-    public Member(String id, String username, String passwordHash) {
+    @JsonCreator
+    public Member(@JsonProperty("id") String id, @JsonProperty("username") String username,
+                  @JsonProperty("passwordHash") String passwordHash) {
         super(id, username, new MemberState(passwordHash));
         this.hashedPassword = passwordHash;
     }

@@ -185,7 +185,8 @@ class SubscriberNotificationTest {
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier,
                 userRepository, authGateway, checkoutService, accessService, eventPublisher,
-                mock(CartDomainService.class), null);
+                mock(CartDomainService.class), null,
+                mock(com.sadna.group13a.application.Services.SystemLogService.class));
 
         String token     = "tok";
         String userId    = "user1";
@@ -220,7 +221,7 @@ class SubscriberNotificationTest {
         when(checkoutService.checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of(item));
         when(paymentGateway.processPayment(100.0, "cc_good")).thenReturn(Result.success("txn_1"));
-        when(ticketSupplier.issueTickets(any(), anyInt())).thenReturn(Result.success(List.of("ticket-1")));
+        when(ticketSupplier.issueTickets(any(), any())).thenReturn(Result.success(List.of("ticket-1")));
 
         // Pre-condition: user is authenticated and the cart has items
         assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated before checkout");

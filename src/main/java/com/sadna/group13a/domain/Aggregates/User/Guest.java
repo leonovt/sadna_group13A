@@ -1,5 +1,7 @@
 package com.sadna.group13a.domain.Aggregates.User;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -8,7 +10,8 @@ public class Guest extends User {
 
     protected Guest() {}
 
-    public Guest(String id, String username) {
+    @JsonCreator
+    public Guest(@JsonProperty("id") String id, @JsonProperty("username") String username) {
         super(id, username, new GuestState());
     }
 

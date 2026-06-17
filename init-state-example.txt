@@ -1,0 +1,33 @@
+# =============================================================================
+# init-state-example.txt — Example for the LEGACY text initial-state loader
+# (app.init.state-file). For richer use-case stories prefer the JSON loader
+# (app.init.initial-state-file) — see src/main/resources/init-state.sample.json.
+#
+# Format rules (see infrastructure/init/InitialStateLoader):
+#   - One command per line; whitespace-separated arguments.
+#   - Double quotes group multi-word arguments, e.g. "Live music events".
+#   - Lines starting with '#' are comments (ignored); blank lines are ignored.
+#   - A token from 'login' is remembered per username for later 'create-company'
+#     / 'logout' on the same username.
+#   - Any failed or illegal operation aborts the whole startup with an error.
+#
+# Supported commands:
+#   register <username> <password>
+#   login    <username> <password>
+#   logout   <username>
+#   create-company <username> <name> [description]
+# =============================================================================
+
+# ── Register users ───────────────────────────────────────────────────────────
+register alice securePass1
+register bob   securePass2
+
+# ── Authenticate (token is remembered per username) ──────────────────────────
+login alice securePass1
+login bob   securePass2
+
+# ── Create a production company (alice is logged in above) ────────────────────
+create-company alice "SoundWave" "Premier live music and entertainment events"
+
+# ── Log a user out ───────────────────────────────────────────────────────────
+logout bob

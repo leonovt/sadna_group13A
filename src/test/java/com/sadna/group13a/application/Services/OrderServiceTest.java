@@ -61,6 +61,7 @@ class OrderServiceTest {
     @Mock private TicketingAccessDomainService ticketingAccessDomainService;
     @Mock private CartDomainService cartDomainService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private SystemLogService systemLogService;
 
     @InjectMocks
     private OrderService orderService;
@@ -95,6 +96,7 @@ class OrderServiceTest {
         lenient().when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
         lenient().when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new Member(USER_ID, "alice", "hash")));
         lenient().when(companyRepository.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+        lenient().when(paymentGateway.refundPayment(any())).thenReturn(Result.success());
     }
 
     // ── addItemToCart ─────────────────────────────────────────────
@@ -248,7 +250,7 @@ class OrderServiceTest {
                 .thenReturn(buildHistoryItems());
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.success("TXN-123"));
-        when(ticketSupplier.issueTickets(anyString(), anyInt()))
+        when(ticketSupplier.issueTickets(anyString(), any()))
                 .thenReturn(Result.success(List.of("TICKET-001")));
 
         Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, "card");
@@ -268,7 +270,7 @@ class OrderServiceTest {
                 .thenReturn(buildHistoryItems());
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.success("TXN-123"));
-        when(ticketSupplier.issueTickets(anyString(), anyInt()))
+        when(ticketSupplier.issueTickets(anyString(), any()))
                 .thenReturn(Result.failure("Ticket service unavailable"));
 
         Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, "card");

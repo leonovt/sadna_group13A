@@ -68,18 +68,20 @@ class PurchaseCompletionTest {
         queueRepository = mock(IQueueRepository.class);
         raffleRepository = mock(IRaffleRepository.class);
         ticketSupplier = mock(ITicketSupplier.class);
-        when(ticketSupplier.issueTickets(any(), anyInt())).thenReturn(Result.success(List.of("ticket-1")));
+        when(ticketSupplier.issueTickets(any(), any())).thenReturn(Result.success(List.of("ticket-1")));
         paymentGateway = mock(IPaymentGateway.class);
         userRepository = mock(IUserRepository.class);
         authGateway = mock(IAuth.class);
         checkoutDomainService = mock(CheckoutDomainService.class);
         ticketingAccessDomainService = mock(TicketingAccessDomainService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        when(paymentGateway.refundPayment(any())).thenReturn(Result.success());
 
         orderService = new OrderService(
                 orderRepository, historyRepository, eventRepository, companyRepository,
                 queueRepository, raffleRepository, paymentGateway, ticketSupplier, userRepository, authGateway,
-                checkoutDomainService, ticketingAccessDomainService, eventPublisher, mock(CartDomainService.class), null);
+                checkoutDomainService, ticketingAccessDomainService, eventPublisher, mock(CartDomainService.class), null,
+                mock(com.sadna.group13a.application.Services.SystemLogService.class));
 
         // Default: any userId resolves to an active member so user-guard tests pass through
         when(userRepository.findById(anyString()))

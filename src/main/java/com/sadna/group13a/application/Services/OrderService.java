@@ -8,6 +8,7 @@ import com.sadna.group13a.application.DTO.OrderItemDTO;
 import com.sadna.group13a.application.Interfaces.IAuth;
 import com.sadna.group13a.application.Interfaces.IPaymentGateway;
 import com.sadna.group13a.application.Interfaces.ITicketSupplier;
+import com.sadna.group13a.application.Interfaces.TicketIssueRequest;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.ActiveOrder;
 import com.sadna.group13a.domain.Aggregates.ActiveOrder.OrderItem;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyStatus;
@@ -36,15 +37,18 @@ import com.sadna.group13a.domain.Interfaces.IRaffleRepository;
 import com.sadna.group13a.domain.Interfaces.IUserRepository;
 import com.sadna.group13a.domain.shared.DiscountContext;
 import com.sadna.group13a.domain.shared.DiscountPolicy;
+import com.sadna.group13a.domain.shared.PaymentFailedException;
 import com.sadna.group13a.domain.shared.PermissionDeniedException;
 import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 import com.sadna.group13a.domain.shared.SeatUnavailableException;
+import com.sadna.group13a.domain.shared.TicketIssuanceException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -79,6 +83,7 @@ public class OrderService {
     private final CartDomainService cartDomainService;
     private final ApplicationEventPublisher eventPublisher;
     private final QueueService queueService;
+    private final SystemLogService systemLogService;
 
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
@@ -97,7 +102,8 @@ public class OrderService {
             TicketingAccessDomainService ticketingAccessDomainService,
             ApplicationEventPublisher eventPublisher,
             CartDomainService cartDomainService,
-            QueueService queueService) {
+            QueueService queueService,
+            SystemLogService systemLogService) {
         this.orderRepository = orderRepository;
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
@@ -113,12 +119,14 @@ public class OrderService {
         this.eventPublisher = eventPublisher;
         this.cartDomainService = cartDomainService;
         this.queueService = queueService;
+        this.systemLogService = systemLogService;
     }
 
     /**
      * Adds an item to the user's active cart.  If no cart exists, creates one.
      * Holds the seat/spot immediately to prevent double-booking.
      */
+    @Transactional
     public Result<String> addItemToCart(String token, String eventId, String zoneId, String seatId) {
         if (seatId != null) {
             return addBatchItemsToCart(token, eventId, zoneId, List.of(seatId), null);
@@ -137,6 +145,7 @@ public class OrderService {
      * StandingZone. The {@code reservedSeats} rollback list is a local variable and is
      * never shared between threads.
      */
+    @Transactional
     public Result<String> addBatchItemsToCart(String token, String eventId, String zoneId,
                                                List<String> seatIds, Integer quantity) {
         if (!authGateway.validateToken(token)) {
@@ -222,6 +231,7 @@ public class OrderService {
      * @param optionalAuthCode raffle authorization code (null for REGULAR/QUEUE events)
      * @param paymentDetails  payment instrument data passed to the payment gateway
      */
+    @Transactional
     public Result<OrderHistoryDTO> executeCheckout(
             String token,
             String activeOrderId,
@@ -378,14 +388,21 @@ public class OrderService {
         }
 
         // ── Payment ───────────────────────────────────────────────────────────────
-        Result<String> paymentResult = paymentGateway.processPayment(totalPaid, paymentDetails);
-        if (!paymentResult.isSuccess()) {
-            logger.warn("Payment declined for user {} (amount {}): {}", userId, totalPaid, paymentResult.getErrorMessage());
+        // chargePayment() funnels every failure mode (declined/-1, and any exception
+        // thrown by the gateway — timeout, network error, malformed response) through one
+        // typed PaymentFailedException, caught here exactly like SeatUnavailableException
+        // above: rollback + CheckoutFailedEvent + Result.failure, never propagated past
+        // this method. The cart stays open (never mutated/deleted on this path) so the
+        // user can choose to retry — this method does not auto-retry payments.
+        String transactionId;
+        try {
+            transactionId = chargePayment(totalPaid, paymentDetails);
+        } catch (PaymentFailedException e) {
+            logger.warn("Payment failed for user {} (amount {}): {}", userId, totalPaid, e.getMessage());
             rollbackSoldSeats(processedEvents, order.getItems());
-            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Payment declined: " + paymentResult.getErrorMessage()));
-            return Result.failure("Payment declined: " + paymentResult.getErrorMessage());
+            eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Payment declined: " + e.getMessage()));
+            return Result.failure("Payment declined: " + e.getMessage());
         }
-        String transactionId = paymentResult.getOrThrow();
 
         // ── Persist seat changes ──────────────────────────────────────────────────
         // OptimisticLockException here means a concurrent modification raced past the
@@ -396,7 +413,7 @@ public class OrderService {
             }
         } catch (Exception e) {
             logger.error("Failed to persist seat map after payment: {}", e.getMessage());
-            paymentGateway.refundPayment(transactionId);
+            refundAndAlertOnFailure(transactionId, "concurrent modification during seat persist for user " + userId);
             rollbackSoldSeats(processedEvents, order.getItems());
             orderRepository.deleteById(activeOrderId);
             eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Concurrent modification detected — payment refunded. Please retry."));
@@ -416,19 +433,44 @@ public class OrderService {
             }
         }
 
-        // ── Post-checkout ─────────────────────────────────────────────────────────
-        OrderHistory history = new OrderHistory(
-                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, transactionId, allHistoryItems);
+        // ── Ticket issuance (external system) ───────────────────────────────────────
+        // One ticket per receipt line; the supplier issues all-or-nothing and cancels
+        // any already-issued tickets if a later one fails (UC 1.4 / issue #226).
+        List<TicketIssueRequest> ticketRequests = allHistoryItems.stream()
+                .map(i -> new TicketIssueRequest(
+                        i.getEventId(),
+                        i.getZoneName(),
+                        i.getSeatLabel() != null,
+                        1,
+                        parseSeatNumber(i.getSeatLabel())))
+                .collect(Collectors.toList());
 
-        Result<List<String>> ticketResult = ticketSupplier.issueTickets(history.getReceiptId(), allHistoryItems.size());
-        if (!ticketResult.isSuccess()) {
-            logger.error("Ticket issuance failed for receipt {}: {}", history.getReceiptId(), ticketResult.getErrorMessage());
-            paymentGateway.refundPayment(transactionId);
+        List<String> ticketCodes;
+        try {
+            ticketCodes = issueTickets(userId, ticketRequests);
+        } catch (TicketIssuanceException e) {
+            logger.error("Ticket issuance failed for user {}: {}", userId, e.getMessage());
+            refundAndAlertOnFailure(transactionId, "ticket issuance failure for user " + userId);
             rollbackSoldSeats(processedEvents, order.getItems());
             orderRepository.deleteById(activeOrderId);
             eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Ticket issuance failed — payment refunded."));
             return Result.failure("Ticket issuance failed — payment refunded.");
         }
+
+        // ── Post-checkout ─────────────────────────────────────────────────────────
+        // Persist the issued ticket codes on the receipt (aligned by index with the items).
+        List<OrderHistoryItem> codedItems = new ArrayList<>(allHistoryItems.size());
+        for (int i = 0; i < allHistoryItems.size(); i++) {
+            OrderHistoryItem item = allHistoryItems.get(i);
+            String code = (i < ticketCodes.size()) ? ticketCodes.get(i) : null;
+            codedItems.add(new OrderHistoryItem(
+                    item.getEventId(), item.getEventTitle(), item.getEventDate(),
+                    item.getCompanyId(), item.getCompanyName(), item.getZoneName(),
+                    item.getSeatLabel(), item.getPricePaid(), code));
+        }
+
+        OrderHistory history = new OrderHistory(
+                UUID.randomUUID().toString(), userId, LocalDateTime.now(), totalPaid, transactionId, codedItems);
 
         historyRepository.save(history);
         orderRepository.deleteById(activeOrderId);
@@ -463,6 +505,7 @@ public class OrderService {
     /**
      * Returns the current contents of the user's active cart.
      */
+    @Transactional(readOnly = true)
     public Result<OrderDTO> viewCart(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to view cart");
@@ -494,6 +537,7 @@ public class OrderService {
     /**
      * Removes a single item from the user's cart and releases its seat hold.
      */
+    @Transactional
     public Result<Void> removeItemFromCart(String token, String eventId, String zoneId, String seatId) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to remove item from cart");
@@ -525,6 +569,7 @@ public class OrderService {
     /**
      * Cancels the user's entire cart and releases all held seats.
      */
+    @Transactional
     public Result<Void> cancelCart(String token) {
         if (!authGateway.validateToken(token)) {
             logger.warn("Unauthorized attempt to cancel cart");
@@ -549,6 +594,69 @@ public class OrderService {
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────────
+
+    /**
+     * Best-effort extraction of a numeric seat from a seat label (e.g. "Front Row 12" → 12)
+     * for the external ticket system's {@code seats} payload. Returns 0 for standing
+     * admission (null label) or labels without a trailing number.
+     */
+    private static int parseSeatNumber(String seatLabel) {
+        if (seatLabel == null) return 0;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*$").matcher(seatLabel);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+
+    /**
+     * Charges the gateway and returns the transaction id, or throws PaymentFailedException
+     * for any failure mode — a declined/-1 Result, or an exception escaping the gateway's
+     * own defensive handling (timeout, network error, malformed response).
+     */
+    private String chargePayment(double amount, String paymentDetails) {
+        Result<String> paymentResult;
+        try {
+            paymentResult = paymentGateway.processPayment(amount, paymentDetails);
+        } catch (Exception e) {
+            throw new PaymentFailedException("Payment service is unavailable. Please try again.", e);
+        }
+        if (!paymentResult.isSuccess()) {
+            throw new PaymentFailedException(paymentResult.getErrorMessage(), null);
+        }
+        return paymentResult.getOrThrow();
+    }
+
+    /**
+     * Issues tickets and returns the codes, or throws TicketIssuanceException for any
+     * failure mode — a declined/-1 Result, or an exception escaping the supplier's own
+     * defensive handling (timeout, network error, malformed response).
+     */
+    private List<String> issueTickets(String userId, List<TicketIssueRequest> requests) {
+        Result<List<String>> ticketResult;
+        try {
+            ticketResult = ticketSupplier.issueTickets(userId, requests);
+        } catch (Exception e) {
+            throw new TicketIssuanceException("Ticket issuance service is unavailable.", e);
+        }
+        if (!ticketResult.isSuccess()) {
+            throw new TicketIssuanceException(ticketResult.getErrorMessage(), null);
+        }
+        return ticketResult.getOrThrow();
+    }
+
+    /**
+     * Refunds a payment as a compensating action and, if the refund itself fails, logs
+     * it to the admin-visible error log (issue #243) — a failed refund must never be
+     * silently discarded, since that would mean the customer was charged with no ticket
+     * and no record of the problem.
+     */
+    private void refundAndAlertOnFailure(String transactionId, String context) {
+        Result<Void> refundResult = paymentGateway.refundPayment(transactionId);
+        if (!refundResult.isSuccess()) {
+            String alert = "REFUND FAILED for transaction " + transactionId + " (" + context + "): "
+                    + refundResult.getErrorMessage();
+            logger.error(alert);
+            systemLogService.logError(alert);
+        }
+    }
 
     private void rollbackSoldSeats(Map<String, Event> processedEvents, List<OrderItem> items) {
         checkoutDomainService.unsellSeats(processedEvents, items);

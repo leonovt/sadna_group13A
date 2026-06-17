@@ -1,5 +1,8 @@
 package com.sadna.group13a.domain.Aggregates.Company;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -13,7 +16,10 @@ public class CompanyStaffMember {
     private String appointedByUserId; // null if FOUNDER
     private final Set<CompanyPermission> permissions;
 
-    public CompanyStaffMember(String userId, CompanyRole role, String appointedByUserId, Set<CompanyPermission> permissions) {
+    @JsonCreator
+    public CompanyStaffMember(@JsonProperty("userId") String userId, @JsonProperty("role") CompanyRole role,
+                               @JsonProperty("appointedByUserId") String appointedByUserId,
+                               @JsonProperty("permissions") Set<CompanyPermission> permissions) {
         this.userId = userId;
         this.role = role;
         this.appointedByUserId = appointedByUserId;

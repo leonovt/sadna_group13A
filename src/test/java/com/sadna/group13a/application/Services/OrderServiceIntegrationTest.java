@@ -30,6 +30,13 @@ import com.sadna.group13a.infrastructure.RepositoryImpl.OrderHistoryRepositoryIm
 import com.sadna.group13a.infrastructure.RepositoryImpl.QueueRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.RaffleRepositoryImpl;
 import com.sadna.group13a.infrastructure.RepositoryImpl.UserRepositoryImpl;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeUserJpaRepository;
+import com.sadna.group13a.infrastructure.config.PersistenceConfig;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeCompanyJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeEventJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeRaffleJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeOrderHistoryJpaRepository;
+import com.sadna.group13a.infrastructure.RepositoryImpl.jpa.FakeActiveOrderJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -102,13 +109,13 @@ class OrderServiceIntegrationTest {
     @BeforeEach
     void setUp() {
         // Each test starts with a completely clean in-memory store.
-        orderRepo   = new ActiveOrderRepositoryImpl();
-        historyRepo = new OrderHistoryRepositoryImpl();
-        eventRepo   = new EventRepositoryImpl();
-        companyRepo = new CompanyRepositoryImpl();
+        orderRepo   = new ActiveOrderRepositoryImpl(new FakeActiveOrderJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        historyRepo = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        eventRepo   = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
         queueRepo   = new QueueRepositoryImpl();
-        raffleRepo  = new RaffleRepositoryImpl();
-        userRepo    = new UserRepositoryImpl();
+        raffleRepo  = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
 
         checkoutDomainService        = new CheckoutDomainService();
         ticketingAccessDomainService = new TicketingAccessDomainService();
@@ -147,7 +154,8 @@ class OrderServiceIntegrationTest {
                         ticketingAccessDomainService, // 12. TicketingAccessDomainService
                         eventPublisher,               // 13. ApplicationEventPublisher
                         cartDomainService,            // 14. CartDomainService
-                        null                          // 15. QueueService (queue advancement not under test here)
+                        null,                         // 15. QueueService (queue advancement not under test here)
+                        new SystemLogService()        // 16. SystemLogService
                 );
 
         seedEventAndCompany();
@@ -330,10 +338,9 @@ class OrderServiceIntegrationTest {
         @Test
         @DisplayName("Given a seat already held by another user, addItemToCart returns failure")
         void givenAlreadyHeldSeat_whenAddItemToCart_thenFailure() {
-            // Pre-hold the seat as a different user directly on the domain object.
+            // Pre-hold the seat as a different user, via Event's own facade so version tracks it.
             Event event = eventRepo.findById(EVENT_ID).orElseThrow();
-            SeatedZone zone = (SeatedZone) event.getZoneById(ZONE_ID);
-            zone.findSeatById(SEAT_ID).orElseThrow().hold("other-user-999");
+            event.reserveSeat(ZONE_ID, SEAT_ID, "other-user-999");
             eventRepo.save(event);
 
             Result<String> result =
@@ -547,9 +554,10 @@ class OrderServiceIntegrationTest {
      */
     static class StubTicketSupplier implements ITicketSupplier {
         @Override public boolean isConnected() { return true; }
-        @Override public Result<List<String>> issueTickets(String orderId, int quantity) {
+        @Override public Result<List<String>> issueTickets(String customerId,
+                java.util.List<com.sadna.group13a.application.Interfaces.TicketIssueRequest> requests) {
             List<String> codes = new java.util.ArrayList<>();
-            for (int i = 0; i < quantity; i++) codes.add("TICKET-" + UUID.randomUUID());
+            for (int i = 0; i < requests.size(); i++) codes.add("TICKET-" + UUID.randomUUID());
             return Result.success(codes);
         }
         @Override public Result<Void> cancelTickets(List<String> ticketCodes) { return Result.success(); }

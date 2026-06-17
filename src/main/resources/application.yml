@@ -2,15 +2,18 @@ spring:
   application:
     name: sadna-group13a
   datasource:
-    url: jdbc:h2:mem:sadna;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:file:./data/sadna-db;AUTO_SERVER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
-    password:
+    password: ""
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
+    open-in-view: false
     show-sql: false
+
+
   h2:
     console:
       enabled: true
@@ -26,10 +29,47 @@ app:
   seat:
     hold-duration-minutes: 10
 
+  # External ticket-issuance system (issue #226).
+  # Gateway selection is profile-driven: stub in all non-prod profiles, real in prod.
+  # Activate the real gateway: --spring.profiles.active=prod
+  ticketing:
+    url: https://damp-lynna-wsep-1984852e.koyeb.app/
+  # Persistence connection health-check (issue #228 — auto-recovery after data-store outage).
+  # This project uses an in-memory data store rather than a JDBC datasource, so instead of
+  # HikariCP's connection-test-query we run an equivalent scheduled health check that detects
+  # a connection loss and automatically resumes once it is restored — no restart required.
+  persistence:
+    health-check-interval-ms: 5000
+
   # Bootstrap admin credentials
   admin:
     username: admin
     password: admin123
+
+  # System initialization parameters (Version 3 — see README "Startup configuration").
+  # Bound to SystemInitProperties and validated: invalid/missing values stop startup.
+  init:
+    # Max users who may hold tickets for one event simultaneously before queuing (>= 1).
+    max-concurrent-users-per-event: 100
+    # Optional path to an initial-state JSON file executed at startup (issue #224).
+    # Leave blank to skip initial-state loading.
+    initial-state-file:
+    # Optional path to a text-based initial-state file (issue #230).
+    # Format: one command per line — register/login/logout/create-company.
+    # Blank = clean start.
+    state-file: ""
+
+  # External payment service (Version 3 — see README "Payment integration").
+  # Gateway selection is profile-driven: stub in all non-prod profiles, real in prod.
+  # Activate the real gateway: --spring.profiles.active=prod
+  external:
+    payment:
+      # WSEP endpoint; used only in the prod profile.
+      url: https://damp-lynna-wsep-1984852e.koyeb.app/
+    # Shared connect/read timeouts for all external calls (payment + ticket issuance) —
+    # issue #241. Bound to ExternalSystemTimeoutProperties.
+    connect-timeout-ms: 5000
+    read-timeout-ms: 10000
 
 logging:
   level:

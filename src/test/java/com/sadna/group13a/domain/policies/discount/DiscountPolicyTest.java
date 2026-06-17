@@ -211,6 +211,85 @@ class DiscountPolicyTest {
         }
     }
 
+    // ── AdditiveDiscountPolicy ────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("AdditiveDiscountPolicy")
+    class AdditiveDiscountPolicyTests {
+
+        @Test
+        @DisplayName("single child — returns its discount")
+        void singleChild_returnsItsDiscount() {
+            ConditionalDiscount child = new ConditionalDiscount(0.10, 1);
+            AdditiveDiscountPolicy policy = new AdditiveDiscountPolicy(List.of(child));
+
+            assertEquals(10.0, policy.calculateDiscount(100.0, ctx(1, null)), 0.001);
+        }
+
+        @Test
+        @DisplayName("two children — sums both discounts")
+        void twoChildren_sumsDiscounts() {
+            ConditionalDiscount ten     = new ConditionalDiscount(0.10, 1);
+            ConditionalDiscount twenty  = new ConditionalDiscount(0.20, 1);
+            AdditiveDiscountPolicy policy = new AdditiveDiscountPolicy(List.of(ten, twenty));
+
+            assertEquals(30.0, policy.calculateDiscount(100.0, ctx(1, null)), 0.001);
+        }
+
+        @Test
+        @DisplayName("three children — sums all discounts")
+        void threeChildren_sumsAll() {
+            ConditionalDiscount a = new ConditionalDiscount(0.10, 1);
+            ConditionalDiscount b = new ConditionalDiscount(0.15, 1);
+            ConditionalDiscount c = new ConditionalDiscount(0.05, 1);
+            AdditiveDiscountPolicy policy = new AdditiveDiscountPolicy(List.of(a, b, c));
+
+            assertEquals(30.0, policy.calculateDiscount(100.0, ctx(1, null)), 0.001);
+        }
+
+        @Test
+        @DisplayName("child whose condition is not met contributes zero")
+        void childConditionNotMet_contributesZero() {
+            ConditionalDiscount active   = new ConditionalDiscount(0.20, 1);
+            ConditionalDiscount inactive = new ConditionalDiscount(0.50, 10); // needs 10 tickets
+            AdditiveDiscountPolicy policy = new AdditiveDiscountPolicy(List.of(active, inactive));
+
+            assertEquals(20.0, policy.calculateDiscount(100.0, ctx(1, null)), 0.001);
+        }
+
+        @Test
+        @DisplayName("all children return zero — result is zero")
+        void allZero_returnsZero() {
+            NoDiscountPolicy a = new NoDiscountPolicy();
+            NoDiscountPolicy b = new NoDiscountPolicy();
+            AdditiveDiscountPolicy policy = new AdditiveDiscountPolicy(List.of(a, b));
+
+            assertEquals(0.0, policy.calculateDiscount(100.0, ctx(1, null)), 0.001);
+        }
+
+        @Test
+        @DisplayName("null children list — throws")
+        void nullChildren_throws() {
+            assertThrows(IllegalArgumentException.class, () -> new AdditiveDiscountPolicy(null));
+        }
+
+        @Test
+        @DisplayName("empty children list — throws")
+        void emptyChildren_throws() {
+            assertThrows(IllegalArgumentException.class, () -> new AdditiveDiscountPolicy(List.of()));
+        }
+
+        @Test
+        @DisplayName("getChildren returns the supplied list")
+        void getChildren_returnsAll() {
+            ConditionalDiscount child = new ConditionalDiscount(0.10, 1);
+            AdditiveDiscountPolicy policy = new AdditiveDiscountPolicy(List.of(child));
+
+            assertEquals(1, policy.getChildren().size());
+            assertEquals(child, policy.getChildren().get(0));
+        }
+    }
+
     // ── MaxDiscountPolicy ─────────────────────────────────────────────────────
 
     @Nested
