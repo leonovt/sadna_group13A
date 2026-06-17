@@ -124,7 +124,7 @@ class TicketIssuanceRobustnessTest {
         companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(),           cfg.domainObjectMapper());
         queueRepo   = new QueueRepositoryImpl();
         raffleRepo  = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(),             cfg.domainObjectMapper());
-        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository(),                 cfg.domainObjectMapper());
+        userRepo    = new UserRepositoryImpl(new FakeUserJpaRepository());
 
         checkoutDomainService        = new CheckoutDomainService();
         ticketingAccessDomainService = new TicketingAccessDomainService();

@@ -52,7 +52,7 @@ class RaffleServiceIntegrationTest {
         raffleRepo     = new RaffleRepositoryImpl(new FakeRaffleJpaRepository(), new PersistenceConfig().domainObjectMapper());
         eventRepo      = new EventRepositoryImpl(new FakeEventJpaRepository(), new PersistenceConfig().domainObjectMapper());
         companyRepo    = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
-        userRepo       = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo       = new UserRepositoryImpl(new FakeUserJpaRepository());
         eventPublisher = new SpyEventPublisher();
 
         raffleService = new RaffleService(

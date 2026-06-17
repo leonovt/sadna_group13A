@@ -2,7 +2,6 @@ package com.sadna.group13a.infrastructure.RepositoryImpl;
 
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
-import com.sadna.group13a.infrastructure.config.PersistenceConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -14,7 +13,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
-@Import({UserRepositoryImpl.class, PersistenceConfig.class})
+@Import(UserRepositoryImpl.class)
 class UserRepositoryImplTest {
 
     @Autowired

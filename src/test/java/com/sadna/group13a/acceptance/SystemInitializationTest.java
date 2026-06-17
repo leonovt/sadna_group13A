@@ -47,7 +47,7 @@ class SystemInitializationTest {
 
     @BeforeEach
     void setUp() {
-        userRepo = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo = new UserRepositoryImpl(new FakeUserJpaRepository());
         companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
         OrderHistoryRepositoryImpl historyRepo = new OrderHistoryRepositoryImpl(new FakeOrderHistoryJpaRepository(), new PersistenceConfig().domainObjectMapper());
         AuthImpl auth = new AuthImpl();

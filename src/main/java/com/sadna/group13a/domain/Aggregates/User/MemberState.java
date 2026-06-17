@@ -19,6 +19,12 @@ class MemberState implements UserTypeState {
         this.passwordHash = passwordHash;
     }
 
+    MemberState(String passwordHash, Map<String, CompanyRole> roles, Map<String, String> appointed) {
+        this.passwordHash = passwordHash;
+        this.companyRoles.putAll(roles);
+        this.appointedBy.putAll(appointed);
+    }
+
     @Override public UserRole getRole() { return UserRole.MEMBER; }
     @Override public String getHashedPassword() { return passwordHash; }
     @Override public boolean canPurchase(boolean isActive) { return isActive; }

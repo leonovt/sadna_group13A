@@ -58,7 +58,7 @@ class SuspensionPreservesRolesTest {
 
     @BeforeEach
     void setUp() {
-        userRepo = new UserRepositoryImpl(new FakeUserJpaRepository(), new PersistenceConfig().domainObjectMapper());
+        userRepo = new UserRepositoryImpl(new FakeUserJpaRepository());
         companyRepo = new CompanyRepositoryImpl(new FakeCompanyJpaRepository(), new PersistenceConfig().domainObjectMapper());
         AdminRepositoryImpl adminRepo = new AdminRepositoryImpl(new FakeAdminJpaRepository(), new PersistenceConfig().domainObjectMapper());
         auth = new AuthImpl();
