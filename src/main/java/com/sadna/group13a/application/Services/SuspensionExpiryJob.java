@@ -46,11 +46,15 @@ public class SuspensionExpiryJob {
                 .toList();
 
         for (User user : expired) {
-            user.activate();
-            userRepository.save(user);
-            eventPublisher.publishEvent(new UserReactivatedEvent(user.getId(), "system"));
-            systemLogService.logEvent("suspensionExpired userId=" + user.getId() + " username=" + user.getUsername());
-            logger.info("Suspension expired and lifted automatically for user '{}'.", user.getUsername());
+            try {
+                user.activate();
+                userRepository.save(user);
+                eventPublisher.publishEvent(new UserReactivatedEvent(user.getId(), "system"));
+                systemLogService.logEvent("suspensionExpired userId=" + user.getId() + " username=" + user.getUsername());
+                logger.info("Suspension expired and lifted automatically for user '{}'.", user.getUsername());
+            } catch (Exception e) {
+                logger.error("Failed to lift expired suspension for user '{}': {}", user.getId(), e.getMessage(), e);
+            }
         }
     }
 }
