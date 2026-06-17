@@ -226,6 +226,28 @@ package "domain.Aggregates.ItemQueue" #FFF9C4 {
 }
 
 '══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — Complaint  (II.3.3 / II.6.3)
+'══════════════════════════════════════════════════════════════════
+
+package "domain.Aggregates.Complaint" #FFF9C4 {
+    class Complaint        <<AggRoot>>
+    enum  ComplaintStatus
+
+    Complaint --> ComplaintStatus
+}
+
+'══════════════════════════════════════════════════════════════════
+' LAYER 1 — DOMAIN : Aggregates — Inquiry  (II.3.7 / II.4.4)
+'══════════════════════════════════════════════════════════════════
+
+package "domain.Aggregates.Inquiry" #FFF9C4 {
+    class Inquiry        <<AggRoot>>
+    enum  InquiryStatus
+
+    Inquiry --> InquiryStatus
+}
+
+'══════════════════════════════════════════════════════════════════
 ' LAYER 1 — DOMAIN : Domain Services
 '══════════════════════════════════════════════════════════════════
 
@@ -249,6 +271,8 @@ package "domain.Interfaces" #FFFDE7 {
     interface IQueueRepository
     interface IOrderQueueRepository
     interface IPendingNotificationRepository
+    interface IComplaintRepository
+    interface IInquiryRepository
 }
 
 '══════════════════════════════════════════════════════════════════
@@ -294,6 +318,7 @@ package "domain.Events" #FFFDE7 {
 
     together {
         class AdminMessageEvent     <<record>>
+        class InquiryAnsweredEvent  <<record>>
     }
 }
 
@@ -336,6 +361,8 @@ package "application.DTO" #E3F2FD {
     class VenueMapDTO           <<record>>
     class WinningTicketDTO      <<record>>
     class ZoneDTO               <<record>>
+    class ComplaintDTO          <<record>>
+    class InquiryDTO            <<record>>
 }
 
 '══════════════════════════════════════════════════════════════════
@@ -354,6 +381,8 @@ package "application.Services" #E3F2FD {
     class SuspensionExpiryJob
     class SystemLogService
     class SystemService
+    class ComplaintService
+    class InquiryService
 }
 
 '══════════════════════════════════════════════════════════════════
@@ -395,8 +424,9 @@ package "infrastructure" #ECEFF1 {
         class OrderHistoryRepositoryImpl
         class RaffleRepositoryImpl
         class QueueRepositoryImpl
-        class OrderQueueRepositoryImpl
         class PendingNotificationRepositoryImpl
+        class ComplaintRepositoryImpl
+        class InquiryRepositoryImpl
     }
 }
 
@@ -477,11 +507,17 @@ package "presentation.views.member" #F3E5F5 {
     class ProfilePresenter
     class RaffleView
     class RafflePresenter
+    class ComplaintView
+    class ComplaintPresenter
+    class InquiryView
+    class InquiryPresenter
 
     MemberDashboardView --> MemberDashboardPresenter
     OrderHistoryView    --> OrderHistoryPresenter
     ProfileView         --> ProfilePresenter
     RaffleView          --> RafflePresenter
+    ComplaintView       --> ComplaintPresenter
+    InquiryView         --> InquiryPresenter
 }
 
 '══════════════════════════════════════════════════════════════════
@@ -499,12 +535,15 @@ package "presentation.views.company" #F3E5F5 {
     class PolicyManagementPresenter
     class SalesReportView
     class SalesReportPresenter
+    class CompanyInquiriesView
+    class CompanyInquiriesPresenter
 
     CompanyDashboardView --> CompanyDashboardPresenter
     StaffManagementView  --> StaffManagementPresenter
     EventManagementView  --> EventManagementPresenter
     PolicyManagementView --> PolicyManagementPresenter
     SalesReportView      --> SalesReportPresenter
+    CompanyInquiriesView --> CompanyInquiriesPresenter
 }
 
 '══════════════════════════════════════════════════════════════════
@@ -520,11 +559,14 @@ package "presentation.views.admin" #F3E5F5 {
     class AdminQueuePresenter
     class AdminUserManagementView
     class AdminUserManagementPresenter
+    class AdminComplaintsView
+    class AdminComplaintsPresenter
 
     AdminDashboardView        --> AdminDashboardPresenter
     AdminAnalyticsView        --> AdminAnalyticsPresenter
     AdminQueueView            --> AdminQueuePresenter
     AdminUserManagementView   --> AdminUserManagementPresenter
+    AdminComplaintsView       --> AdminComplaintsPresenter
 }
 
 '══════════════════════════════════════════════════════════════════
@@ -563,8 +605,9 @@ ActiveOrderRepositoryImpl         ..|> IActiveOrderRepository
 OrderHistoryRepositoryImpl        ..|> IOrderHistoryRepository
 RaffleRepositoryImpl              ..|> IRaffleRepository
 QueueRepositoryImpl               ..|> IQueueRepository
-OrderQueueRepositoryImpl          ..|> IOrderQueueRepository
 PendingNotificationRepositoryImpl ..|> IPendingNotificationRepository
+ComplaintRepositoryImpl           ..|> IComplaintRepository
+InquiryRepositoryImpl             ..|> IInquiryRepository
 
 '══════════════════════════════════════════════════════════════════
 ' SERVICE → INTERFACE DEPENDENCIES
@@ -620,6 +663,18 @@ AdminService   ..> IOrderHistoryRepository
 AdminService   ..> IAuth
 AdminService   ..> SystemLogService
 
+ComplaintService ..> IComplaintRepository
+ComplaintService ..> IUserRepository
+ComplaintService ..> IAdminRepository
+ComplaintService ..> IAuth
+ComplaintService ..> SystemLogService
+
+InquiryService   ..> IInquiryRepository
+InquiryService   ..> ICompanyRepository
+InquiryService   ..> IUserRepository
+InquiryService   ..> IAuth
+InquiryService   ..> SystemLogService
+
 CartCleanupService    ..> IActiveOrderRepository
 CartCleanupService    ..> IEventRepository
 SuspensionExpiryJob   ..> IUserRepository
@@ -642,6 +697,8 @@ MemberDashboardPresenter ..> UserService
 OrderHistoryPresenter    ..> UserService
 ProfilePresenter         ..> UserService
 RafflePresenter          ..> RaffleService
+ComplaintPresenter       ..> ComplaintService
+InquiryPresenter         ..> InquiryService
 QueuePresenter           ..> QueueService
 
 CompanyDashboardPresenter ..> CompanyService
@@ -650,12 +707,43 @@ EventManagementPresenter  ..> EventService
 EventManagementPresenter  ..> CompanyService
 PolicyManagementPresenter ..> CompanyService
 SalesReportPresenter      ..> CompanyService
+CompanyInquiriesPresenter ..> InquiryService
 
 AdminDashboardPresenter        ..> AdminService
 AdminAnalyticsPresenter        ..> AdminService
 AdminQueuePresenter            ..> QueueService
 AdminUserManagementPresenter   ..> AdminService
+AdminComplaintsPresenter       ..> ComplaintService
 
 WebSocketNotificationService ..> NotificationBroadcaster
+
+'══════════════════════════════════════════════════════════════════
+' USE-CASE SCENARIO — Platform initialization (I.1, V3)
+'══════════════════════════════════════════════════════════════════
+
+note as InitScenario #FFF3E0
+  **Initialization (I.1) — V3 use-case scenario**
+
+  **1. Config-file init.** SystemInitProperties (app.init.*) is @Validated;
+  an invalid/missing value (e.g. max-concurrent-users-per-event < 1) fails
+  the context → the system does NOT start. DB connection details come from
+  config/env only (never hard-coded).
+
+  **2. Initial-state file (optional)** — runs a *series of use-case stories*
+  through the application layer (all-or-nothing; first failure aborts startup).
+  Canonical JSON loader (app.init.initial-state-file) →
+  InitialStateParser → InitialStateExecutor, with actions:
+  register, login, logout, enter-as-guest, create-company,
+  appoint-owner, appoint-manager, accept-/reject-nomination,
+  suspend-/reopen-company, create-event, publish-event, set-sale-mode,
+  add-to-cart, checkout. (Legacy text loader app.init.state-file:
+  register/login/logout/create-company.)
+end note
+
+InitScenario .. SystemService
+InitScenario .. UserService
+InitScenario .. CompanyService
+InitScenario .. EventService
+InitScenario .. OrderService
 
 @enduml

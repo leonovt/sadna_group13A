@@ -82,7 +82,8 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         HorizontalLayout navRow = new HorizontalLayout(
                 new RouterLink("User Management", AdminUserManagementView.class),
                 new RouterLink("Analytics",       AdminAnalyticsView.class),
-                new RouterLink("Queue Control",   AdminQueueView.class)
+                new RouterLink("Queue Control",   AdminQueueView.class),
+                new RouterLink("Complaints",      AdminComplaintsView.class)
         );
         navRow.setSpacing(true);
 

@@ -49,51 +49,45 @@ Demo accounts (password for all: `pass123`):
 
 ---
 
-## Running against PostgreSQL (production / GCP)
+## Running against PostgreSQL (remote DB — SL-7)
 
-1. Create a PostgreSQL database and note the connection details.
+`src/main/resources/application-prod.yml` already ships with the `prod` profile. It reads
+the **remote** database connection from **environment variables** (so no secret is committed)
+and sets the PostgreSQL dialect with `ddl-auto: validate`. Switching H2 ↔ PostgreSQL is a
+**config/profile change only — no code change.**
 
-2. Create `src/main/resources/application-prod.yml` (never commit credentials):
+1. Create a PostgreSQL database (it must be on a different host than the app — remote-DB
+   requirement) and note its connection details.
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://<host>:<port>/<dbname>
-    username: <db-user>
-    password: <db-password>
-  jpa:
-    hibernate:
-      ddl-auto: validate          # schema managed by Flyway / migration script
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+2. Export the connection env vars (defaults shown after the colon; `DB_PASSWORD` has none):
 
-external:
-  system:
-    url: https://damp-lynna-wsep-1984852e.koyeb.app/
-
-app:
-  admin:
-    username: <your-admin-username>
-    password: <your-admin-password>
-```
+   | Env var | Default | Meaning |
+   |---------|---------|---------|
+   | `DB_HOST` | `localhost` | database host |
+   | `DB_PORT` | `5432` | database port |
+   | `DB_NAME` | `sadna` | database name |
+   | `DB_USERNAME` | `sadna` | database user |
+   | `DB_PASSWORD` | *(required)* | database password |
 
 3. Start with the `prod` profile:
 
 ```bash
-java -jar target/sadna-group13a-1.0.0-SNAPSHOT.jar --spring.profiles.active=prod
+# PowerShell
+$env:DB_HOST="<host>"; $env:DB_PASSWORD="<password>"; mvn spring-boot:run -Dspring-boot.run.profiles=prod
+
+# bash
+DB_HOST=<host> DB_PORT=5432 DB_NAME=sadna DB_USERNAME=<user> DB_PASSWORD=<password> \
+  mvn spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
-Or via Maven:
-
-```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=prod
-```
-
-> **Note:** The `prod` profile activates the real payment and ticket HTTP clients.
-> Make sure the external system is reachable before starting — the application
-> performs a handshake on startup and refuses to initialize if either gateway
-> is unreachable.
+> **Note:** Activating the `prod` profile is what selects the **real** external gateways
+> (`WsepPaymentGateway` + `ExternalTicketSupplier`, both `@Profile("prod")`); in every other
+> profile the stub gateways (`@Profile("!prod")`) are used. Selection is **profile-driven**,
+> not property-driven. Make the external system reachable before starting.
+>
+> A free **local Docker PostgreSQL** is the cheapest way to prove the remote-DB path without
+> a cloud account, e.g.:
+> `docker run -e POSTGRES_DB=sadna -e POSTGRES_USER=sadna -e POSTGRES_PASSWORD=pw -p 5432:5432 postgres:16`
 
 ---
 
@@ -123,14 +117,17 @@ Override any key in a profile-specific file (`application-prod.yml`,
 | `spring.datasource.password` | `s3cr3t` | Database login password. |
 | `spring.jpa.hibernate.ddl-auto` | `create-drop` (H2) / `validate` (prod) | Schema management strategy. Use `create-drop` for local dev and `validate` for production (schema managed by migration scripts). |
 
-### External system keys (V3 — required for payment and ticket services)
+### External system keys (V3 — payment and ticket services)
+
+> **Gateway selection is profile-driven, not property-driven.** The real
+> `WsepPaymentGateway` and `ExternalTicketSupplier` are `@Profile("prod")`; the stub
+> gateways are `@Profile("!prod")`. There is **no** `mode` switch — activate `prod` to use
+> the real WSEP systems. The URLs below are only consulted by the real (prod) gateways.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `app.external.payment.mode` | `stub` | `stub` (in-memory, tests/local) or `wsep` (real external payment service). |
-| `app.external.payment.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external payment API (used only when `mode=wsep`). |
-| `app.ticketing.mode` | `stub` | `stub` (in-memory, tests/local) or `wsep` (real external ticket-issuance service). |
-| `app.ticketing.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external ticket-issuance API (used only when `mode=wsep`). |
+| `app.external.payment.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external WSEP payment API (used by the prod-profile gateway). |
+| `app.ticketing.url` | `https://damp-lynna-wsep-1984852e.koyeb.app/` | Base URL of the external WSEP ticket-issuance API (used by the prod-profile gateway). |
 | `app.external.connect-timeout-ms` | `5000` | TCP connection timeout in milliseconds, shared by every call to the external payment and ticket-issuance system (issue #241) — never hangs indefinitely on an unresponsive service. |
 | `app.external.read-timeout-ms` | `10000` | Socket read timeout in milliseconds while waiting for the external system's response, shared by both external call sites. |
 
@@ -256,7 +253,9 @@ src/
 │   │   ├── infrastructure/       # Repository implementations, gateways, bootstrap
 │   │   └── presentation/         # Vaadin UI views
 │   └── resources/
-│       ├── application.yml       # Default configuration
+│       ├── application.yml       # Default configuration (H2 file DB, stub gateways)
+│       ├── application-local.yml # Local profile (in-memory H2)
+│       ├── application-prod.yml  # Prod profile (remote PostgreSQL + real WSEP gateways)
 │       └── application-demo.yml  # Demo-profile overrides
 └── test/
     └── java/com/sadna/group13a/  # Unit, integration, and acceptance tests

@@ -488,5 +488,6 @@ class PolicyCombinationTest {
         @Override public void notifyEventSoldOut(List<String> s, String e, String title) {}
         @Override public void notifyRaffleWon(String u, String e, String code, LocalDateTime exp) {}
         @Override public void notifyAdminMessage(String u, String message) {}
+        @Override public void notifyInquiryAnswered(String u, String companyName, String response) {}
     }
 }
