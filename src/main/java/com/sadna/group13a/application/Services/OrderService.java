@@ -148,68 +148,73 @@ public class OrderService {
     @Transactional
     public Result<String> addBatchItemsToCart(String token, String eventId, String zoneId,
                                                List<String> seatIds, Integer quantity) {
-        if (!authGateway.validateToken(token)) {
-            logger.warn("Unauthorized addBatchItemsToCart attempt for event '{}'.", eventId);
-            return Result.failure("Unauthorized: invalid token");
-        }
-        String userId = authGateway.extractUserId(token);
-
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
-            logger.warn("User '{}' cannot purchase tickets — not an active member.", userId);
-            return Result.failure("Only active members can purchase tickets.");
-        }
-
-        Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) {
-            logger.warn("User '{}' tried to add items for non-existent event '{}'.", userId, eventId);
-            return Result.failure("Event not found");
-        }
-
-        Event event = eventOpt.get();
-        if (!event.isPublished()) {
-            logger.warn("User '{}' tried to add items for unpublished event '{}'.", userId, eventId);
-            return Result.failure("Event is not published");
-        }
-
-        Optional<ProductionCompany> companyOpt = companyRepository.findById(event.getCompanyId());
-        if (companyOpt.isEmpty() || companyOpt.get().getStatus() != CompanyStatus.ACTIVE) {
-            logger.warn("User '{}' tried to add items for event '{}' but company '{}' is not active.",
-                    userId, eventId, event.getCompanyId());
-            return Result.failure("Company is not active");
-        }
-
-        List<String> seatsToReserve;
-        if (seatIds != null && !seatIds.isEmpty()) {
-            seatsToReserve = new ArrayList<>(seatIds);
-        } else {
-            if (quantity == null || quantity <= 0) {
-                logger.warn("User '{}' supplied invalid quantity '{}' for standing zone '{}' in event '{}'.",
-                        userId, quantity, zoneId, eventId);
-                return Result.failure("Quantity must be positive for standing zones");
-            }
-            seatsToReserve = new ArrayList<>(Collections.nCopies(quantity, null));
-        }
-
         try {
-            cartDomainService.reserveSeatsAtomically(event, zoneId, seatsToReserve, userId);
-            eventRepository.save(event);
+            if (!authGateway.validateToken(token)) {
+                logger.warn("Unauthorized addBatchItemsToCart attempt for event '{}'.", eventId);
+                return Result.failure("Unauthorized: invalid token");
+            }
+            String userId = authGateway.extractUserId(token);
+
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isEmpty() || !userOpt.get().canPurchase()) {
+                logger.warn("User '{}' cannot purchase tickets — not an active member.", userId);
+                return Result.failure("Only active members can purchase tickets.");
+            }
+
+            Optional<Event> eventOpt = eventRepository.findById(eventId);
+            if (eventOpt.isEmpty()) {
+                logger.warn("User '{}' tried to add items for non-existent event '{}'.", userId, eventId);
+                return Result.failure("Event not found");
+            }
+
+            Event event = eventOpt.get();
+            if (!event.isPublished()) {
+                logger.warn("User '{}' tried to add items for unpublished event '{}'.", userId, eventId);
+                return Result.failure("Event is not published");
+            }
+
+            Optional<ProductionCompany> companyOpt = companyRepository.findById(event.getCompanyId());
+            if (companyOpt.isEmpty() || companyOpt.get().getStatus() != CompanyStatus.ACTIVE) {
+                logger.warn("User '{}' tried to add items for event '{}' but company '{}' is not active.",
+                        userId, eventId, event.getCompanyId());
+                return Result.failure("Company is not active");
+            }
+
+            List<String> seatsToReserve;
+            if (seatIds != null && !seatIds.isEmpty()) {
+                seatsToReserve = new ArrayList<>(seatIds);
+            } else {
+                if (quantity == null || quantity <= 0) {
+                    logger.warn("User '{}' supplied invalid quantity '{}' for standing zone '{}' in event '{}'.",
+                            userId, quantity, zoneId, eventId);
+                    return Result.failure("Quantity must be positive for standing zones");
+                }
+                seatsToReserve = new ArrayList<>(Collections.nCopies(quantity, null));
+            }
+
+            try {
+                cartDomainService.reserveSeatsAtomically(event, zoneId, seatsToReserve, userId);
+                eventRepository.save(event);
+            } catch (Exception e) {
+                return Result.failure("Failed to reserve seats: " + e.getMessage());
+            }
+
+            double price = event.getZoneBasePrice(zoneId);
+            ActiveOrder order = orderRepository.getOrCreate(userId,
+                    () -> new ActiveOrder(UUID.randomUUID().toString(), userId));
+
+            for (String seatId : seatsToReserve) {
+                order.addItem(new OrderItem(eventId, zoneId, seatId, price));
+            }
+            orderRepository.save(order);
+
+            logger.info("User {} added {} item(s) to cart {} for event {}",
+                    userId, seatsToReserve.size(), order.getId(), eventId);
+            return Result.success(order.getId());
         } catch (Exception e) {
-            return Result.failure("Failed to reserve seats: " + e.getMessage());
+            logger.error("An unexpected error occurred while adding item(s) to cart for event '{}'.", eventId, e);
+            return Result.failure("Failed to add item(s) to cart due to an internal error.");
         }
-
-        double price = event.getZoneBasePrice(zoneId);
-        ActiveOrder order = orderRepository.getOrCreate(userId,
-                () -> new ActiveOrder(UUID.randomUUID().toString(), userId));
-
-        for (String seatId : seatsToReserve) {
-            order.addItem(new OrderItem(eventId, zoneId, seatId, price));
-        }
-        orderRepository.save(order);
-
-        logger.info("User {} added {} item(s) to cart {} for event {}",
-                userId, seatsToReserve.size(), order.getId(), eventId);
-        return Result.success(order.getId());
     }
 
     /**
@@ -577,20 +582,25 @@ public class OrderService {
         }
         String userId = authGateway.extractUserId(token);
 
-        Optional<ActiveOrder> orderOpt = orderRepository.findActiveByUserId(userId);
-        if (orderOpt.isEmpty()) {
-            logger.debug("cancelCart: no active cart to cancel for user '{}'.", userId);
+        try {
+            Optional<ActiveOrder> orderOpt = orderRepository.findActiveByUserId(userId);
+            if (orderOpt.isEmpty()) {
+                logger.debug("cancelCart: no active cart to cancel for user '{}'.", userId);
+                return Result.success();
+            }
+
+            ActiveOrder order = orderOpt.get();
+            for (OrderItem item : order.getItems()) {
+                releaseHold(userId, item.getEventId(), item.getZoneId(), item.getSeatId());
+            }
+
+            orderRepository.deleteById(order.getId());
+            logger.info("Cart {} cancelled for user {}", order.getId(), userId);
             return Result.success();
+        } catch (Exception e) {
+            logger.error("An unexpected error occurred while cancelling the cart for user '{}'.", userId, e);
+            return Result.failure("Failed to cancel cart due to an internal error.");
         }
-
-        ActiveOrder order = orderOpt.get();
-        for (OrderItem item : order.getItems()) {
-            releaseHold(userId, item.getEventId(), item.getZoneId(), item.getSeatId());
-        }
-
-        orderRepository.deleteById(order.getId());
-        logger.info("Cart {} cancelled for user {}", order.getId(), userId);
-        return Result.success();
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────────
