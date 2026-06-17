@@ -99,7 +99,7 @@ public class CheckoutPresenter {
         }
         Result<Void> result = orderService.cancelCart(token);
         if (result.isSuccess()) {
-            UI.getCurrent().navigate("home");
+            UI.getCurrent().navigate("");
         } else {
             view.showError(result.getErrorMessage());
         }
