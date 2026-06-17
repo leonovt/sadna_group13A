@@ -390,13 +390,13 @@ class TicketIssuanceRobustnessTest {
             assertFalse(orderRepo.findById(cartId).isPresent(),
                     "Cart must be removed even when both ticket issuance and refund fail");
 
-            // TODO (after #243): add verify() here that an admin alert / ERROR notification
-            // was dispatched to inform staff that a customer was charged but not refunded.
+            // An admin-visible error log entry must record the failed refund.
+            verify(systemLogService).logError(contains("REFUND FAILED"));
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Exception thrown by ticket supplier (depends on #243)
+    // Exception thrown by ticket supplier
     // ─────────────────────────────────────────────────────────────────────────
 
     @Nested
@@ -409,10 +409,10 @@ class TicketIssuanceRobustnessTest {
          * does not propagate that exception to the caller, the payment is refunded,
          * and no OrderHistory is persisted.
          *
-         * <p><strong>Depends on issue #243</strong> — until {@code OrderService} wraps
-         * {@code issueTickets} in a try-catch and handles the exception the same way
-         * as a {@code Result.failure}, this test fails because the RuntimeException
-         * propagates uncaught from {@code executeCheckout}.
+         * <p>{@code OrderService.issueTickets} wraps the supplier call in a try-catch
+         * and converts any {@code RuntimeException} into a {@code TicketIssuanceException},
+         * which {@code executeCheckout} catches and handles the same way as a
+         * {@code Result.failure} (issue #243).
          */
         @Test
         @DisplayName("checkout_ticketIssuanceThrows_refundIsCalledAndNoOrderHistoryCreated: "
@@ -423,13 +423,11 @@ class TicketIssuanceRobustnessTest {
 
             String cartId = placeItemInCart();
 
-            // executeCheckout must catch the exception and return Result.failure (see #243).
-            // Until #243 is implemented this assertion fails because the RuntimeException
-            // propagates out of executeCheckout instead of being handled gracefully.
+            // executeCheckout must catch the exception and return Result.failure.
             Result<OrderHistoryDTO> result = assertDoesNotThrow(
                     () -> orderService.executeCheckout(VALID_TOKEN, cartId, null, "card"),
                     "executeCheckout must catch RuntimeException from the ticket supplier "
-                            + "and return Result.failure instead of throwing (requires #243)");
+                            + "and return Result.failure instead of throwing");
 
             assertFalse(result.isSuccess(),
                     "Checkout must return failure when the ticket supplier throws");
