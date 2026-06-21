@@ -80,7 +80,7 @@ DB_HOST=<host> DB_PORT=5432 DB_NAME=sadna DB_USERNAME=<user> DB_PASSWORD=<passwo
   mvn spring-boot:run -Dspring-boot.run.profiles=prod
 
 
-docker run -e POSTGRES_DB=sadna -e POSTGRES_USER=sadna -e POSTGRES_PASSWORD=pw -p 5432:5432 postgres:16
+docker run -e POSTGRES_DB=sadna -e POSTGRES_USER=sadna -e POSTGRES_PASSWORD=pw -p 5433:5432 postgres:16
 
 
 $env:DB_HOST="localhost"; $env:DB_PORT="5433"; $env:DB_NAME="sadna"; $env:DB_USERNAME="sadna"; $env:DB_PASSWORD="pw"; $env:SPRING_JPA_HIBERNATE_DDL_AUTO="update"; mvn spring-boot:run "-Dspring-boot.run.profiles=prod"
@@ -97,7 +97,7 @@ Database available at 'jdbc:postgresql://localhost:5433/sadna'
 >
 > A free **local Docker PostgreSQL** is the cheapest way to prove the remote-DB path without
 > a cloud account, e.g.:
-> `docker run -e POSTGRES_DB=sadna -e POSTGRES_USER=sadna -e POSTGRES_PASSWORD=pw -p 5432:5432 postgres:16`
+> `docker run -e POSTGRES_DB=sadna -e POSTGRES_USER=sadna -e POSTGRES_PASSWORD=pw -p 5433:5432 postgres:16`
 
 ---
 
