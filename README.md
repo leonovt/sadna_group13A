@@ -33,7 +33,7 @@ mvn spring-boot:run
 To seed demo data (companies, events, users) automatically on startup:
 
 ```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=demo
+mvn spring-boot:run "-Dspring-boot.run.profiles=demo"
 ```
 
 Demo accounts (password for all: `pass123`):
@@ -78,6 +78,16 @@ $env:DB_HOST="<host>"; $env:DB_PASSWORD="<password>"; mvn spring-boot:run -Dspri
 # bash
 DB_HOST=<host> DB_PORT=5432 DB_NAME=sadna DB_USERNAME=<user> DB_PASSWORD=<password> \
   mvn spring-boot:run -Dspring-boot.run.profiles=prod
+
+
+docker run -e POSTGRES_DB=sadna -e POSTGRES_USER=sadna -e POSTGRES_PASSWORD=pw -p 5433:5432 postgres:16
+
+
+$env:DB_HOST="localhost"; $env:DB_PORT="5433"; $env:DB_NAME="sadna"; $env:DB_USERNAME="sadna"; $env:DB_PASSWORD="pw"; $env:SPRING_JPA_HIBERNATE_DDL_AUTO="update"; mvn spring-boot:run "-Dspring-boot.run.profiles=prod"
+
+Database available at 'jdbc:postgresql://localhost:5433/sadna'
+
+
 ```
 
 > **Note:** Activating the `prod` profile is what selects the **real** external gateways
@@ -87,7 +97,7 @@ DB_HOST=<host> DB_PORT=5432 DB_NAME=sadna DB_USERNAME=<user> DB_PASSWORD=<passwo
 >
 > A free **local Docker PostgreSQL** is the cheapest way to prove the remote-DB path without
 > a cloud account, e.g.:
-> `docker run -e POSTGRES_DB=sadna -e POSTGRES_USER=sadna -e POSTGRES_PASSWORD=pw -p 5432:5432 postgres:16`
+> `docker run -e POSTGRES_DB=sadna -e POSTGRES_USER=sadna -e POSTGRES_PASSWORD=pw -p 5433:5432 postgres:16`
 
 ---
 
