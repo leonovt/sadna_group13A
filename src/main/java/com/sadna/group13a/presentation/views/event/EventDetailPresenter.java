@@ -69,12 +69,14 @@ public class EventDetailPresenter {
         return raffleService.getRaffleByEventId(token, eventId);
     }
 
-    public void joinRaffle(String token, String raffleId, EventDetailView view) {
+    public boolean joinRaffle(String token, String raffleId, EventDetailView view) {
         Result<Void> result = raffleService.joinRaffle(token, new RaffleRegistrationDTO(raffleId));
         if (result.isSuccess()) {
             view.showSuccess("You have successfully joined the raffle! Check back after the draw.");
+            return true;
         } else {
             view.showError(result.getErrorMessage());
+            return false;
         }
     }
 
