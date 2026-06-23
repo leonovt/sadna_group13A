@@ -23,4 +23,10 @@ public class MinTicketsPolicy implements PurchasePolicy {
     public boolean isSatisfied(PurchaseContext ctx) {
         return ctx.ticketCount() >= min;
     }
+
+    @Override
+    public java.util.List<String> getFailureReasons(PurchaseContext ctx) {
+        if (ctx.ticketCount() >= min) return java.util.List.of();
+        return java.util.List.of("Minimum tickets not met: at least " + min + " required (you requested " + ctx.ticketCount() + ").");
+    }
 }
