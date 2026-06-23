@@ -7,7 +7,6 @@ import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
 import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
@@ -26,7 +25,6 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -227,84 +225,8 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
             }
         });
 
-        // Purchase policy
-        Select<String> purchasePolicySelect = new Select<>();
-        purchasePolicySelect.setLabel("Purchase Policy Type");
-        purchasePolicySelect.setItems("Allow All", "Max Tickets", "Min Tickets", "Age Restriction");
-        purchasePolicySelect.setWidthFull();
-
-        IntegerField policyParamField = new IntegerField();
-        policyParamField.setMin(1);
-        policyParamField.setWidthFull();
-        policyParamField.setVisible(false);
-
-        purchasePolicySelect.addValueChangeListener(e -> {
-            String val = e.getValue();
-            boolean needsParam = "Max Tickets".equals(val) || "Min Tickets".equals(val) || "Age Restriction".equals(val);
-            policyParamField.setVisible(needsParam);
-            if ("Max Tickets".equals(val)) policyParamField.setLabel("Max tickets per order");
-            else if ("Min Tickets".equals(val)) policyParamField.setLabel("Min tickets per order");
-            else if ("Age Restriction".equals(val)) policyParamField.setLabel("Minimum age");
-        });
-
-        Button setPurchasePolicyBtn = new Button("Set Purchase Policy", click -> {
-            String type = purchasePolicySelect.getValue();
-            if (type == null) return;
-            switch (type) {
-                case "Allow All" -> presenter.handleSetPurchasePolicyAllowAll(this, companyId, event.id());
-                case "Max Tickets" -> {
-                    if (policyParamField.getValue() != null)
-                        presenter.handleSetPurchasePolicyMaxTickets(this, companyId, event.id(), policyParamField.getValue());
-                }
-                case "Min Tickets" -> {
-                    if (policyParamField.getValue() != null)
-                        presenter.handleSetPurchasePolicyMinTickets(this, companyId, event.id(), policyParamField.getValue());
-                }
-                case "Age Restriction" -> {
-                    if (policyParamField.getValue() != null)
-                        presenter.handleSetPurchasePolicyAgeRestriction(this, companyId, event.id(), policyParamField.getValue());
-                }
-            }
-            dialog.close();
-        });
-
-        // Discount policy
-        Select<String> discountPolicySelect = new Select<>();
-        discountPolicySelect.setLabel("Discount Policy Type");
-        discountPolicySelect.setItems("No Discount", "Simple Discount (%)");
-        discountPolicySelect.setWidthFull();
-
-        NumberField discountPctField  = new NumberField("Percentage (0–100)");
-        DatePicker  discountStartDate = new DatePicker("Start Date");
-        DatePicker  discountEndDate   = new DatePicker("End Date");
-        discountPctField.setMin(0); discountPctField.setMax(100);
-        discountPctField.setWidthFull();
-        VerticalLayout discountParams = new VerticalLayout(discountPctField, discountStartDate, discountEndDate);
-        discountParams.setPadding(false);
-        discountParams.setVisible(false);
-
-        discountPolicySelect.addValueChangeListener(e ->
-                discountParams.setVisible("Simple Discount (%)".equals(e.getValue())));
-
-        Button setDiscountPolicyBtn = new Button("Set Discount Policy", click -> {
-            String type = discountPolicySelect.getValue();
-            if (type == null) return;
-            if ("No Discount".equals(type)) {
-                presenter.handleSetDiscountPolicyNone(this, companyId, event.id());
-            } else if ("Simple Discount (%)".equals(type)) {
-                LocalDate start = discountStartDate.getValue();
-                LocalDate end   = discountEndDate.getValue();
-                Double pct      = discountPctField.getValue();
-                if (pct != null && start != null && end != null)
-                    presenter.handleSetDiscountPolicySimple(this, companyId, event.id(), pct, start, end);
-            }
-            dialog.close();
-        });
-
         VerticalLayout content = new VerticalLayout(
-                new H3("Sale Mode"), saleModeSelect, queueCapacityField, setSaleModeBtn,
-                new H3("Purchase Policy"), purchasePolicySelect, policyParamField, setPurchasePolicyBtn,
-                new H3("Discount Policy"), discountPolicySelect, discountParams, setDiscountPolicyBtn
+                new H3("Sale Mode"), saleModeSelect, queueCapacityField, setSaleModeBtn
         );
         content.setPadding(false);
 
