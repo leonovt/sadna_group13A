@@ -57,6 +57,19 @@ public class Raffle
     }
 
     /**
+     * Domain Logic: Remove a participant (only allowed while registration is open).
+     */
+    public synchronized void removeParticipant(String userId) {
+        if (this.status != RaffleStatus.OPEN_FOR_REGISTRATION) {
+            throw new IllegalStateException("Cannot leave: the raffle is no longer open for registration.");
+        }
+        if (!participantUserIds.remove(userId)) {
+            throw new IllegalArgumentException("User is not registered for this raffle.");
+        }
+        version++;
+    }
+
+    /**
      * Domain Logic: Executes the draw, selects winners, and generates their codes.
      * 
      * @param numberOfWinners How many people should win
