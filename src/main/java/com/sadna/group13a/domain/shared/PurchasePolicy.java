@@ -25,4 +25,10 @@ import com.sadna.group13a.domain.policies.purchase.OrPolicy;
 })
 public interface PurchasePolicy {
     boolean isSatisfied(PurchaseContext ctx);
+
+    /** Returns a human-readable description of every rule that failed for the given context.
+     *  Returns an empty list when the policy is satisfied. */
+    default java.util.List<String> getFailureReasons(PurchaseContext ctx) {
+        return isSatisfied(ctx) ? java.util.List.of() : java.util.List.of("Purchase policy not satisfied.");
+    }
 }
