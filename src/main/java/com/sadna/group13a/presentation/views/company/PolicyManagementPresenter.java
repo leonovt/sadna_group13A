@@ -4,6 +4,7 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
 import com.sadna.group13a.application.DTO.StaffMemberDTO;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
@@ -32,7 +33,11 @@ public class PolicyManagementPresenter {
         }
         Result<List<StaffMemberDTO>> result = companyService.getRoleTree(token, companyId);
         if (result.isSuccess()) {
-            view.displayStaff(result.getData().orElseThrow());
+            List<StaffMemberDTO> managers = result.getData().orElseThrow()
+                    .stream()
+                    .filter(s -> s.role() == CompanyRole.MANAGER)
+                    .toList();
+            view.displayStaff(managers);
         } else {
             view.showError(result.getErrorMessage());
         }

@@ -65,6 +65,7 @@ public class PolicyManagementView extends VerticalLayout implements BeforeEnterO
         staffGrid.addColumn(StaffMemberDTO::userId).setHeader("User ID").setFlexGrow(1);
         staffGrid.addColumn(StaffMemberDTO::role).setHeader("Role").setFlexGrow(1);
         staffGrid.addColumn(s -> s.permissions().toString()).setHeader("Permissions").setFlexGrow(2);
+        staffGrid.addColumn(s -> s.supervisorId() != null ? s.supervisorId() : "—").setHeader("Supervisor").setFlexGrow(1);
         staffGrid.setWidthFull();
         staffGrid.setMaxHeight("400px");
 
