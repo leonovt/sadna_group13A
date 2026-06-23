@@ -66,10 +66,11 @@ public class CheckoutDomainService {
             throw new DomainException("Order has expired and can no longer be checked out");
         }
 
-        if (!purchasePolicy.isSatisfied(purchaseCtx)) {
+        java.util.List<String> policyFailures = purchasePolicy.getFailureReasons(purchaseCtx);
+        if (!policyFailures.isEmpty()) {
             logger.warn("Checkout blocked for order '{}' (user '{}', event '{}'): purchase policy not satisfied.",
                     order.getId(), order.getUserId(), event.getId());
-            throw new DomainException("Purchase is not permitted by the current purchase policy");
+            throw new DomainException("Purchase not permitted:\n" + String.join("\n", policyFailures));
         }
 
         List<OrderHistoryItem> historyItems  = new ArrayList<>();
