@@ -75,6 +75,7 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         eventsGrid.addColumn(e -> e.isPublished() ? "Published" : "Draft").setHeader("Status");
         eventsGrid.addColumn(e -> e.isPublished() ? String.valueOf(e.totalAvailableTickets()) : "—")
                 .setHeader("Available");
+        eventsGrid.addColumn(e -> e.saleMode() != null ? e.saleMode().toString() : "—").setHeader("Type");
         eventsGrid.addComponentColumn(event -> {
             Button editBtn = new Button("Edit", click -> {
                 statusMessage.setVisible(false);
