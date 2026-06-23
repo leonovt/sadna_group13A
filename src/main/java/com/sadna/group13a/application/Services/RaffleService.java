@@ -209,7 +209,36 @@ public class RaffleService {
                 userId, raffleId, maxAttempts);
         return Result.failure("Failed to join raffle due to high contention. Please try again.");
     }
-    
+
+    /**
+     * 1b. Command: Leave Raffle
+     */
+    @Transactional
+    public Result<Void> leaveRaffle(String token, String raffleId) {
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized leaveRaffle attempt for raffle '{}'.", raffleId);
+            return Result.failure("User not authenticated.");
+        }
+        String userId = authGateway.extractUserId(token);
+
+        Optional<Raffle> raffleOpt = raffleRepository.findById(raffleId);
+        if (raffleOpt.isEmpty()) {
+            logger.warn("User '{}' tried to leave non-existent raffle '{}'.", userId, raffleId);
+            return Result.failure("Raffle not found.");
+        }
+
+        Raffle raffle = raffleOpt.get();
+        try {
+            raffle.removeParticipant(userId);
+            raffleRepository.save(raffle);
+            logger.info("User '{}' left raffle '{}'.", userId, raffleId);
+            return Result.success();
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            logger.warn("User '{}' failed to leave raffle '{}': {}", userId, raffleId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
     /**
      * 2. Command: Execute Draw
      */
