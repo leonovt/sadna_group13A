@@ -16,6 +16,10 @@ public class SeatedZone extends Zone {
     private final int rows;
     private final int columns;
 
+    public SeatedZone(String id, String name, double basePrice, List<Seat> seats) {
+        this(id, name, basePrice, seats, 0, 0);
+    }
+
     @JsonCreator
     public SeatedZone(@JsonProperty("id") String id, @JsonProperty("name") String name,
                        @JsonProperty("basePrice") double basePrice, @JsonProperty("seats") List<Seat> seats,
