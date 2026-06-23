@@ -145,15 +145,14 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
         if (raffle.status() == RaffleStatus.OPEN_FOR_REGISTRATION) {
             Paragraph info = new Paragraph(
                 "This event uses a raffle. Register for the raffle for a chance to buy tickets.");
-            Span raffleIdSpan = new Span("Raffle ID: " + raffle.id());
-            raffleIdSpan.getStyle()
-                .set("font-family", "monospace")
-                .set("background", "var(--lumo-contrast-5pct)")
-                .set("padding", "2px 6px")
-                .set("border-radius", "4px");
-            Button joinBtn = new Button("Go to My Raffles →",
-                e -> UI.getCurrent().navigate("member/raffles"));
-            add(info, raffleIdSpan, joinBtn);
+            Button joinBtn = new Button("Join Raffle", e -> {
+                boolean joined = presenter.joinRaffle(token, raffle.id(), this);
+                if (joined) {
+                    e.getSource().setEnabled(false);
+                    e.getSource().setText("Joined!");
+                }
+            });
+            add(info, joinBtn);
 
         } else if (raffle.status() == RaffleStatus.DRAWN) {
             if (presenter.hasWonRaffle(token, eventId)) {
