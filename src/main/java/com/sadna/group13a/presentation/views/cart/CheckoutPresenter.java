@@ -10,6 +10,8 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
 
+import java.time.YearMonth;
+
 @Component
 public class CheckoutPresenter {
 
@@ -63,18 +65,57 @@ public class CheckoutPresenter {
     }
 
     public void handleCheckout(String orderId, String authCode, PaymentDetails paymentDetails, CheckoutView view) {
-        if (paymentDetails == null || paymentDetails.cardNumber() == null || paymentDetails.cardNumber().isBlank()) {
+        if (paymentDetails == null) {
             view.showError("Please enter your card details.");
             return;
         }
+
+        String rawCard = paymentDetails.cardNumber() == null ? "" : paymentDetails.cardNumber().replaceAll("\\s", "");
+        if (!rawCard.matches("\\d{16}")) {
+            view.showError("Card number must be exactly 16 digits.");
+            return;
+        }
+
+        String month = paymentDetails.month() == null ? "" : paymentDetails.month().trim();
+        if (!month.matches("^(0[1-9]|1[0-2])$")) {
+            view.showError("Expiry month must be MM (01–12).");
+            return;
+        }
+
+        String year = paymentDetails.year() == null ? "" : paymentDetails.year().trim();
+        if (!year.matches("\\d{4}")) {
+            view.showError("Expiry year must be YYYY (e.g. 2026).");
+            return;
+        }
+
+        YearMonth expiry = YearMonth.of(Integer.parseInt(year), Integer.parseInt(month));
+        if (expiry.isBefore(YearMonth.now())) {
+            view.showError("Card expiry date is in the past.");
+            return;
+        }
+
+        String cvv = paymentDetails.cvv() == null ? "" : paymentDetails.cvv().trim();
+        if (!cvv.matches("\\d{3,4}")) {
+            view.showError("CVV must be 3 or 4 digits.");
+            return;
+        }
+
+        if (paymentDetails.holder() == null || paymentDetails.holder().isBlank()) {
+            view.showError("Please enter the cardholder name.");
+            return;
+        }
+
         String token = getToken();
         if (token == null) {
             UI.getCurrent().navigate("login");
             return;
         }
+        PaymentDetails normalized = new PaymentDetails(
+                rawCard, month, year, paymentDetails.holder(), cvv,
+                paymentDetails.id(), paymentDetails.currency());
         String paymentJson;
         try {
-            paymentJson = objectMapper.writeValueAsString(paymentDetails);
+            paymentJson = objectMapper.writeValueAsString(normalized);
         } catch (Exception e) {
             view.showError("Could not process payment details.");
             return;

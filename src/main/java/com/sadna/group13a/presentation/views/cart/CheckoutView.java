@@ -109,10 +109,32 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                 .set("font-size", "var(--lumo-font-size-s)");
 
         // ── Payment form ──────────────────────────────────────────
-        cardNumberField.setPlaceholder("e.g. 4111111111111111");
+        cardNumberField.setPlaceholder("1234 5678 9012 3456");
+        cardNumberField.setMaxLength(19);
+        cardNumberField.setPattern("[0-9 ]*");
+        cardNumberField.addValueChangeListener(e -> {
+            String digits = e.getValue().replaceAll("[^0-9]", "");
+            if (digits.length() > 16) digits = digits.substring(0, 16);
+            StringBuilder formatted = new StringBuilder();
+            for (int i = 0; i < digits.length(); i++) {
+                if (i > 0 && i % 4 == 0) formatted.append(' ');
+                formatted.append(digits.charAt(i));
+            }
+            String result = formatted.toString();
+            if (!result.equals(e.getValue())) {
+                cardNumberField.setValue(result);
+            }
+        });
+
         monthField.setPlaceholder("MM");
+        monthField.setMaxLength(2);
+        monthField.setPattern("[0-9]*");
         yearField.setPlaceholder("YYYY");
-        cvvField.setPlaceholder("3 digits");
+        yearField.setMaxLength(4);
+        yearField.setPattern("[0-9]*");
+        cvvField.setPlaceholder("3–4 digits");
+        cvvField.setMaxLength(4);
+        cvvField.setPattern("[0-9]*");
         idField.setPlaceholder("Cardholder ID");
         currencyField.setValue("USD");
 
