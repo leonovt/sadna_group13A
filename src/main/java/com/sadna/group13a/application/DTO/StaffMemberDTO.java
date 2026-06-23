@@ -11,5 +11,6 @@ import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 public record StaffMemberDTO(
     String userId,
     CompanyRole role,
-    Set<CompanyPermission> permissions
+    Set<CompanyPermission> permissions,
+    String supervisorId
 ) {}
