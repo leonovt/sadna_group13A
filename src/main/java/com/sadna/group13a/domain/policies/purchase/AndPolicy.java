@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sadna.group13a.domain.shared.PurchaseContext;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** Composite — all children must be satisfied (logical AND). */
@@ -33,5 +34,14 @@ public class AndPolicy implements PurchasePolicy {
     @Override
     public boolean isSatisfied(PurchaseContext ctx) {
         return children.stream().allMatch(p -> p.isSatisfied(ctx));
+    }
+
+    @Override
+    public List<String> getFailureReasons(PurchaseContext ctx) {
+        List<String> reasons = new ArrayList<>();
+        for (PurchasePolicy child : children) {
+            reasons.addAll(child.getFailureReasons(ctx));
+        }
+        return reasons;
     }
 }
