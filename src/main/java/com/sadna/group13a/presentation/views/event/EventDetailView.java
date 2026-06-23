@@ -12,6 +12,7 @@ import com.sadna.group13a.domain.Aggregates.Event.SeatStatus;
 import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
@@ -28,6 +29,8 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @Route("events/:eventId")
 @PageTitle("Event")
@@ -178,29 +181,100 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
 
     private void renderVenueMap(VenueMapDTO venueMap, String token) {
         add(new H3("Venue: " + venueMap.getVenueName()));
+
+        // Stage indicator
+        Div stageBar = new Div(new Span("STAGE"));
+        stageBar.getStyle()
+            .set("background", "var(--lumo-contrast-10pct)")
+            .set("text-align", "center")
+            .set("padding", "0.5em 1em")
+            .set("border-radius", "0 0 var(--lumo-border-radius-l) var(--lumo-border-radius-l)")
+            .set("font-weight", "600")
+            .set("letter-spacing", "0.1em")
+            .set("color", "var(--lumo-secondary-text-color)")
+            .set("margin-bottom", "1em");
+        add(stageBar);
+
+        // Zone card grid
+        Div zoneGrid = new Div();
+        zoneGrid.getStyle()
+            .set("display", "grid")
+            .set("grid-template-columns", "repeat(auto-fit, minmax(180px, 1fr))")
+            .set("gap", "12px")
+            .set("width", "100%");
+
+        // Detail panel shown below the grid when a zone is selected
+        Div detailPanel = new Div();
+        detailPanel.getStyle()
+            .set("margin-top", "1em")
+            .set("padding", "1em")
+            .set("border", "1px solid var(--lumo-contrast-20pct)")
+            .set("border-radius", "var(--lumo-border-radius-m)");
+        detailPanel.setVisible(false);
+
+        List<Div> cards = new ArrayList<>();
         for (ZoneDTO zone : venueMap.getZones()) {
-            add(buildZoneSection(zone, token));
+            Div card = createZoneCard(zone, cards, detailPanel, token);
+            cards.add(card);
+            zoneGrid.add(card);
         }
+
+        add(zoneGrid, detailPanel);
     }
 
-    private VerticalLayout buildZoneSection(ZoneDTO zone, String token) {
-        VerticalLayout layout = new VerticalLayout();
-        layout.getStyle()
-            .set("border", "1px solid var(--lumo-contrast-20pct)")
-            .set("padding", "1em")
-            .set("border-radius", "4px");
-
+    private Div createZoneCard(ZoneDTO zone, List<Div> allCards, Div detailPanel, String token) {
+        boolean available = zone.getAvailable() > 0;
         String typeLabel = zone.getType() == ZoneType.SEATED ? "Seated" : "Standing";
-        layout.add(new H3(zone.getName() + " (" + typeLabel + ")"));
-        layout.add(new Paragraph(String.format("Price: $%.2f  |  Available: %d / %d",
-                zone.getBasePrice(), zone.getAvailable(), zone.getCapacity())));
 
-        if (zone.getType() == ZoneType.SEATED) {
-            layout.add(buildSeatedContent(zone, token));
-        } else {
-            layout.add(buildStandingContent(zone, token));
+        H3 name = new H3(zone.getName());
+        name.getStyle().set("margin", "0 0 0.25em 0").set("font-size", "1rem");
+
+        Span type = new Span(typeLabel);
+        type.getStyle().set("color", "var(--lumo-secondary-text-color)").set("font-size", "0.85rem");
+
+        Span price = new Span(String.format("$%.2f / ticket", zone.getBasePrice()));
+        price.getStyle().set("display", "block").set("margin-top", "0.5em");
+
+        Span avail = new Span(available ? zone.getAvailable() + " available" : "Sold out");
+        avail.getStyle()
+            .set("display", "block")
+            .set("font-size", "0.85rem")
+            .set("color", available ? "var(--lumo-success-text-color)" : "var(--lumo-error-text-color)");
+
+        Div card = new Div(name, type, price, avail);
+        card.getStyle()
+            .set("border", "2px solid " + (available ? "var(--lumo-success-color-50pct)" : "var(--lumo-contrast-20pct)"))
+            .set("border-radius", "var(--lumo-border-radius-l)")
+            .set("padding", "1em")
+            .set("background", available ? "var(--lumo-success-color-10pct)" : "var(--lumo-contrast-5pct)")
+            .set("cursor", available ? "pointer" : "not-allowed")
+            .set("opacity", available ? "1" : "0.6")
+            .set("transition", "border-color 0.15s");
+
+        if (available) {
+            card.addClickListener(e -> {
+                // Reset all cards to default border
+                for (Div c : allCards) {
+                    c.getStyle().set("border", "2px solid var(--lumo-success-color-50pct)");
+                }
+                // Highlight selected card
+                card.getStyle().set("border", "2px solid var(--lumo-primary-color)");
+
+                // Populate detail panel
+                detailPanel.removeAll();
+                H3 detailTitle = new H3(zone.getName() + " — " + typeLabel);
+                detailTitle.getStyle().set("margin-top", "0");
+                detailPanel.add(detailTitle);
+                if (zone.getType() == ZoneType.SEATED) {
+                    detailPanel.add(buildSeatedContent(zone, token));
+                } else {
+                    detailPanel.add(buildStandingContent(zone, token));
+                }
+                detailPanel.setVisible(true);
+            });
         }
-        return layout;
+
+        return card;
     }
 
     private FlexLayout buildSeatedContent(ZoneDTO zone, String token) {
