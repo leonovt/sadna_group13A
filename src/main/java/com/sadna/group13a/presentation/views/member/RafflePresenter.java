@@ -41,6 +41,21 @@ public class RafflePresenter {
         }
     }
 
+    public void handleLeaveRaffle(String raffleId, RaffleView view) {
+        String token = requireToken(view);
+        if (token == null || isBlank(raffleId, view)) {
+            return;
+        }
+
+        Result<Void> result = raffleService.leaveRaffle(token, raffleId.trim());
+        if (result.isSuccess()) {
+            view.showInfo("You have left the raffle.");
+            handleLoadMyRaffles(view);
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
     public void handleViewDetails(String raffleId, RaffleView view) {
         String token = requireToken(view);
         if (token == null || isBlank(raffleId, view)) {
