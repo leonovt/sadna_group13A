@@ -3,11 +3,13 @@ package com.sadna.group13a.presentation.views.company;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.DTO.StaffMemberDTO;
 import com.sadna.group13a.application.Services.CompanyService;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Set;
 
 @Component
 public class StaffManagementPresenter {
@@ -37,9 +39,10 @@ public class StaffManagementPresenter {
         UI.getCurrent().navigate("company/" + companyId);
     }
 
-    public void handleAppointManager(String username, String companyId, StaffManagementView view) {
+    public void handleAppointManager(String username, Set<CompanyPermission> permissions, String companyId, StaffManagementView view) {
         if (username == null || username.isBlank()) { view.showError("Username cannot be blank."); return; }
-        Result<Void> result = companyService.appointManager(getToken(), companyId, username, null);
+        Set<CompanyPermission> perms = (permissions == null || permissions.isEmpty()) ? null : permissions;
+        Result<Void> result = companyService.appointManager(getToken(), companyId, username, perms);
         if (result.isSuccess()) {
             view.showSuccess("Manager nomination sent to " + username + ".");
             loadStaff(view, companyId);

@@ -1,8 +1,10 @@
 package com.sadna.group13a.presentation.views.company;
 
 import com.sadna.group13a.application.DTO.StaffMemberDTO;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.CheckboxGroup;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
@@ -29,6 +31,7 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
 
     // ── Manager actions ───────────────────────────────────────────
     private final TextField managerUsernameField = new TextField("Username");
+    private final CheckboxGroup<CompanyPermission> managerPermissionsGroup = new CheckboxGroup<>("Permissions for new manager");
 
     // ── Owner actions ─────────────────────────────────────────────
     private final TextField ownerUsernameField = new TextField("Username");
@@ -70,16 +73,22 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
         staffGrid.setMaxHeight("400px");
 
         // ── Manager actions ───────────────────────────────────────
+        managerPermissionsGroup.setItems(CompanyPermission.values());
+        managerPermissionsGroup.setItemLabelGenerator(p -> p.name().replace('_', ' '));
+
         Button appointManagerBtn = new Button("Appoint Manager", e -> {
             statusMessage.setVisible(false);
-            presenter.handleAppointManager(managerUsernameField.getValue(), companyId, this);
+            presenter.handleAppointManager(managerUsernameField.getValue(), managerPermissionsGroup.getValue(), companyId, this);
         });
         Button fireStaffBtn = new Button("Fire", e -> {
             statusMessage.setVisible(false);
             presenter.handleFireStaff(managerUsernameField.getValue(), companyId, this);
         });
-        HorizontalLayout managerRow = new HorizontalLayout(managerUsernameField, appointManagerBtn, fireStaffBtn);
-        managerRow.setAlignItems(Alignment.BASELINE);
+        HorizontalLayout managerBtnRow = new HorizontalLayout(managerUsernameField, appointManagerBtn, fireStaffBtn);
+        managerBtnRow.setAlignItems(Alignment.BASELINE);
+        VerticalLayout managerRow = new VerticalLayout(managerBtnRow, managerPermissionsGroup);
+        managerRow.setPadding(false);
+        managerRow.setSpacing(false);
 
         // ── Owner actions ─────────────────────────────────────────
         Button appointOwnerBtn = new Button("Appoint Owner", e -> {
