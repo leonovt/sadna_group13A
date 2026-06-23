@@ -3,6 +3,7 @@ package com.sadna.group13a.presentation.views.event;
 import com.sadna.group13a.application.DTO.EventDTO;
 import com.sadna.group13a.application.DTO.QueueStatusDTO;
 import com.sadna.group13a.application.DTO.RaffleDTO;
+import com.sadna.group13a.application.DTO.RaffleRegistrationDTO;
 import com.sadna.group13a.application.DTO.VenueMapDTO;
 import com.sadna.group13a.application.DTO.WinningTicketDTO;
 import com.sadna.group13a.application.Result;
@@ -66,6 +67,15 @@ public class EventDetailPresenter {
     /** Returns the raffle for the given event, or failure if none exists. */
     public Result<RaffleDTO> getRaffleForEvent(String token, String eventId) {
         return raffleService.getRaffleByEventId(token, eventId);
+    }
+
+    public void joinRaffle(String token, String raffleId, EventDetailView view) {
+        Result<Void> result = raffleService.joinRaffle(token, new RaffleRegistrationDTO(raffleId));
+        if (result.isSuccess()) {
+            view.showSuccess("You have successfully joined the raffle! Check back after the draw.");
+        } else {
+            view.showError(result.getErrorMessage());
+        }
     }
 
     /**
