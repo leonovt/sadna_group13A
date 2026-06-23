@@ -13,16 +13,24 @@ import java.util.Optional;
 public class SeatedZone extends Zone {
 
     private final List<Seat> seats;
+    private final int rows;
+    private final int columns;
 
     @JsonCreator
     public SeatedZone(@JsonProperty("id") String id, @JsonProperty("name") String name,
-                       @JsonProperty("basePrice") double basePrice, @JsonProperty("seats") List<Seat> seats) {
+                       @JsonProperty("basePrice") double basePrice, @JsonProperty("seats") List<Seat> seats,
+                       @JsonProperty("rows") int rows, @JsonProperty("columns") int columns) {
         super(id, name, ZoneType.SEATED, basePrice);
         if (seats == null || seats.isEmpty()) {
             throw new IllegalArgumentException("Seated zone must have at least one seat");
         }
         this.seats = new ArrayList<>(seats);
+        this.rows = rows;
+        this.columns = columns;
     }
+
+    public int getRows() { return rows; }
+    public int getColumns() { return columns; }
 
     public List<Seat> getSeats() {
         return Collections.unmodifiableList(seats);
