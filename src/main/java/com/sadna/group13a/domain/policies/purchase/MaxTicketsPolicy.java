@@ -23,4 +23,10 @@ public class MaxTicketsPolicy implements PurchasePolicy {
     public boolean isSatisfied(PurchaseContext ctx) {
         return ctx.ticketCount() <= max;
     }
+
+    @Override
+    public java.util.List<String> getFailureReasons(PurchaseContext ctx) {
+        if (ctx.ticketCount() <= max) return java.util.List.of();
+        return java.util.List.of("Maximum tickets exceeded: limit is " + max + " (you requested " + ctx.ticketCount() + ").");
+    }
 }

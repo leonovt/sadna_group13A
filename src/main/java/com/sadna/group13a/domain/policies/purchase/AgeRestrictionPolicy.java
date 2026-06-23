@@ -23,4 +23,10 @@ public class AgeRestrictionPolicy implements PurchasePolicy {
     public boolean isSatisfied(PurchaseContext ctx) {
         return ctx.userAge() >= minAge;
     }
+
+    @Override
+    public java.util.List<String> getFailureReasons(PurchaseContext ctx) {
+        if (ctx.userAge() >= minAge) return java.util.List.of();
+        return java.util.List.of("Age restriction: must be at least " + minAge + " years old.");
+    }
 }

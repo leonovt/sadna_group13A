@@ -360,12 +360,14 @@ public class OrderService {
             DiscountContext discountCtx        = new DiscountContext(userId, eventTicketCount, optionalAuthCode);
 
             // Check company-level policy first using the company-total count.
-            if (!company.getPurchasePolicy().isSatisfied(companyPurchaseCtx)) {
+            List<String> companyPolicyFailures = company.getPurchasePolicy().getFailureReasons(companyPurchaseCtx);
+            if (!companyPolicyFailures.isEmpty()) {
                 logger.warn("Checkout blocked for order '{}' (user '{}', company '{}'): company purchase policy not satisfied.",
                         order.getId(), userId, event.getCompanyId());
                 rollbackSoldSeats(processedEvents, order.getItems());
-                eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Purchase not permitted by the company's purchase policy."));
-                return Result.failure("Purchase not permitted by the company's purchase policy.");
+                String failureMsg = "Purchase not permitted by the company's purchase policy:\n" + String.join("\n", companyPolicyFailures);
+                eventPublisher.publishEvent(new CheckoutFailedEvent(userId, failureMsg));
+                return Result.failure(failureMsg);
             }
 
             // Seat-level synchronization (on Seat and StandingZone methods) ensures
