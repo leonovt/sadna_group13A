@@ -146,9 +146,11 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
             Paragraph info = new Paragraph(
                 "This event uses a raffle. Register for the raffle for a chance to buy tickets.");
             Button joinBtn = new Button("Join Raffle", e -> {
-                presenter.joinRaffle(token, raffle.id(), this);
-                e.getSource().setEnabled(false);
-                e.getSource().setText("Joined!");
+                boolean joined = presenter.joinRaffle(token, raffle.id(), this);
+                if (joined) {
+                    e.getSource().setEnabled(false);
+                    e.getSource().setText("Joined!");
+                }
             });
             add(info, joinBtn);
 
