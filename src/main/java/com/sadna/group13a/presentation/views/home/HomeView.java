@@ -190,6 +190,7 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         eventGrid.addColumn(EventDTO::location).setHeader("Location").setAutoWidth(true);
         eventGrid.addColumn(EventDTO::category).setHeader("Category").setAutoWidth(true);
         eventGrid.addColumn(EventDTO::totalAvailableTickets).setHeader("Available").setAutoWidth(true);
+        eventGrid.addColumn(e -> e.saleMode() != null ? e.saleMode().toString() : "—").setHeader("Type").setAutoWidth(true);
         eventGrid.addItemClickListener(click -> UI.getCurrent().navigate("events/" + click.getItem().id()));
         eventGrid.setWidthFull();
         return eventGrid;
