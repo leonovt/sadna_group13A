@@ -54,7 +54,7 @@ app:
     max-concurrent-users-per-event: 100
     # Optional path to an initial-state JSON file executed at startup (issue #224).
     # Leave blank to skip initial-state loading.
-    initial-state-file:
+    initial-state-file: config-example.json
     # Optional path to a text-based initial-state file (issue #230).
     # Format: one command per line — register/login/logout/create-company.
     # Blank = clean start.
