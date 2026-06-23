@@ -1,5 +1,6 @@
 package com.sadna.group13a.infrastructure.notification;
 
+import com.sadna.group13a.application.Services.UserNotificationService;
 import com.sadna.group13a.domain.Interfaces.IPendingNotificationRepository;
 import com.sadna.group13a.infrastructure.PendingNotification;
 import com.vaadin.flow.component.UI;
@@ -16,12 +17,14 @@ import static org.mockito.Mockito.*;
 class NotificationBroadcasterTest {
 
     private IPendingNotificationRepository pendingRepo;
+    private UserNotificationService userNotificationService;
     private NotificationBroadcaster broadcaster;
 
     @BeforeEach
     void setUp() {
         pendingRepo = mock(IPendingNotificationRepository.class);
-        broadcaster = new NotificationBroadcaster(pendingRepo);
+        userNotificationService = mock(UserNotificationService.class);
+        broadcaster = new NotificationBroadcaster(pendingRepo, userNotificationService);
     }
 
     @Test
