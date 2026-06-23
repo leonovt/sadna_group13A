@@ -83,6 +83,11 @@ public class RaffleView extends VerticalLayout implements BeforeEnterObserver {
             clearFeedback();
             presenter.handleJoinRaffle(raffleIdField.getValue(), this);
         });
+        Button leaveButton = new Button("Leave Raffle", e -> {
+            clearFeedback();
+            presenter.handleLeaveRaffle(raffleIdField.getValue(), this);
+        });
+        leaveButton.getStyle().set("color", "var(--lumo-error-color)");
         Button detailsButton = new Button("View Details", e -> {
             clearFeedback();
             presenter.handleViewDetails(raffleIdField.getValue(), this);
@@ -96,7 +101,7 @@ public class RaffleView extends VerticalLayout implements BeforeEnterObserver {
             presenter.handleLoadMyRaffles(this);
         });
 
-        HorizontalLayout actions = new HorizontalLayout(joinButton, detailsButton, resultButton, refreshButton);
+        HorizontalLayout actions = new HorizontalLayout(joinButton, leaveButton, detailsButton, resultButton, refreshButton);
 
         add(
             new H2("My Raffles"),
