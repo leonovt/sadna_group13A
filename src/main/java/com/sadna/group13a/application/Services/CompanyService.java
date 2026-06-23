@@ -67,6 +67,11 @@ public class CompanyService {
         this.companyStaffDomainService = companyStaffDomainService;
     }
 
+    private String resolveUsername(String userId) {
+        if (userId == null) return null;
+        return userRepository.findById(userId).map(User::getUsername).orElse(userId);
+    }
+
     @Transactional
     public Result<Boolean> createCompany(String token, String name, String description) {
         if (!authGateway.validateToken(token)) {
@@ -149,7 +154,7 @@ public class CompanyService {
 
         ProductionCompany company = compOpt.get();
         var staffDTOs = company.getStaff().values().stream()
-                .map(s -> new StaffMemberDTO(s.getUserId(), s.getRole(), s.getPermissions()))
+                .map(s -> new StaffMemberDTO(s.getUserId(), s.getRole(), s.getPermissions(), resolveUsername(s.getAppointedByUserId())))
                 .toList();
         String founderId = company.getStaff().values().stream()
                 .filter(s -> s.getRole() == CompanyRole.FOUNDER)
@@ -227,7 +232,7 @@ public class CompanyService {
         }
         try {
             var dtos = compOpt.get().getRoleTree(actingUserId).values().stream()
-                    .map(s -> new StaffMemberDTO(s.getUserId(), s.getRole(), s.getPermissions()))
+                    .map(s -> new StaffMemberDTO(s.getUserId(), s.getRole(), s.getPermissions(), resolveUsername(s.getAppointedByUserId())))
                     .collect(Collectors.toList());
             logger.debug("User '{}' retrieved role tree for company '{}' ({} member(s)).",
                     actingUserId, companyId, dtos.size());
@@ -663,7 +668,7 @@ public class CompanyService {
                 .filter(c -> c.getStaff().containsKey(userId))
                 .map(c -> {
                     var staffDTOs = c.getStaff().values().stream()
-                            .map(s -> new StaffMemberDTO(s.getUserId(), s.getRole(), s.getPermissions()))
+                            .map(s -> new StaffMemberDTO(s.getUserId(), s.getRole(), s.getPermissions(), resolveUsername(s.getAppointedByUserId())))
                             .toList();
                     String founderId = c.getStaff().values().stream()
                             .filter(s -> s.getRole() == CompanyRole.FOUNDER)
