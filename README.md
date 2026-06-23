@@ -210,19 +210,73 @@ it; any `args` value equal to a previously bound name resolves to that value.
 (`permissions` = comma-separated `MANAGE_EVENTS,MANAGE_POLICIES,MANAGE_DISCOUNTS,VIEW_REPORTS`),
 `accept-nomination`, `reject-nomination`, `suspend-company`, `reopen-company`, `create-event`,
 `publish-event`, `set-sale-mode` (`REGULAR|QUEUE|RAFFLE`), `add-to-cart`
-(`seatId` or `quantity`, binds the order id), and `checkout` (`orderId`, optional `authCode`,
-`paymentDetails`). The set is broad enough to drive the system into any required state.
+(`seatId` or `quantity`, binds the order id), `checkout` (`orderId`, optional `authCode`,
+`paymentDetails`), `create-venue-map` (assigns zones to an event — see below), and
+`set-company-coupon-discount` (sets a coupon discount policy on a company).
 
-A runnable example lives at [`src/main/resources/init-state.sample.json`](./src/main/resources/init-state.sample.json).
-Activate it via config or at runtime:
+For a full reference of every action and its arguments, see [`CONFIG_SCHEMA.md`](./CONFIG_SCHEMA.md).
+
+### Running with a config file — step by step
+
+The repo ships with a ready-made example at [`config-example.json`](./config-example.json).
+It sets up four users, a production company, an owner, a manager, an event with a standing
+zone and a seated zone, and a coupon discount — all without touching the UI.
+
+**Step 1.** Open `src/main/resources/application.yml` and set the file path:
 
 ```yaml
 app:
   init:
-    initial-state-file: classpath:init-state.sample.json   # or an absolute file path
+    initial-state-file: config-example.json
 ```
+
+The path is resolved relative to the working directory (i.e. the project root when you run
+`mvn spring-boot:run`). You can also use an absolute path or a `classpath:` prefix.
+
+**Step 2.** Start the application normally:
+
 ```bash
-java -jar sadna-group13a.jar --app.init.initial-state-file=/etc/ticketing/init-state.json
+mvn spring-boot:run
+```
+
+Watch the startup log — you should see:
+
+```
+Initial-state loaded: 19 operation(s) executed successfully.
+```
+
+If any operation fails the application refuses to start and prints which operation failed and why.
+
+**Step 3.** Open `http://localhost:8080` and log in with one of the seeded accounts:
+
+| Username | Password   | Role in company p1 |
+|----------|------------|--------------------|
+| u1       | u1pass123  | Founder |
+| u2       | u2pass123  | Owner |
+| u3       | u3pass123  | Manager (MANAGE_EVENTS only) |
+| u4       | u4pass123  | Regular member (no company role) |
+
+You can also pass the path at runtime without editing `application.yml`:
+
+```bash
+# bash
+mvn spring-boot:run -Dspring-boot.run.arguments="--app.init.initial-state-file=config-example.json"
+
+# PowerShell
+mvn spring-boot:run "-Dspring-boot.run.arguments=--app.init.initial-state-file=config-example.json"
+
+# or as an env var
+APP_INIT_INITIALSTATEFILE=config-example.json mvn spring-boot:run
+```
+
+To use your own config file, copy `config-example.json`, modify it, and point the property at your copy. See [`CONFIG_SCHEMA.md`](./CONFIG_SCHEMA.md) for the full action reference and the `create-venue-map` / `set-company-coupon-discount` syntax.
+
+A minimal runnable example also lives at [`src/main/resources/init-state.sample.json`](./src/main/resources/init-state.sample.json):
+
+```yaml
+app:
+  init:
+    initial-state-file: classpath:init-state.sample.json
 ```
 
 ### Legacy text loader (`app.init.state-file`)

@@ -1,0 +1,76 @@
+[
+  { "action": "register", "args": { "username": "u1", "password": "u1pass123" } },
+  { "action": "register", "args": { "username": "u2", "password": "u2pass123" } },
+  { "action": "register", "args": { "username": "u3", "password": "u3pass123" } },
+  { "action": "register", "args": { "username": "u4", "password": "u4pass123" } },
+
+  { "action": "login",
+    "args": { "username": "u1", "password": "u1pass123" },
+    "bindTo": "u1_token" },
+
+  { "action": "create-company",
+    "args": { "token": "u1_token", "name": "p1", "description": "Production company p1" },
+    "bindTo": "p1_id" },
+
+  { "action": "appoint-owner",
+    "args": { "token": "u1_token", "companyId": "p1_id", "targetUsername": "u2" } },
+
+  { "action": "login",
+    "args": { "username": "u2", "password": "u2pass123" },
+    "bindTo": "u2_token" },
+
+  { "action": "accept-nomination",
+    "args": { "token": "u2_token", "companyId": "p1_id" } },
+
+  { "action": "appoint-manager",
+    "args": {
+      "token": "u2_token",
+      "companyId": "p1_id",
+      "targetUsername": "u3",
+      "permissions": "MANAGE_EVENTS"
+    }
+  },
+
+  { "action": "login",
+    "args": { "username": "u3", "password": "u3pass123" },
+    "bindTo": "u3_token" },
+
+  { "action": "accept-nomination",
+    "args": { "token": "u3_token", "companyId": "p1_id" } },
+
+  { "action": "create-event",
+    "args": {
+      "token": "u2_token",
+      "companyId": "p1_id",
+      "title": "e1",
+      "description": "Event e1 under company p1",
+      "date": "2026-12-31T20:00",
+      "category": "General"
+    },
+    "bindTo": "e1_id" },
+
+  { "action": "create-venue-map",
+    "args": {
+      "token": "u2_token",
+      "eventId": "e1_id",
+      "venueName": "Main Venue",
+      "zones": [
+        { "name": "Standing Zone", "type": "STANDING", "basePrice": 50.0,  "capacity": 30  },
+        { "name": "Seated Zone",   "type": "SEATED",   "basePrice": 100.0, "capacity": 100 }
+      ]
+    }
+  },
+
+  { "action": "set-company-coupon-discount",
+    "args": {
+      "token": "u2_token",
+      "companyId": "p1_id",
+      "code": "sale123",
+      "percentage": 0.20
+    }
+  },
+
+  { "action": "logout", "args": { "token": "u1_token" } },
+  { "action": "logout", "args": { "token": "u2_token" } },
+  { "action": "logout", "args": { "token": "u3_token" } }
+]

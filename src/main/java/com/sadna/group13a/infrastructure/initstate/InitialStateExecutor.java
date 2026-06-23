@@ -1,6 +1,7 @@
 package com.sadna.group13a.infrastructure.initstate;
 
 import com.sadna.group13a.application.DTO.CompanyDTO;
+import com.sadna.group13a.application.DTO.ZoneCreationDTO;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.CompanyService;
 import com.sadna.group13a.application.Services.EventService;
@@ -8,6 +9,8 @@ import com.sadna.group13a.application.Services.OrderService;
 import com.sadna.group13a.application.Services.UserService;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
 import com.sadna.group13a.domain.Aggregates.Event.EventSaleMode;
+import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
+import com.sadna.group13a.domain.policies.discount.CouponDiscount;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -48,6 +51,8 @@ import java.util.stream.Collectors;
  *   <li>{@code set-sale-mode}   — token, eventId, mode (REGULAR | QUEUE | RAFFLE)</li>
  *   <li>{@code add-to-cart}     — token, eventId, zoneId, [seatId], [quantity]  (bindTo: order id)</li>
  *   <li>{@code checkout}        — token, orderId, [authCode], paymentDetails  (bindTo: receipt id)</li>
+ *   <li>{@code create-venue-map} — token, eventId, [venueName], zones (JSON array of {name,type,basePrice,capacity})</li>
+ *   <li>{@code set-company-coupon-discount} — token, companyId, code, percentage (0.0–1.0)</li>
  * </ul>
  *
  * <p>This set is intentionally broad enough to drive a representative series of use-case
@@ -177,6 +182,24 @@ public class InitialStateExecutor {
                 require(c, r);
             }
 
+            case "create-venue-map" -> {
+                Object zonesRaw = c.op.args().get("zones");
+                if (zonesRaw == null) {
+                    throw new InitialStateException("missing required argument 'zones'.");
+                }
+                List<ZoneCreationDTO> zones = parseZones(zonesRaw, c.op.action());
+                require(c, eventService.createVenueMap(
+                        c.arg("token"), c.arg("eventId"),
+                        c.optArg("venueName", "Main Venue"), zones));
+            }
+
+            case "set-company-coupon-discount" -> {
+                double percentage = parseDouble(c.arg("percentage"), "percentage");
+                require(c, companyService.setDiscountPolicy(
+                        c.arg("token"), c.arg("companyId"),
+                        new CouponDiscount(percentage, c.arg("code"), null, null)));
+            }
+
             default -> throw new InitialStateException("Unknown action '" + c.op.action() + "'.");
         }
     }
@@ -230,6 +253,34 @@ public class InitialStateExecutor {
             return value;
         } catch (NumberFormatException e) {
             throw new InitialStateException(name + " must be a positive integer, was '" + raw + "'");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ZoneCreationDTO> parseZones(Object raw, String action) {
+        if (!(raw instanceof List)) {
+            throw new InitialStateException("'" + action + "': 'zones' must be a JSON array.");
+        }
+        List<Map<String, Object>> list = (List<Map<String, Object>>) raw;
+        return list.stream().map(z -> {
+            String name = String.valueOf(z.get("name"));
+            ZoneType type;
+            try {
+                type = ZoneType.valueOf(String.valueOf(z.get("type")).toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new InitialStateException("invalid zone type '" + z.get("type") + "' (expected STANDING or SEATED)");
+            }
+            double basePrice = ((Number) z.get("basePrice")).doubleValue();
+            int capacity = ((Number) z.get("capacity")).intValue();
+            return new ZoneCreationDTO(name, type, basePrice, capacity);
+        }).collect(Collectors.toList());
+    }
+
+    private double parseDouble(String raw, String name) {
+        try {
+            return Double.parseDouble(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new InitialStateException(name + " must be a number, was '" + raw + "'");
         }
     }
 
