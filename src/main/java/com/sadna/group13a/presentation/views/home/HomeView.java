@@ -109,6 +109,9 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
             header.add(new RouterLink("My Orders", OrderHistoryView.class));
             header.add(new RouterLink("My Profile", ProfileView.class));
             header.add(new RouterLink("My Raffles", RaffleView.class));
+            Button bellBtn = new Button("🔔 Notifications",
+                    e -> UI.getCurrent().navigate("notifications"));
+            header.add(bellBtn);
         }
         if (presenter.isAdmin(token)) {
             Button adminBtn = new Button("Admin Panel", e -> UI.getCurrent().navigate("admin"));

@@ -98,10 +98,10 @@ class WebSocketNotificationServiceTest {
     }
 
     @Test
-    @DisplayName("notifyStaffNominated — sends to the correct user")
+    @DisplayName("notifyStaffNominated — sends nomination (with companyId) to the correct user")
     void notifyStaffNominated_sendsToUser() {
         service.notifyStaffNominated("u1", "c1", "MANAGER");
-        verify(broadcaster).send(eq("u1"), anyString());
+        verify(broadcaster).sendNomination(eq("u1"), anyString(), eq("c1"));
     }
 
     @Test

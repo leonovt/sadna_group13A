@@ -108,8 +108,9 @@ public class WebSocketNotificationService implements INotificationService {
 
     @Override
     public void notifyStaffNominated(String userId, String companyId, String role) {
-        broadcaster.send(userId, "You have been nominated as " + role +
-                " at \"" + companyName(companyId) + "\". Please accept or reject the nomination.");
+        String message = "You have been nominated as " + role +
+                " at \"" + companyName(companyId) + "\". Please accept or reject the nomination.";
+        broadcaster.sendNomination(userId, message, companyId);
     }
 
     @Override

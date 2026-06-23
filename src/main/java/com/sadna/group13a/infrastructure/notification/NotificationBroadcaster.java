@@ -1,5 +1,6 @@
 package com.sadna.group13a.infrastructure.notification;
 
+import com.sadna.group13a.application.Services.UserNotificationService;
 import com.sadna.group13a.domain.Interfaces.IPendingNotificationRepository;
 import com.sadna.group13a.infrastructure.PendingNotification;
 import com.vaadin.flow.component.UI;
@@ -17,9 +18,12 @@ public class NotificationBroadcaster {
     private final Map<String, UI> sessions = new ConcurrentHashMap<>();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final IPendingNotificationRepository pendingRepo;
+    private final UserNotificationService userNotificationService;
 
-    public NotificationBroadcaster(IPendingNotificationRepository pendingRepo) {
+    public NotificationBroadcaster(IPendingNotificationRepository pendingRepo,
+                                    UserNotificationService userNotificationService) {
         this.pendingRepo = pendingRepo;
+        this.userNotificationService = userNotificationService;
     }
 
     /**
@@ -48,10 +52,24 @@ public class NotificationBroadcaster {
 
     /**
      * Sends a notification to the user.
-     * If the user is online the message is pushed immediately via WebSocket.
-     * If the user is offline the message is stored and delivered on next login.
+     * Always persists to the user's notification inbox, then pushes immediately
+     * via WebSocket if online, or queues for deferred delivery if offline.
      */
     public void send(String userId, String message) {
+        userNotificationService.saveGeneral(userId, message);
+        dispatch(userId, message);
+    }
+
+    /**
+     * Sends a staff nomination notification, storing the companyId so the
+     * notifications page can render Accept / Decline action buttons.
+     */
+    public void sendNomination(String userId, String message, String companyId) {
+        userNotificationService.saveNomination(userId, message, companyId);
+        dispatch(userId, message);
+    }
+
+    private void dispatch(String userId, String message) {
         UI ui = sessions.get(userId);
         if (ui != null) {
             pushToUi(ui, message);
