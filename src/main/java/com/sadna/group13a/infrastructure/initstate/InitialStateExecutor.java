@@ -271,8 +271,10 @@ public class InitialStateExecutor {
                 throw new InitialStateException("invalid zone type '" + z.get("type") + "' (expected STANDING or SEATED)");
             }
             double basePrice = ((Number) z.get("basePrice")).doubleValue();
-            int capacity = ((Number) z.get("capacity")).intValue();
-            return new ZoneCreationDTO(name, type, basePrice, capacity);
+            int capacity = z.containsKey("capacity") ? ((Number) z.get("capacity")).intValue() : 0;
+            int rows = z.containsKey("rows") ? ((Number) z.get("rows")).intValue() : 0;
+            int columns = z.containsKey("columns") ? ((Number) z.get("columns")).intValue() : 0;
+            return new ZoneCreationDTO(name, type, basePrice, capacity, rows, columns);
         }).collect(Collectors.toList());
     }
 
