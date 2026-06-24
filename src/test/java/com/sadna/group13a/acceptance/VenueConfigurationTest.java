@@ -161,8 +161,8 @@ class VenueConfigurationTest {
         assertNull(eventRepository.findById("e1").get().getVenueMap(), "Pre: event must not have a venue map before configuration");
 
         List<ZoneCreationDTO> specs = List.of(
-                new ZoneCreationDTO("VIP", ZoneType.SEATED, 120.0, 3),
-                new ZoneCreationDTO("GA", ZoneType.STANDING, 50.0, 200));
+                new ZoneCreationDTO("VIP", ZoneType.SEATED, 120.0, 3, 0, 0),
+                new ZoneCreationDTO("GA", ZoneType.STANDING, 50.0, 200, 0, 0));
 
         Result<Void> result = eventService.createVenueMap(ownerToken, "e1", "Stadium", specs);
 
@@ -207,7 +207,7 @@ class VenueConfigurationTest {
         eventRepository.save(new Event("e1", "Show", "Desc", "comp1", LocalDateTime.now().plusDays(1), "Music"));
 
         // A standing zone with zero capacity is invalid in the domain.
-        List<ZoneCreationDTO> specs = List.of(new ZoneCreationDTO("GA", ZoneType.STANDING, 50.0, 0));
+        List<ZoneCreationDTO> specs = List.of(new ZoneCreationDTO("GA", ZoneType.STANDING, 50.0, 0, 0, 0));
 
         Result<Void> result = eventService.createVenueMap(ownerToken, "e1", "Stadium", specs);
 

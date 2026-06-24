@@ -241,7 +241,11 @@ public class EventService
                 if (spec == null || spec.type() == null) {
                     throw new IllegalArgumentException("Zone type must be specified");
                 }
-                zones.add(venueMapFactory.buildZone(spec.name(), spec.type(), spec.basePrice(), spec.capacity()));
+                if (spec.type() == ZoneType.SEATED && spec.rows() > 0 && spec.columns() > 0) {
+                    zones.add(venueMapFactory.buildZone(spec.name(), spec.type(), spec.basePrice(), spec.rows(), spec.columns()));
+                } else {
+                    zones.add(venueMapFactory.buildZone(spec.name(), spec.type(), spec.basePrice(), spec.capacity()));
+                }
             }
             venueMap = venueMapFactory.build(venueName, zones);
         } catch (IllegalArgumentException e) {
@@ -489,13 +493,13 @@ public class EventService
                     .map(s -> new SeatDTO(s.getId(), s.getLabel(), s.getEffectiveStatus()))
                     .collect(Collectors.toList());
             return new ZoneDTO(zone.getId(), zone.getName(), zone.getType(), zone.getBasePrice(),
-                    zone.getMaxCapacity(), zone.getAvailableSeatCount(), seatDTOs);
+                    zone.getMaxCapacity(), zone.getAvailableSeatCount(), seatDTOs, sz.getRows(), sz.getColumns());
         } else if (zone instanceof StandingZone stz) {
             return new ZoneDTO(zone.getId(), zone.getName(), zone.getType(), zone.getBasePrice(),
-                    stz.getMaxCapacity(), stz.getAvailableSeatCount(), null);
+                    stz.getMaxCapacity(), stz.getAvailableSeatCount(), null, 0, 0);
         }
         return new ZoneDTO(zone.getId(), zone.getName(), zone.getType(), zone.getBasePrice(),
-                zone.getMaxCapacity(), zone.getAvailableSeatCount(), null);
+                zone.getMaxCapacity(), zone.getAvailableSeatCount(), null, 0, 0);
     }
 
     @Transactional(readOnly = true)

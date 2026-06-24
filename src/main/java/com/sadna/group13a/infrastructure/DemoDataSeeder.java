@@ -122,9 +122,9 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "A smooth evening of live jazz featuring Israel's finest artists and international guests",
                 LocalDateTime.of(2026, 8, 15, 20, 0), "Music", "Tel Aviv Amphitheatre");
         eventService.createVenueMap(aliceToken, jazzId, "Tel Aviv Amphitheatre", List.of(
-                new ZoneCreationDTO("Front Row",        ZoneType.SEATED,   250.0,   50),
-                new ZoneCreationDTO("VIP Lounge",       ZoneType.SEATED,   400.0,   30),
-                new ZoneCreationDTO("General Standing", ZoneType.STANDING, 120.0,  500)
+                new ZoneCreationDTO("Front Row",        ZoneType.SEATED,    250.0,  50, 5, 10),
+                new ZoneCreationDTO("VIP Lounge",       ZoneType.SEATED,    400.0,  30, 3, 10),
+                new ZoneCreationDTO("General Standing", ZoneType.STANDING,  120.0, 500,  0,  0)
         ));
         publish(aliceToken, jazzId);
         logger.info("  [event] 'Jazz Night 2026' published — REGULAR, seated + standing.");
@@ -135,9 +135,9 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "The biggest Taylor Swift tribute in Israel — three hours of Eras-style hits",
                 LocalDateTime.of(2026, 9, 3, 19, 30), "Music", "Yarkon Park, Tel Aviv");
         eventService.createVenueMap(bobToken, taylorId, "Yarkon Park", List.of(
-                new ZoneCreationDTO("Pit",     ZoneType.STANDING, 180.0,  800),
-                new ZoneCreationDTO("Field A", ZoneType.STANDING, 130.0, 2000),
-                new ZoneCreationDTO("Field B", ZoneType.STANDING, 100.0, 3000)
+                new ZoneCreationDTO("Pit",     ZoneType.STANDING, 180.0,  800, 0, 0),
+                new ZoneCreationDTO("Field A", ZoneType.STANDING, 130.0, 2000, 0, 0),
+                new ZoneCreationDTO("Field B", ZoneType.STANDING, 100.0, 3000, 0, 0)
         ));
         eventService.setSaleMode(bobToken, taylorId, EventSaleMode.QUEUE);
         publish(bobToken, taylorId);
@@ -149,8 +149,8 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "Exclusive charity gala with celebrity guests — only 100 seats allocated by lottery",
                 LocalDateTime.of(2026, 10, 20, 19, 0), "Gala", "InterContinental Hotel, Tel Aviv");
         eventService.createVenueMap(aliceToken, galaId, "Grand Ballroom", List.of(
-                new ZoneCreationDTO("Table A — Gold",   ZoneType.SEATED, 800.0, 40),
-                new ZoneCreationDTO("Table B — Silver", ZoneType.SEATED, 600.0, 60)
+                new ZoneCreationDTO("Table A — Gold",   ZoneType.SEATED, 800.0, 40, 4, 10),
+                new ZoneCreationDTO("Table B — Silver", ZoneType.SEATED, 600.0, 60, 6, 10)
         ));
         raffleService.createRaffle(aliceToken, galaId, companyId);
         publish(aliceToken, galaId);
@@ -184,10 +184,10 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "Three days of rock legends across three stages — the biggest festival of the year",
                 LocalDateTime.of(2026, 7, 10, 16, 0), "Music", "HaPais Arena, Jerusalem");
         eventService.createVenueMap(frankToken, rockId, "HaPais Arena", List.of(
-                new ZoneCreationDTO("Floor",             ZoneType.STANDING, 200.0, 5000),
-                new ZoneCreationDTO("Bleachers North",   ZoneType.SEATED,   150.0, 1000),
-                new ZoneCreationDTO("Bleachers South",   ZoneType.SEATED,   150.0, 1000),
-                new ZoneCreationDTO("VIP Terrace",       ZoneType.SEATED,   500.0,  100)
+                new ZoneCreationDTO("Floor",           ZoneType.STANDING, 200.0, 5000, 0,  0),
+                new ZoneCreationDTO("Bleachers North", ZoneType.SEATED,   150.0, 1000, 20, 50),
+                new ZoneCreationDTO("Bleachers South", ZoneType.SEATED,   150.0, 1000, 20, 50),
+                new ZoneCreationDTO("VIP Terrace",     ZoneType.SEATED,   500.0,  100, 10, 10)
         ));
         publish(frankToken, rockId);
         logger.info("  [event] 'Rock Mega Festival' published — REGULAR, large mixed venue.");
@@ -198,8 +198,8 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "Israel's largest technology conference — limited raffle tickets for founders and investors",
                 LocalDateTime.of(2026, 11, 5, 9, 0), "Technology", "Tel Aviv Convention Center");
         eventService.createVenueMap(eveToken, techId, "Convention Center", List.of(
-                new ZoneCreationDTO("Main Hall",      ZoneType.SEATED,   350.0, 300),
-                new ZoneCreationDTO("Startup Lounge", ZoneType.STANDING, 200.0, 150)
+                new ZoneCreationDTO("Main Hall",      ZoneType.SEATED,   350.0, 300, 15, 20),
+                new ZoneCreationDTO("Startup Lounge", ZoneType.STANDING, 200.0, 150,  0,  0)
         ));
         raffleService.createRaffle(eveToken, techId, companyId);
         publish(eveToken, techId);

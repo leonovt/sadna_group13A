@@ -255,15 +255,17 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
             venueNameField.setValue(existing.getVenueName() != null ? existing.getVenueName() : "");
             if (existing.getZones() != null) {
                 for (var zone : existing.getZones()) {
-                    addZoneRow(zonesContainer, zoneRows, zone.getName(), zone.getType(), zone.getBasePrice(), zone.getCapacity());
+                    addZoneRow(zonesContainer, zoneRows, zone.getName(), zone.getType(), zone.getBasePrice(),
+                               zone.getCapacity(), zone.getRows() > 0 ? zone.getRows() : null,
+                               zone.getColumns() > 0 ? zone.getColumns() : null);
                 }
             }
         }
         if (zoneRows.isEmpty()) {
-            addZoneRow(zonesContainer, zoneRows, null, null, null, null);
+            addZoneRow(zonesContainer, zoneRows, null, null, null, null, null, null);
         }
 
-        Button addZoneBtn = new Button("+ Add Zone", e -> addZoneRow(zonesContainer, zoneRows, null, null, null, null));
+        Button addZoneBtn = new Button("+ Add Zone", e -> addZoneRow(zonesContainer, zoneRows, null, null, null, null, null, null));
 
         Button saveBtn = new Button("Save", click -> {
             statusMessage.setVisible(false);
@@ -284,8 +286,9 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
     }
 
     private void addZoneRow(VerticalLayout container, List<ZoneRow> rows,
-                             String name, ZoneType type, Double price, Integer capacity) {
-        ZoneRow row = new ZoneRow(name, type, price, capacity);
+                             String name, ZoneType type, Double price, Integer capacity,
+                             Integer rowCount, Integer columnCount) {
+        ZoneRow row = new ZoneRow(name, type, price, capacity, rowCount, columnCount);
         row.removeBtn.addClickListener(e -> {
             container.remove(row.layout);
             rows.remove(row);
@@ -295,31 +298,59 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
     }
 
     private static final class ZoneRow {
-        final TextField name         = new TextField("Zone name");
-        final Select<ZoneType> type  = new Select<>();
-        final NumberField price      = new NumberField("Price");
-        final IntegerField capacity  = new IntegerField("Seats / capacity");
-        final Button removeBtn       = new Button("✕");
-        final HorizontalLayout layout = new HorizontalLayout();
+        final TextField name           = new TextField("Zone name");
+        final Select<ZoneType> type    = new Select<>();
+        final NumberField price        = new NumberField("Price");
+        final IntegerField capacity    = new IntegerField("Capacity");
+        final IntegerField rowsField   = new IntegerField("Rows");
+        final IntegerField colsField   = new IntegerField("Columns");
+        final Button removeBtn         = new Button("✕");
+        final HorizontalLayout layout  = new HorizontalLayout();
 
-        ZoneRow(String nameVal, ZoneType typeVal, Double priceVal, Integer capacityVal) {
+        ZoneRow(String nameVal, ZoneType typeVal, Double priceVal, Integer capacityVal,
+                Integer rowCount, Integer columnCount) {
             type.setLabel("Type");
             type.setItems(ZoneType.SEATED, ZoneType.STANDING);
-            type.setValue(typeVal != null ? typeVal : ZoneType.SEATED);
+            ZoneType initialType = typeVal != null ? typeVal : ZoneType.SEATED;
+            type.setValue(initialType);
+
             price.setMin(0);
             capacity.setMin(1);
+            rowsField.setMin(1);
+            colsField.setMin(1);
+
             if (nameVal != null) name.setValue(nameVal);
             if (priceVal != null) price.setValue(priceVal);
             if (capacityVal != null) capacity.setValue(capacityVal);
-            layout.add(name, type, price, capacity, removeBtn);
+            if (rowCount != null) rowsField.setValue(rowCount);
+            if (columnCount != null) colsField.setValue(columnCount);
+
+            applyTypeLayout(initialType);
+            type.addValueChangeListener(e -> applyTypeLayout(e.getValue()));
+
+            layout.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.BASELINE);
+            layout.add(name, type, price, rowsField, colsField, capacity, removeBtn);
+        }
+
+        private void applyTypeLayout(ZoneType t) {
+            boolean seated = t == ZoneType.SEATED;
+            rowsField.setVisible(seated);
+            colsField.setVisible(seated);
+            capacity.setVisible(!seated);
         }
 
         boolean isBlank() { return name.getValue() == null || name.getValue().isBlank(); }
 
         ZoneCreationDTO toDTO() {
             double basePrice = price.getValue() != null ? price.getValue() : 0.0;
-            int cap = capacity.getValue() != null ? capacity.getValue() : 0;
-            return new ZoneCreationDTO(name.getValue().trim(), type.getValue(), basePrice, cap);
+            if (type.getValue() == ZoneType.SEATED) {
+                int rows = rowsField.getValue() != null ? rowsField.getValue() : 0;
+                int cols = colsField.getValue() != null ? colsField.getValue() : 0;
+                return new ZoneCreationDTO(name.getValue().trim(), ZoneType.SEATED, basePrice, rows * cols, rows, cols);
+            } else {
+                int cap = capacity.getValue() != null ? capacity.getValue() : 0;
+                return new ZoneCreationDTO(name.getValue().trim(), ZoneType.STANDING, basePrice, cap, 0, 0);
+            }
         }
     }
 

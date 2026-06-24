@@ -12,9 +12,11 @@ public class ZoneDTO {
     private final int capacity;
     private final int available;
     private final List<SeatDTO> seats; // null for standing zones
+    private final int rows;
+    private final int columns;
 
     public ZoneDTO(String id, String name, ZoneType type, double basePrice,
-                   int capacity, int available, List<SeatDTO> seats) {
+                   int capacity, int available, List<SeatDTO> seats, int rows, int columns) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -22,6 +24,8 @@ public class ZoneDTO {
         this.capacity = capacity;
         this.available = available;
         this.seats = seats;
+        this.rows = rows;
+        this.columns = columns;
     }
 
     public String getId() { return id; }
@@ -31,4 +35,6 @@ public class ZoneDTO {
     public int getCapacity() { return capacity; }
     public int getAvailable() { return available; }
     public List<SeatDTO> getSeats() { return seats; }
+    public int getRows() { return rows; }
+    public int getColumns() { return columns; }
 }

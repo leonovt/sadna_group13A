@@ -12,6 +12,7 @@ import com.sadna.group13a.domain.Aggregates.Event.SeatStatus;
 import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
@@ -184,23 +185,71 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
     }
 
     private VerticalLayout buildZoneSection(ZoneDTO zone, String token) {
-        VerticalLayout layout = new VerticalLayout();
-        layout.getStyle()
+        VerticalLayout section = new VerticalLayout();
+        section.getStyle()
             .set("border", "1px solid var(--lumo-contrast-20pct)")
-            .set("padding", "1em")
-            .set("border-radius", "4px");
+            .set("border-radius", "var(--lumo-border-radius-m)")
+            .set("padding", "1em");
 
         String typeLabel = zone.getType() == ZoneType.SEATED ? "Seated" : "Standing";
-        layout.add(new H3(zone.getName() + " (" + typeLabel + ")"));
-        layout.add(new Paragraph(String.format("Price: $%.2f  |  Available: %d / %d",
+        H3 header = new H3(zone.getName() + " (" + typeLabel + ")");
+        header.getStyle().set("margin-top", "0");
+        section.add(header);
+        section.add(new Paragraph(String.format("Price: $%.2f  |  Available: %d / %d",
                 zone.getBasePrice(), zone.getAvailable(), zone.getCapacity())));
 
-        if (zone.getType() == ZoneType.SEATED) {
-            layout.add(buildSeatedContent(zone, token));
+        if (zone.getType() == ZoneType.SEATED && zone.getRows() > 0 && zone.getColumns() > 0) {
+            section.add(buildTheaterGrid(zone, token));
+        } else if (zone.getType() == ZoneType.SEATED) {
+            section.add(buildSeatedContent(zone, token));
         } else {
-            layout.add(buildStandingContent(zone, token));
+            section.add(buildStandingContent(zone, token));
         }
-        return layout;
+        return section;
+    }
+
+    private Div buildTheaterGrid(ZoneDTO zone, String token) {
+        Div wrapper = new Div();
+
+        // Stage bar
+        Div stageBar = new Div(new Span("★  STAGE  ★"));
+        stageBar.getStyle()
+            .set("background", "var(--lumo-contrast-10pct)")
+            .set("text-align", "center")
+            .set("padding", "0.4em 1em")
+            .set("border-radius", "var(--lumo-border-radius-m) var(--lumo-border-radius-m) 0 0")
+            .set("font-weight", "600")
+            .set("letter-spacing", "0.15em")
+            .set("color", "var(--lumo-secondary-text-color)")
+            .set("margin-bottom", "8px")
+            .set("width", "100%");
+        wrapper.add(stageBar);
+
+        // Seat grid — seats are already ordered A1, A2 … by VenueMapFactory
+        Div grid = new Div();
+        grid.getStyle()
+            .set("display", "grid")
+            .set("grid-template-columns", "repeat(" + zone.getColumns() + ", auto)")
+            .set("gap", "4px")
+            .set("justify-content", "start");
+
+        if (zone.getSeats() != null) {
+            for (SeatDTO seat : zone.getSeats()) {
+                Button btn = new Button(seat.getLabel());
+                btn.getStyle().set("min-width", "3em").set("padding", "0.2em 0.4em");
+                if (seat.getStatus() == SeatStatus.AVAILABLE) {
+                    btn.addClickListener(e ->
+                        presenter.addSeatedTicket(token, eventId, zone.getId(), seat.getId(), this)
+                    );
+                } else {
+                    btn.setEnabled(false);
+                    btn.getStyle().set("opacity", "0.4");
+                }
+                grid.add(btn);
+            }
+        }
+        wrapper.add(grid);
+        return wrapper;
     }
 
     private FlexLayout buildSeatedContent(ZoneDTO zone, String token) {

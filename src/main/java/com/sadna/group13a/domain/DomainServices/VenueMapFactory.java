@@ -37,9 +37,21 @@ public class VenueMapFactory {
             for (int i = 1; i <= capacity; i++) {
                 seats.add(new Seat(UUID.randomUUID().toString(), name + " " + i));
             }
-            return new SeatedZone(zoneId, name, basePrice, seats);
+            return new SeatedZone(zoneId, name, basePrice, seats, 0, 0);
         }
         return new StandingZone(zoneId, name, basePrice, capacity);
+    }
+
+    public Zone buildZone(String name, ZoneType type, double basePrice, int rows, int columns) {
+        String zoneId = UUID.randomUUID().toString();
+        List<Seat> seats = new ArrayList<>();
+        for (int r = 0; r < rows; r++) {
+            String rowLabel = r < 26 ? String.valueOf((char) ('A' + r)) : "R" + (r + 1);
+            for (int c = 1; c <= columns; c++) {
+                seats.add(new Seat(UUID.randomUUID().toString(), rowLabel + c));
+            }
+        }
+        return new SeatedZone(zoneId, name, basePrice, seats, rows, columns);
     }
 
     /**

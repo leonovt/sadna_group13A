@@ -12,5 +12,5 @@ import com.sadna.group13a.domain.Aggregates.Event.ZoneType;
  * {@link ZoneType#SEATED} zone, or the maximum standing capacity for a
  * {@link ZoneType#STANDING} zone.</p>
  */
-public record ZoneCreationDTO(String name, ZoneType type, double basePrice, int capacity) {
+public record ZoneCreationDTO(String name, ZoneType type, double basePrice, int capacity, int rows, int columns) {
 }
