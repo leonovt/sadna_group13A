@@ -165,6 +165,12 @@
                         <goals>
                             <goal>report</goal>
                         </goals>
+                        <configuration>
+                            <excludes>
+                                <exclude>com/sadna/group13a/presentation/**</exclude>
+                                <exclude>com/sadna/group13a/infrastructure/DemoDataSeeder.class</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>check</id>
