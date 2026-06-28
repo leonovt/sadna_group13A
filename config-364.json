@@ -1,0 +1,60 @@
+[
+  { "action": "register", "args": { "username": "User1", "password": "User1pass123" } },
+  { "action": "register", "args": { "username": "User2", "password": "User2pass123" } },
+  { "action": "register", "args": { "username": "User3", "password": "User3pass123", "birthDate": "2005-01-01" } },
+  { "action": "register", "args": { "username": "User4", "password": "User4pass123" } },
+
+  { "action": "login",
+    "args": { "username": "User1", "password": "User1pass123" },
+    "bindTo": "u1_token" },
+
+  { "action": "create-company",
+    "args": { "token": "u1_token", "name": "C1", "description": "Company C1" },
+    "bindTo": "c1_id" },
+
+  { "action": "create-event",
+    "args": {
+      "token": "u1_token",
+      "companyId": "c1_id",
+      "title": "E1",
+      "description": "Event E1 — 10 standing tickets and 10 seats",
+      "date": "2026-12-31T20:00"
+    },
+    "bindTo": "e1_id" },
+
+  { "action": "create-venue-map",
+    "args": {
+      "token": "u1_token",
+      "eventId": "e1_id",
+      "venueName": "E1 Venue",
+      "zones": [
+        { "name": "Standing Zone", "type": "STANDING", "basePrice": 0.0, "capacity": 10 },
+        { "name": "Seated Zone",   "type": "SEATED",   "basePrice": 0.0, "rows": 2, "columns": 5 }
+      ]
+    }
+  },
+
+  { "action": "create-event",
+    "args": {
+      "token": "u1_token",
+      "companyId": "c1_id",
+      "title": "E2",
+      "description": "Event E2 — 10 standing tickets and 10 seats, each costing $10",
+      "date": "2027-03-15T20:00"
+    },
+    "bindTo": "e2_id" },
+
+  { "action": "create-venue-map",
+    "args": {
+      "token": "u1_token",
+      "eventId": "e2_id",
+      "venueName": "E2 Venue",
+      "zones": [
+        { "name": "Standing Zone", "type": "STANDING", "basePrice": 10.0, "capacity": 10 },
+        { "name": "Seated Zone",   "type": "SEATED",   "basePrice": 10.0, "rows": 2, "columns": 5 }
+      ]
+    }
+  },
+
+  { "action": "logout", "args": { "token": "u1_token" } }
+]

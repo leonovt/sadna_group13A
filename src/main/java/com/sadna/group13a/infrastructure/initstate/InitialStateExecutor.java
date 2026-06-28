@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,7 +34,7 @@ import java.util.stream.Collectors;
  *
  * <p>Supported actions and their arguments:</p>
  * <ul>
- *   <li>{@code register}       — username, password</li>
+ *   <li>{@code register}       — username, password, [birthDate] (ISO date, e.g. 2005-01-01)</li>
  *   <li>{@code login}          — username, password            (bindTo: auth token)</li>
  *   <li>{@code enter-as-guest} — (none)                        (bindTo: guest token)</li>
  *   <li>{@code create-company} — token, name, [description]    (bindTo: company id)</li>
@@ -102,7 +103,18 @@ public class InitialStateExecutor {
 
     private void dispatch(Ctx c) {
         switch (c.op.action()) {
-            case "register" -> require(c, userService.register(c.arg("username"), c.arg("password")));
+            case "register" -> {
+                require(c, userService.register(c.arg("username"), c.arg("password")));
+                String birthDateStr = c.optArg("birthDate", null);
+                if (birthDateStr != null) {
+                    Result<String> loginR = userService.login(c.arg("username"), c.arg("password"));
+                    if (loginR.isSuccess()) {
+                        String tmpToken = loginR.getOrThrow();
+                        userService.updateBirthDate(tmpToken, LocalDate.parse(birthDateStr));
+                        userService.logout(tmpToken);
+                    }
+                }
+            }
 
             case "login" -> {
                 Result<String> r = userService.login(c.arg("username"), c.arg("password"));
