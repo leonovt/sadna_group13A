@@ -265,14 +265,14 @@ public class CompanyService {
         }
         try {
             ProductionCompany company = compOpt.get();
-            Set<String> subtree = companyStaffDomainService.cascadeRemove(company, actingUserId, targetUserId);
+            Set<String> removed = companyStaffDomainService.removeStaffMember(company, actingUserId, targetUserId);
             companyRepository.save(company);
-            removeRolesForSubtree(subtree, companyId);
+            removeRolesForSubtree(removed, companyId);
 
-            List<String> allRemoved = buildRemovedList(targetUserId, subtree);
+            List<String> allRemoved = buildRemovedList(targetUserId, removed);
             eventPublisher.publishEvent(new StaffRemovedEvent(allRemoved, companyId, actingUserId));
-            logger.warn("User '{}' fired manager '{}' from company '{}' (cascade removed {} subtree member(s)).",
-                    actingUserId, targetUserId, companyId, subtree.size() - 1);
+            logger.warn("User '{}' fired manager '{}' from company '{}' (appointees, if any, re-parented to their appointer).",
+                    actingUserId, targetUserId, companyId);
             return Result.success();
         } catch (Exception e) {
             logger.warn("fireManager failed for actor '{}' targeting '{}' in company '{}': {}",
@@ -315,14 +315,14 @@ public class CompanyService {
         }
 
         try {
-            Set<String> subtree = companyStaffDomainService.cascadeRemove(company, actingUserId, targetUserId);
+            Set<String> removed = companyStaffDomainService.removeStaffMember(company, actingUserId, targetUserId);
             companyRepository.save(company);
-            removeRolesForSubtree(subtree, companyId);
+            removeRolesForSubtree(removed, companyId);
 
-            List<String> allRemoved = buildRemovedList(targetUserId, subtree);
+            List<String> allRemoved = buildRemovedList(targetUserId, removed);
             eventPublisher.publishEvent(new StaffRemovedEvent(allRemoved, companyId, actingUserId));
-            logger.warn("User '{}' removed owner '{}' from company '{}' (cascade removed {} subtree member(s)).",
-                    actingUserId, targetUserId, companyId, subtree.size() - 1);
+            logger.warn("User '{}' removed owner '{}' from company '{}'; the owner's managers were re-parented to the owner's appointer and remain active.",
+                    actingUserId, targetUserId, companyId);
             return Result.success();
         } catch (Exception e) {
             logger.warn("removeOwner failed for actor '{}' targeting '{}' in company '{}': {}",
@@ -345,13 +345,14 @@ public class CompanyService {
         }
         try {
             ProductionCompany company = compOpt.get();
-            Set<String> subtree = companyStaffDomainService.resignAndGetSubtree(company, actingUserId);
+            Set<String> removed = companyStaffDomainService.resign(company, actingUserId);
             companyRepository.save(company);
-            removeRolesForSubtree(subtree, companyId);
+            removeRolesForSubtree(removed, companyId);
 
-            List<String> allRemoved = buildRemovedList(actingUserId, subtree);
+            List<String> allRemoved = buildRemovedList(actingUserId, removed);
             eventPublisher.publishEvent(new StaffRemovedEvent(allRemoved, companyId, actingUserId));
-            logger.info("User '{}' resigned from company '{}'.", actingUserId, companyId);
+            logger.info("User '{}' resigned from company '{}'; appointees, if any, re-parented to their appointer.",
+                    actingUserId, companyId);
             return Result.success();
         } catch (Exception e) {
             logger.warn("resign failed for user '{}' in company '{}': {}",
