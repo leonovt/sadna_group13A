@@ -19,5 +19,17 @@
     },
     "bindTo": "jazz_night" },
 
+  { "action": "create-venue-map",
+    "args": {
+      "token": "alice_token",
+      "eventId": "jazz_night",
+      "venueName": "Tel Aviv Amphitheatre",
+      "zones": [
+        { "name": "Orchestra",        "type": "SEATED",   "basePrice": 180.0, "rows": 8, "columns": 12 },
+        { "name": "General Standing", "type": "STANDING", "basePrice": 90.0,  "capacity": 200 }
+      ]
+    }
+  },
+
   { "action": "publish-event", "args": { "token": "alice_token", "eventId": "jazz_night" } }
 ]
