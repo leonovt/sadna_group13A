@@ -63,7 +63,7 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         header.setAlignItems(Alignment.CENTER);
-        header.add(new H2("Admin Dashboard"), new Button("Logout", e -> presenter.handleLogout()));
+        header.add(new H2("Admin Dashboard"));
 
         // ── Status message ────────────────────────────────────────
         statusMessage.setVisible(false);
