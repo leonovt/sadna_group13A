@@ -35,4 +35,13 @@ public class UserNotificationService {
     public void dismiss(String notificationId) {
         repository.deleteById(notificationId);
     }
+
+    /**
+     * Clears a user's staff-nomination invitation for a company once they have accepted or
+     * rejected it, so the notification does not reappear after a page refresh (issue #368).
+     */
+    @Transactional
+    public void dismissNomination(String userId, String companyId) {
+        repository.deleteNominations(userId, companyId);
+    }
 }

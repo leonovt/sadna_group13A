@@ -47,7 +47,7 @@ public class CompanyDashboardView extends VerticalLayout implements BeforeEnterO
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         header.setAlignItems(Alignment.CENTER);
-        header.add(new H2("Company Dashboard"), new Button("Logout", e -> presenter.handleLogout()));
+        header.add(new H2("Company Dashboard"));
 
         statusMessage.setVisible(false);
         statusMessage.getStyle().set("font-weight", "bold");
