@@ -115,7 +115,7 @@ class InitialStateExecutorTest {
     void addToCartThenCheckoutResolvesBoundOrderId() {
         when(orderService.addBatchItemsToCart("tok", "e1", "z1", null, 2))
                 .thenReturn(Result.success("order-9"));
-        when(orderService.executeCheckout(eq("tok"), eq("order-9"), any(), eq("{\"card\":\"x\"}")))
+        when(orderService.executeCheckout(eq("tok"), eq("order-9"), any(), any(), eq("{\"card\":\"x\"}")))
                 .thenReturn(Result.success(null));
 
         executor.execute(List.of(
@@ -123,7 +123,7 @@ class InitialStateExecutorTest {
                 op("checkout", Map.of("token", "tok", "orderId", "cart", "paymentDetails", "{\"card\":\"x\"}"), null)
         ));
 
-        verify(orderService).executeCheckout(eq("tok"), eq("order-9"), any(), eq("{\"card\":\"x\"}"));
+        verify(orderService).executeCheckout(eq("tok"), eq("order-9"), any(), any(), eq("{\"card\":\"x\"}"));
     }
 
     @Test

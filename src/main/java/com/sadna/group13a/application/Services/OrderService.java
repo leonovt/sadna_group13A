@@ -233,14 +233,16 @@ public class OrderService {
      *
      * @param token           authenticated user token
      * @param activeOrderId   the cart to check out
-     * @param optionalAuthCode raffle authorization code (null for REGULAR/QUEUE events)
+     * @param raffleAuthCode  raffle authorization code (null for REGULAR/QUEUE events)
+     * @param couponCodes     optional discount coupon codes (null or empty if none)
      * @param paymentDetails  payment instrument data passed to the payment gateway
      */
     @Transactional
     public Result<OrderHistoryDTO> executeCheckout(
             String token,
             String activeOrderId,
-            String optionalAuthCode,
+            String raffleAuthCode,
+            List<String> couponCodes,
             String paymentDetails) {
 
         if (!authGateway.validateToken(token)) {
@@ -321,13 +323,13 @@ public class OrderService {
             if (event.getSaleMode() == EventSaleMode.QUEUE) {
                 queue = queueRepository.findByEventId(eventId).orElse(null);
             } else if (event.getSaleMode() == EventSaleMode.RAFFLE) {
-                if (optionalAuthCode == null || optionalAuthCode.isBlank()) {
+                if (raffleAuthCode == null || raffleAuthCode.isBlank()) {
                     rollbackSoldSeats(processedEvents, order.getItems());
                     return Result.failure("A raffle authorization code is required to complete this purchase.");
                 }
                 java.util.Optional<AuthorizationCode> resolvedCode = ticketingAccessDomainService
                         .resolveRaffleAuthCode(raffleRepository.findByEventId(eventId), userId, eventId);
-                if (resolvedCode.isEmpty() || !resolvedCode.get().getCode().equals(optionalAuthCode.trim())) {
+                if (resolvedCode.isEmpty() || !resolvedCode.get().getCode().equals(raffleAuthCode.trim())) {
                     rollbackSoldSeats(processedEvents, order.getItems());
                     eventPublisher.publishEvent(new CheckoutFailedEvent(userId, "Invalid raffle authorization code."));
                     return Result.failure("Invalid raffle authorization code.");
@@ -355,9 +357,10 @@ public class OrderService {
             int companyTicketCount = companyTicketCounts.getOrDefault(event.getCompanyId(), eventTicketCount);
             int userAge = (checkoutUserOpt.get() instanceof Member m) ? m.getAge() : 0;
 
-            PurchaseContext eventPurchaseCtx   = new PurchaseContext(userId, eventTicketCount, userAge, optionalAuthCode);
-            PurchaseContext companyPurchaseCtx = new PurchaseContext(userId, companyTicketCount, userAge, optionalAuthCode);
-            DiscountContext discountCtx        = new DiscountContext(userId, eventTicketCount, optionalAuthCode);
+            List<String> coupons = (couponCodes != null) ? couponCodes : List.of();
+            PurchaseContext eventPurchaseCtx   = new PurchaseContext(userId, eventTicketCount, userAge, coupons);
+            PurchaseContext companyPurchaseCtx = new PurchaseContext(userId, companyTicketCount, userAge, coupons);
+            DiscountContext discountCtx        = new DiscountContext(userId, eventTicketCount, coupons);
 
             // Check company-level policy first using the company-total count.
             List<String> companyPolicyFailures = company.getPurchasePolicy().getFailureReasons(companyPurchaseCtx);
@@ -531,6 +534,12 @@ public class OrderService {
                 .map(i -> new OrderItemDTO(i.getEventId(), i.getZoneId(), i.getSeatId(), i.getBasePrice()))
                 .collect(Collectors.toList());
 
+        boolean hasRaffleEvent = order.getItems().stream()
+                .map(i -> eventRepository.findById(i.getEventId()))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .anyMatch(e -> e.getSaleMode() == EventSaleMode.RAFFLE);
+
         logger.debug("viewCart: user '{}' retrieved cart '{}' ({} item(s)).", userId, order.getId(), itemDTOs.size());
         return Result.success(new OrderDTO(
                 order.getId(),
@@ -538,7 +547,8 @@ public class OrderService {
                 order.getStatus(),
                 order.getExpiresAt(),
                 order.getItems().stream().mapToDouble(OrderItem::getBasePrice).sum(),
-                itemDTOs));
+                itemDTOs,
+                hasRaffleEvent));
     }
 
     /**

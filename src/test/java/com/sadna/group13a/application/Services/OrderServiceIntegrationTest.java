@@ -235,7 +235,7 @@ class OrderServiceIntegrationTest {
             // Phase 2: user executes the checkout — the service orchestrates:
             //   access validation → domain checkout → payment → persistence → notification.
             Result<OrderHistoryDTO> checkoutResult =
-                    orderService.executeCheckout(VALID_TOKEN, activeOrderId, null, "card-4111-1111-1111-1111");
+                    orderService.executeCheckout(VALID_TOKEN, activeOrderId, null, null, "card-4111-1111-1111-1111");
 
             // ── THEN ──────────────────────────────────────────────────────────────
 
@@ -408,7 +408,7 @@ class OrderServiceIntegrationTest {
         @DisplayName("Given an invalid token, checkout fails and no history is persisted")
         void givenInvalidToken_whenExecuteCheckout_thenFailureAndNoHistory() {
             Result<OrderHistoryDTO> result =
-                    orderService.executeCheckout("INVALID-TOKEN", "any-order-id", null, "card");
+                    orderService.executeCheckout("INVALID-TOKEN", "any-order-id", null, null, "card");
 
             assertFalse(result.isSuccess(),
                     "Checkout must reject an invalid token");
@@ -426,7 +426,7 @@ class OrderServiceIntegrationTest {
             orderRepo.save(emptyCart);
 
             Result<OrderHistoryDTO> result =
-                    orderService.executeCheckout(VALID_TOKEN, emptyCart.getId(), null, "card");
+                    orderService.executeCheckout(VALID_TOKEN, emptyCart.getId(), null, null, "card");
 
             assertFalse(result.isSuccess(),
                     "Checkout must fail for an empty cart");
@@ -446,7 +446,7 @@ class OrderServiceIntegrationTest {
             orderRepo.save(otherCart);
 
             Result<OrderHistoryDTO> result =
-                    orderService.executeCheckout(VALID_TOKEN, otherCart.getId(), null, "card");
+                    orderService.executeCheckout(VALID_TOKEN, otherCart.getId(), null, null, "card");
 
             assertFalse(result.isSuccess(),
                     "Checkout must reject a cart that does not belong to the authenticated user");
@@ -466,7 +466,7 @@ class OrderServiceIntegrationTest {
 
             // WHEN: attempt checkout with a gateway that will decline.
             Result<OrderHistoryDTO> checkoutResult =
-                    orderService.executeCheckout(VALID_TOKEN, activeOrderId, null, "bad-card");
+                    orderService.executeCheckout(VALID_TOKEN, activeOrderId, null, null, "bad-card");
 
             // THEN
             assertFalse(checkoutResult.isSuccess(),

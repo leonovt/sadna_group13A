@@ -43,7 +43,7 @@ public class CouponDiscount implements DiscountPolicy {
 
     @Override
     public double calculateDiscount(double basePrice, DiscountContext ctx) {
-        if (!code.equals(ctx.couponCode())) return 0.0;
+        if (ctx.couponCodes() == null || !ctx.couponCodes().contains(code)) return 0.0;
         LocalDate today = LocalDate.now();
         if (startDate != null && today.isBefore(startDate)) return 0.0;
         if (endDate   != null && today.isAfter(endDate))    return 0.0;

@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DiscountPolicyTest {
 
     private static DiscountContext ctx(int tickets, String coupon) {
-        return new DiscountContext("u1", tickets, coupon);
+        return new DiscountContext("u1", tickets, coupon == null ? List.of() : List.of(coupon));
     }
 
     // ── CouponDiscount ────────────────────────────────────────────────────────

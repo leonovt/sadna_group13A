@@ -225,7 +225,7 @@ class TicketIssuanceRobustnessTest {
 
             String cartId = placeItemInCart();
             Result<OrderHistoryDTO> result =
-                    orderService.executeCheckout(VALID_TOKEN, cartId, null, "card");
+                    orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card");
 
             // Checkout must fail.
             assertFalse(result.isSuccess(),
@@ -254,7 +254,7 @@ class TicketIssuanceRobustnessTest {
 
             String cartId = placeItemInCart();
             Result<OrderHistoryDTO> result =
-                    orderService.executeCheckout(VALID_TOKEN, cartId, null, "card");
+                    orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card");
 
             assertFalse(result.isSuccess(),
                     "Checkout must fail when the ticket supplier times out");
@@ -276,7 +276,7 @@ class TicketIssuanceRobustnessTest {
                     .thenReturn(Result.failure("Service unavailable"));
 
             String cartId = placeItemInCart();
-            orderService.executeCheckout(VALID_TOKEN, cartId, null, "card");
+            orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card");
 
             // refundPayment must be called with the exact transaction ID, not a guess.
             verify(paymentGateway, times(1)).refundPayment(TRANSACTION_ID);
@@ -291,7 +291,7 @@ class TicketIssuanceRobustnessTest {
                     .thenReturn(Result.failure("Quota exceeded"));
 
             String cartId = placeItemInCart();
-            orderService.executeCheckout(VALID_TOKEN, cartId, null, "card");
+            orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card");
 
             assertTrue(historyRepo.findByUserId(USER_ID).isEmpty(),
                     "OrderHistory must only be saved after successful ticket issuance — "
@@ -306,7 +306,7 @@ class TicketIssuanceRobustnessTest {
                     .thenReturn(Result.failure("Supplier unreachable"));
 
             String cartId = placeItemInCart();
-            orderService.executeCheckout(VALID_TOKEN, cartId, null, "card");
+            orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card");
 
             // Unlike payment failure (where the cart survives for retry), ticket failure
             // voids the entire order — the cart must be cleaned up.
@@ -324,7 +324,7 @@ class TicketIssuanceRobustnessTest {
                     .thenReturn(Result.failure("Rejected"));
 
             String cartId = placeItemInCart();
-            orderService.executeCheckout(VALID_TOKEN, cartId, null, "card");
+            orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card");
 
             verify(ticketSupplier, times(1)).issueTickets(anyString(), argThat(list -> list.size() == 1));
         }
@@ -372,7 +372,7 @@ class TicketIssuanceRobustnessTest {
 
             String cartId = placeItemInCart();
             Result<OrderHistoryDTO> result =
-                    orderService.executeCheckout(VALID_TOKEN, cartId, null, "card");
+                    orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card");
 
             // Checkout must still return failure — never succeed when tickets weren't issued.
             assertFalse(result.isSuccess(),
@@ -425,7 +425,7 @@ class TicketIssuanceRobustnessTest {
 
             // executeCheckout must catch the exception and return Result.failure.
             Result<OrderHistoryDTO> result = assertDoesNotThrow(
-                    () -> orderService.executeCheckout(VALID_TOKEN, cartId, null, "card"),
+                    () -> orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card"),
                     "executeCheckout must catch RuntimeException from the ticket supplier "
                             + "and return Result.failure instead of throwing");
 
