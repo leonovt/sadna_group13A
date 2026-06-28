@@ -26,6 +26,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 @Route("checkout")
@@ -51,7 +52,11 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
     private final TextField cvvField = new TextField("CVV");
     private final TextField idField = new TextField("ID Number");
     private final TextField currencyField = new TextField("Currency");
-    private final TextField authCodeField = new TextField("Authorization / Coupon Code");
+    private final TextField couponInputField = new TextField("Coupon Code");
+    private final Button applyCouponBtn = new Button("Apply Coupon");
+    private final List<String> appliedCouponCodes = new ArrayList<>();
+    private final VerticalLayout couponChipsLayout = new VerticalLayout();
+    private final TextField raffleAuthCodeField = new TextField("Raffle Authorization Code");
 
     // ── Receipt section ───────────────────────────────────────────
     private final VerticalLayout receiptSection = new VerticalLayout();
@@ -142,16 +147,32 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                 cardNumberField, holderField, monthField, yearField, cvvField, idField, currencyField);
         cardForm.setWidthFull();
 
-        authCodeField.setWidthFull();
-        authCodeField.setPlaceholder("Required for raffle events");
-        authCodeField.setHelperText("Raffle winners: enter your authorization code. Other events: enter a coupon code if you have one.");
+        couponInputField.setPlaceholder("Enter coupon code");
+        couponInputField.setWidthFull();
+        couponChipsLayout.setPadding(false);
+        couponChipsLayout.setSpacing(false);
+        applyCouponBtn.addClickListener(e -> {
+            String val = couponInputField.getValue().trim();
+            if (!val.isBlank() && !appliedCouponCodes.contains(val)) {
+                appliedCouponCodes.add(val);
+                refreshCouponChips();
+                couponInputField.clear();
+            }
+        });
+
+        raffleAuthCodeField.setPlaceholder("Enter your raffle authorization code");
+        raffleAuthCodeField.setWidthFull();
+        raffleAuthCodeField.setVisible(false);
 
         Button placeOrderBtn = new Button("Place Order", e -> {
             statusMessage.setVisible(false);
             PaymentDetails details = new PaymentDetails(
                     cardNumberField.getValue(), monthField.getValue(), yearField.getValue(),
                     holderField.getValue(), cvvField.getValue(), idField.getValue(), currencyField.getValue());
-            presenter.handleCheckout(currentOrderId, authCodeField.getValue(), details, this);
+            presenter.handleCheckout(currentOrderId,
+                    raffleAuthCodeField.getValue(),
+                    new ArrayList<>(appliedCouponCodes),
+                    details, this);
         });
         placeOrderBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -164,10 +185,15 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         HorizontalLayout actions = new HorizontalLayout(placeOrderBtn, cancelBtn);
         actions.setAlignItems(Alignment.BASELINE);
 
+        HorizontalLayout couponRow = new HorizontalLayout(couponInputField, applyCouponBtn);
+        couponRow.setAlignItems(Alignment.BASELINE);
+        couponRow.setWidthFull();
+
         cartSection.setPadding(false);
         cartSection.add(
                 itemsGrid, expiryLabel, totalLabel,
-                new H3("Payment"), cardForm, authCodeField,
+                new H3("Payment"), cardForm,
+                couponRow, couponChipsLayout, raffleAuthCodeField,
                 actions
         );
 
@@ -179,6 +205,28 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
     }
 
     // ── View callbacks ────────────────────────────────────────────
+
+    private void refreshCouponChips() {
+        couponChipsLayout.removeAll();
+        for (String code : appliedCouponCodes) {
+            HorizontalLayout chip = new HorizontalLayout();
+            chip.setAlignItems(Alignment.CENTER);
+            chip.setSpacing(false);
+            chip.getStyle()
+                    .set("background", "var(--lumo-primary-color-10pct)")
+                    .set("border-radius", "1em")
+                    .set("padding", "0.2em 0.6em")
+                    .set("margin", "0.2em");
+            Span codeLabel = new Span(code);
+            Button removeBtn = new Button("×", ev -> {
+                appliedCouponCodes.remove(code);
+                refreshCouponChips();
+            });
+            removeBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+            chip.add(codeLabel, removeBtn);
+            couponChipsLayout.add(chip);
+        }
+    }
 
     public void showError(String message) {
         statusMessage.setText(message);
@@ -196,6 +244,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         } else {
             expiryLabel.setVisible(false);
         }
+        raffleAuthCodeField.setVisible(cart.hasRaffleEvent());
         cartSection.setVisible(true);
         receiptSection.setVisible(false);
         statusMessage.setVisible(false);

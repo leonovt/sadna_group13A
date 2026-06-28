@@ -188,9 +188,14 @@ public class InitialStateExecutor {
             }
 
             case "checkout" -> {
+                String singleCoupon = c.optArg("couponCode", null);
+                java.util.List<String> couponList = singleCoupon != null
+                        ? java.util.List.of(singleCoupon) : java.util.List.of();
                 Result<?> r = orderService.executeCheckout(
                         c.arg("token"), c.arg("orderId"),
-                        c.optArg("authCode", null), c.arg("paymentDetails"));
+                        c.optArg("authCode", null),
+                        couponList,
+                        c.arg("paymentDetails"));
                 require(c, r);
             }
 

@@ -133,7 +133,7 @@ class PurchaseCompletionTest {
             assertTrue(order.getExpiresAt().isAfter(LocalDateTime.now()), "Pre: cart must not have expired before checkout");
             assertEquals(1, order.getItems().size(), "Pre: cart must contain items");
 
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, paymentDetails);
 
             // Post-condition: payment charged, history saved, active order deleted
             assertTrue(result.isSuccess(), "Post: checkout must succeed for valid reservation within timer");
@@ -179,7 +179,7 @@ class PurchaseCompletionTest {
             doThrow(new RuntimeException("Policy Exceeded")).when(checkoutDomainService)
                     .checkoutItemsForEvent(any(), any(), any(), any(), any(), any(), any(), any());
 
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, "cc_good");
 
             assertFalse(result.isSuccess());
             verify(paymentGateway, never()).processPayment(anyDouble(), anyString());
@@ -228,7 +228,7 @@ class PurchaseCompletionTest {
             // atomicity failure)
             doThrow(new RuntimeException("DB Down")).when(eventRepository).save(any(Event.class));
 
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, "cc_good");
 
             assertFalse(result.isSuccess());
             verify(paymentGateway).refundPayment("txn_1");
@@ -267,7 +267,7 @@ class PurchaseCompletionTest {
             doThrow(new PermissionDeniedException("Access Denied: Not a winner"))
                     .when(ticketingAccessDomainService).validateAccess(any(), any(), any(), any());
 
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, authCode.getCode(), "cc_good");
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, authCode.getCode(), null, "cc_good");
 
             assertFalse(result.isSuccess());
             assertTrue(result.getErrorMessage().contains("Not a winner"));
@@ -297,7 +297,7 @@ class PurchaseCompletionTest {
             // Simulate expiration by returning empty
             when(orderRepository.findById(activeOrderId)).thenReturn(Optional.empty());
 
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, "cc_good");
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, "cc_good");
 
             // Post-condition: payment is blocked since cart no longer exists; no charge is made
             assertFalse(result.isSuccess(), "Post: checkout must fail when cart has expired");

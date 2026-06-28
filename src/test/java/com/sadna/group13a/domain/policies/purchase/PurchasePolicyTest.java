@@ -6,13 +6,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("Purchase Policies")
 class PurchasePolicyTest {
 
     private static PurchaseContext ctx(int tickets, int age) {
-        return new PurchaseContext("u1", tickets, age, null);
+        return new PurchaseContext("u1", tickets, age, List.of());
     }
 
     // ── AgeRestrictionPolicy ──────────────────────────────────────────────────

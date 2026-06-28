@@ -14,5 +14,6 @@ public record OrderDTO(
     OrderStatus status,
     LocalDateTime expiresAt,
     double totalBasePrice,
-    List<OrderItemDTO> items
+    List<OrderItemDTO> items,
+    boolean hasRaffleEvent
 ) {}
