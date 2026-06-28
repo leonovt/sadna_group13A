@@ -1,5 +1,6 @@
 package com.sadna.group13a.presentation.views.company;
 
+import com.sadna.group13a.application.PolicyFormatter;
 import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.Services.EventService;
 import com.sadna.group13a.domain.policies.discount.AdditiveDiscountPolicy;
@@ -14,7 +15,9 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class EventPoliciesPresenter {
@@ -76,11 +79,46 @@ public class EventPoliciesPresenter {
     public void handleLoadCurrentPolicies(String eventId, EventPoliciesView view) {
         String token = getToken();
         if (token == null) return;
+
         String purchaseDesc = eventService.getPurchasePolicyDescription(token, eventId)
                 .getData().orElse("—");
         String discountDesc = eventService.getDiscountPolicyDescription(token, eventId)
                 .getData().orElse("—");
         view.showCurrentPolicies(purchaseDesc, discountDesc);
+
+        eventService.getPurchasePolicy(token, eventId).getData().ifPresent(policy -> {
+            List<PurchasePolicy> rules = flattenPurchasePolicy(policy);
+            List<String> labels = rules.stream().map(PolicyFormatter::describe).collect(Collectors.toList());
+            view.populatePurchaseRules(rules, labels, detectPurchaseMode(policy));
+        });
+
+        eventService.getDiscountPolicy(token, eventId).getData().ifPresent(policy -> {
+            List<DiscountPolicy> discounts = flattenDiscountPolicy(policy);
+            List<String> labels = discounts.stream().map(PolicyFormatter::describe).collect(Collectors.toList());
+            view.populateDiscountRules(discounts, labels, detectDiscountMode(policy));
+        });
+    }
+
+    private List<PurchasePolicy> flattenPurchasePolicy(PurchasePolicy policy) {
+        if (policy == null || policy instanceof AllowAllPolicy) return new ArrayList<>();
+        if (policy instanceof AndPolicy ap) return new ArrayList<>(ap.getChildren());
+        if (policy instanceof OrPolicy op) return new ArrayList<>(op.getChildren());
+        return new ArrayList<>(List.of(policy));
+    }
+
+    private String detectPurchaseMode(PurchasePolicy policy) {
+        return (policy instanceof OrPolicy) ? "OR (any passes)" : "AND (all must pass)";
+    }
+
+    private List<DiscountPolicy> flattenDiscountPolicy(DiscountPolicy policy) {
+        if (policy == null || policy instanceof NoDiscountPolicy) return new ArrayList<>();
+        if (policy instanceof AdditiveDiscountPolicy ap) return new ArrayList<>(ap.getChildren());
+        if (policy instanceof MaxDiscountPolicy mp) return new ArrayList<>(mp.getChildren());
+        return new ArrayList<>(List.of(policy));
+    }
+
+    private String detectDiscountMode(DiscountPolicy policy) {
+        return (policy instanceof MaxDiscountPolicy) ? "Best (take highest)" : "Additive (sum all)";
     }
 
     public void handleBack(String companyId) {
