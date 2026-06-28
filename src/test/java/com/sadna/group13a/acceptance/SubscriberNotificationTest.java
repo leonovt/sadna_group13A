@@ -227,7 +227,7 @@ class SubscriberNotificationTest {
         assertTrue(authGateway.validateToken(token), "Pre: user must be authenticated before checkout");
         assertEquals(1, order.getItems().size(), "Pre: cart must contain at least one item");
 
-        Result<OrderHistoryDTO> result = orderService.executeCheckout(token, orderId, null, "cc_good");
+        Result<OrderHistoryDTO> result = orderService.executeCheckout(token, orderId, null, null, "cc_good");
 
         // Post-condition: checkout succeeds and the domain event carries the correct subscriber identity
         assertTrue(result.isSuccess(), "Post: checkout must succeed for a valid cart within timer");

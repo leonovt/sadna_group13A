@@ -136,7 +136,7 @@ class PaymentAndRefundTest {
             assertTrue(order.getExpiresAt().isAfter(LocalDateTime.now()), "Pre: cart must not have expired");
 
             // Act: process payment
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, paymentDetails);
 
             // Post-condition: payment charged, order history saved, active order removed, event published
             assertTrue(result.isSuccess(), "Post: payment processing must succeed for valid order");
@@ -192,7 +192,7 @@ class PaymentAndRefundTest {
             assertEquals(1, order.getItems().size(), "Pre: active order must have items to be charged");
 
             // Act: attempt payment
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, paymentDetails);
 
             // Post-condition: payment rejected; no history saved and cart not deleted
             assertFalse(result.isSuccess(), "Post: checkout must fail when card is declined");
@@ -243,7 +243,7 @@ class PaymentAndRefundTest {
             assertEquals(1, order.getItems().size(), "Pre: active order must have items to be charged");
 
             // Act: attempt payment — gateway throws instead of returning a Result
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, paymentDetails);
 
             // Post-condition: checkout fails cleanly (no propagated exception), no history saved,
             // cart not deleted (stays open for the user to retry), seats released.
@@ -305,7 +305,7 @@ class PaymentAndRefundTest {
             doThrow(new RuntimeException("DB error")).when(eventRepository).save(any(Event.class));
 
             // Act: attempt payment + checkout
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, paymentDetails);
 
             // Assert: automatic refund initiated
             assertFalse(result.isSuccess());
@@ -392,7 +392,7 @@ class PaymentAndRefundTest {
         void givenTicketIssuanceDeclined_thenRefundedAndSeatsReleased() {
             when(ticketSupplier.issueTickets(any(), any())).thenReturn(Result.failure("External ticket service rejected the issuance."));
 
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, paymentDetails);
 
             assertFalse(result.isSuccess(), "Post: checkout must fail when ticket issuance is declined");
             assertTrue(result.getErrorMessage().contains("payment refunded"));
@@ -406,7 +406,7 @@ class PaymentAndRefundTest {
         void givenTicketSupplierThrows_thenRefundedAndSeatsReleased() {
             when(ticketSupplier.issueTickets(any(), any())).thenThrow(new RuntimeException("connection reset"));
 
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, paymentDetails);
 
             assertFalse(result.isSuccess(), "Post: checkout must fail cleanly when the ticket supplier throws");
             assertTrue(result.getErrorMessage().contains("payment refunded"));
@@ -421,7 +421,7 @@ class PaymentAndRefundTest {
             when(ticketSupplier.issueTickets(any(), any())).thenReturn(Result.failure("External ticket service rejected the issuance."));
             when(paymentGateway.refundPayment("txn_123")).thenReturn(Result.failure("Refund service is unavailable."));
 
-            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, paymentDetails);
+            Result<OrderHistoryDTO> result = orderService.executeCheckout(token, activeOrderId, null, null, paymentDetails);
 
             assertFalse(result.isSuccess(), "Post: checkout must still fail even if the refund itself fails");
             verify(paymentGateway).refundPayment("txn_123");

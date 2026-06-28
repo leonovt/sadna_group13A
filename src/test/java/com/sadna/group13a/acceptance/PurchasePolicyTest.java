@@ -25,6 +25,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("UC 2.8 — Update Purchase Policy and Discounts")
@@ -105,7 +107,7 @@ class PurchasePolicyTest {
         // Post-condition: the new policy is immediately active and evaluated on next checkout
         PurchasePolicy activePolicy = company.getPurchasePolicy();
         assertFalse(activePolicy instanceof AllowAllPolicy, "Post: policy must not be AllowAll after update");
-        assertFalse(activePolicy.isSatisfied(new PurchaseContext("user", 1, 0, null)),
+        assertFalse(activePolicy.isSatisfied(new PurchaseContext("user", 1, 0, List.of())),
                 "Post: newly added policy must be evaluated immediately");
     }
 
