@@ -102,18 +102,7 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
         HorizontalLayout ownerRow = new HorizontalLayout(ownerUsernameField, appointOwnerBtn, removeOwnerBtn);
         ownerRow.setAlignItems(Alignment.BASELINE);
 
-        // ── Nomination acceptance (for the logged-in user) ────────
-        Button acceptBtn = new Button("Accept My Nomination", e -> {
-            statusMessage.setVisible(false);
-            presenter.handleAcceptNomination(companyId, this);
-        });
-        Button rejectBtn = new Button("Reject My Nomination", e -> {
-            statusMessage.setVisible(false);
-            presenter.handleRejectNomination(companyId, this);
-        });
-        rejectBtn.getStyle().set("color", "var(--lumo-error-color)");
-        HorizontalLayout nominationRow = new HorizontalLayout(acceptBtn, rejectBtn);
-        nominationRow.setSpacing(true);
+        // Nomination accept/reject lives on the Notifications page; no buttons here (issue #339).
 
         // ── Resign ────────────────────────────────────────────────
         Button resignBtn = new Button("Resign from Company",
@@ -126,7 +115,6 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
                 new H3("Current Staff"), staffGrid,
                 new H3("Manager Actions"), managerRow,
                 new H3("Owner Actions"), ownerRow,
-                new H3("My Nomination"), nominationRow,
                 resignBtn
         );
     }
