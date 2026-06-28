@@ -42,4 +42,9 @@ public class UserNotificationRepositoryImpl implements IUserNotificationReposito
     public void deleteById(String id) {
         jpa.deleteById(id);
     }
+
+    @Override
+    public void deleteNominations(String userId, String companyId) {
+        jpa.deleteByUserIdAndTypeAndMetadata(userId, UserNotification.TYPE_STAFF_NOMINATION, companyId);
+    }
 }
