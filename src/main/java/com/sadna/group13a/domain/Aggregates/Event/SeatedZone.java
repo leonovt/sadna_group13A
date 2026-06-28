@@ -40,6 +40,13 @@ public class SeatedZone extends Zone {
         return Collections.unmodifiableList(seats);
     }
 
+    public void addSeats(List<Seat> newSeats) {
+        if (newSeats == null || newSeats.isEmpty()) {
+            throw new IllegalArgumentException("Must add at least one seat");
+        }
+        this.seats.addAll(newSeats);
+    }
+
     public Optional<Seat> findSeatById(String seatId) {
         return seats.stream()
                 .filter(s -> s.getId().equals(seatId))

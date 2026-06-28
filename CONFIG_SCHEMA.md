@@ -267,9 +267,18 @@ Assigns a venue map with one or more zones to an event. Each zone is either stan
 | `name`      | yes      | Zone display name |
 | `type`      | yes      | `STANDING` or `SEATED` |
 | `basePrice` | yes      | Base ticket price for this zone |
-| `capacity`  | yes      | Number of standing spots (STANDING) or number of seats (SEATED) |
+| `rows`      | SEATED   | Number of seat rows (SEATED zones — see note) |
+| `columns`   | SEATED   | Number of seats per row (SEATED zones — see note) |
+| `capacity`  | STANDING | Maximum standing spots (STANDING zones) |
 
-For `SEATED` zones the system generates individual numbered seats automatically (e.g. `"Seated Zone 1"` … `"Seated Zone 100"`).
+**SEATED zones use `rows` and `columns`.** This matches the venue-map display, which renders
+a seat grid: the system generates `rows × columns` individual seats labelled by row letter and
+column number — `A1 … A{columns}`, `B1 …`, etc. (rows beyond `Z` fall back to `R27`, `R28`, …).
+A `10 × 10` seated zone therefore produces 100 seats `A1 … J10`.
+
+> Back-compatibility: a SEATED zone may instead give a flat `capacity` (no `rows`/`columns`),
+> which generates `capacity` seats labelled `"{name} 1" … "{name} N"`. Prefer `rows`/`columns`
+> so the seat map renders as a proper grid. **STANDING zones always use `capacity`.**
 
 ```json
 { "action": "create-venue-map",
@@ -278,8 +287,8 @@ For `SEATED` zones the system generates individual numbered seats automatically 
     "eventId": "jazz_id",
     "venueName": "Main Venue",
     "zones": [
-      { "name": "Standing Zone", "type": "STANDING", "basePrice": 50.0,  "capacity": 30  },
-      { "name": "Seated Zone",   "type": "SEATED",   "basePrice": 100.0, "capacity": 100 }
+      { "name": "Standing Zone", "type": "STANDING", "basePrice": 50.0,  "capacity": 30 },
+      { "name": "Seated Zone",   "type": "SEATED",   "basePrice": 100.0, "rows": 10, "columns": 10 }
     ]
   }
 }

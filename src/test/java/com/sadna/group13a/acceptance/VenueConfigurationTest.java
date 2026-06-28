@@ -181,6 +181,33 @@ class VenueConfigurationTest {
     }
 
     @Test
+    @DisplayName("Issue #369 — Given a SEATED zone with rows & columns — When createVenueMap — Then a seat grid is built")
+    void GivenSeatedZoneWithRowsAndColumns_WhenCreateVenueMap_ThenGridBuilt() {
+        String ownerId = "owner1";
+        userRepository.save(new Member(ownerId, "owner", "hash"));
+        String ownerToken = authGateway.generateToken(ownerId);
+        companyRepository.save(new ProductionCompany("comp1", "Company", "Desc", ownerId));
+        eventRepository.save(new Event("e1", "Show", "Desc", "comp1", LocalDateTime.now().plusDays(1), "Music"));
+
+        // New venue-map format: SEATED zone described by a rows x columns grid (issue #369).
+        List<ZoneCreationDTO> specs = List.of(
+                new ZoneCreationDTO("Orchestra", ZoneType.SEATED, 100.0, 0, 10, 10));
+
+        Result<Void> result = eventService.createVenueMap(ownerToken, "e1", "Main Venue", specs);
+
+        assertTrue(result.isSuccess(), "Post: createVenueMap must succeed for a rows/columns seated zone");
+        SeatedZone seated = (SeatedZone) eventRepository.findById("e1").get()
+                .getVenueMap().getZones().get(0);
+        assertEquals(10, seated.getRows(), "Post: the seated zone must record its row count");
+        assertEquals(10, seated.getColumns(), "Post: the seated zone must record its column count");
+        assertEquals(100, seated.getSeats().size(), "Post: rows x columns seats must be generated");
+        assertTrue(seated.getSeats().stream().anyMatch(s -> "A1".equals(s.getLabel())),
+                "Post: seats must be grid-labelled (e.g. 'A1'), not flat 'Orchestra 1'");
+        assertTrue(seated.getSeats().stream().anyMatch(s -> "J10".equals(s.getLabel())),
+                "Post: the last grid seat must be labelled 'J10' for a 10x10 zone");
+    }
+
+    @Test
     @DisplayName("Given no zones — When createVenueMap — Then rejected without persisting")
     void GivenNoZones_WhenCreateVenueMap_ThenRejected() {
         String ownerId = "owner1";

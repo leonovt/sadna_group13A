@@ -20,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -214,6 +215,70 @@ class UserServiceTest {
 
         assertFalse(result.isSuccess());
         verify(userRepository, never()).save(any());
+    }
+
+    // ── updateBirthDate ───────────────────────────────────────────
+
+    @Test
+    void givenInvalidToken_whenUpdateBirthDate_thenReturnsFailure() {
+        when(authGateway.validateToken("bad")).thenReturn(false);
+
+        assertFalse(userService.updateBirthDate("bad", LocalDate.of(1995, 1, 1)).isSuccess());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void givenUserNotFound_whenUpdateBirthDate_thenReturnsFailure() {
+        when(authGateway.validateToken(TOKEN)).thenReturn(true);
+        when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
+
+        assertFalse(userService.updateBirthDate(TOKEN, LocalDate.of(1995, 1, 1)).isSuccess());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void givenValidMember_whenUpdateBirthDate_thenBirthDateSavedAndReturnedInDto() {
+        Member member = new Member(USER_ID, "alice", "hash");
+        when(authGateway.validateToken(TOKEN)).thenReturn(true);
+        when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(member));
+
+        LocalDate dob = LocalDate.of(1995, 6, 15);
+        Result<UserDTO> result = userService.updateBirthDate(TOKEN, dob);
+
+        assertTrue(result.isSuccess());
+        assertEquals(dob, result.getOrThrow().dateOfBirth());
+        verify(userRepository).save(member);
+    }
+
+    @Test
+    void givenFutureBirthDate_whenUpdateBirthDate_thenReturnsFailure() {
+        Member member = new Member(USER_ID, "alice", "hash");
+        when(authGateway.validateToken(TOKEN)).thenReturn(true);
+        when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(member));
+
+        Result<UserDTO> result = userService.updateBirthDate(TOKEN, LocalDate.now().plusDays(1));
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getErrorMessage().contains("future"));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void givenNullBirthDate_whenUpdateBirthDate_thenClearsBirthDate() {
+        Member member = new Member(USER_ID, "alice", "hash");
+        member.setDateOfBirth(LocalDate.of(1990, 1, 1));
+        when(authGateway.validateToken(TOKEN)).thenReturn(true);
+        when(authGateway.extractUserId(TOKEN)).thenReturn(USER_ID);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(member));
+
+        Result<UserDTO> result = userService.updateBirthDate(TOKEN, null);
+
+        assertTrue(result.isSuccess());
+        assertNull(result.getOrThrow().dateOfBirth());
+        verify(userRepository).save(member);
     }
 
     // ── viewOrderHistory ──────────────────────────────────────────
