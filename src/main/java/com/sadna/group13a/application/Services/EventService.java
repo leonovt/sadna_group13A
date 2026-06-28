@@ -256,6 +256,96 @@ public class EventService
         return setVenueMap(tokenString, eventId, venueMap);
     }
 
+    /**
+     * Adds seats to an existing zone on a published event without revoking any sold tickets.
+     * For SEATED zones, appends new {@link Seat} objects.
+     * For STANDING zones, increases the max capacity.
+     */
+    @Transactional
+    public Result<Void> addSeatsToZone(String tokenString, String eventId, String zoneId, int additionalCount) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized addSeatsToZone attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String initiatorId = authGateway.extractUserId(tokenString);
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to add seats to non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
+        Event event = eventOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
+        if (compOpt.isEmpty()) return Result.failure("User lacks permission to manage events");
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS — addSeatsToZone for event '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage events");
+        }
+        if (additionalCount <= 0) return Result.failure("Additional count must be positive");
+
+        try {
+            Zone zone = event.getZoneById(zoneId);
+            if (zone instanceof SeatedZone sz) {
+                int startIndex = sz.getSeats().size() + 1;
+                List<Seat> newSeats = new ArrayList<>();
+                for (int i = startIndex; i < startIndex + additionalCount; i++) {
+                    newSeats.add(new Seat(UUID.randomUUID().toString(), sz.getName() + " " + i));
+                }
+                event.addSeatsToZone(zoneId, newSeats);
+            } else if (zone instanceof StandingZone) {
+                event.increaseZoneCapacity(zoneId, additionalCount);
+            }
+            eventRepository.save(event);
+            logger.info("User '{}' added {} seats/capacity to zone '{}' on event '{}'.", initiatorId, additionalCount, zoneId, eventId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("User '{}' failed to add seats to zone '{}' on event '{}': {}", initiatorId, zoneId, eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * Adds a completely new zone to the venue map of a published event.
+     */
+    @Transactional
+    public Result<Void> addZoneToEvent(String tokenString, String eventId, ZoneCreationDTO spec) {
+        if (!authGateway.validateToken(tokenString)) {
+            logger.warn("Unauthorized addZoneToEvent attempt for event '{}'.", eventId);
+            return Result.failure("Unauthorized: Invalid token.");
+        }
+        String initiatorId = authGateway.extractUserId(tokenString);
+        Optional<Event> eventOpt = eventRepository.findById(eventId);
+        if (eventOpt.isEmpty()) {
+            logger.warn("User '{}' tried to add zone to non-existent event '{}'.", initiatorId, eventId);
+            return Result.failure("Event not found");
+        }
+
+        Event event = eventOpt.get();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(event.getCompanyId());
+        if (compOpt.isEmpty()) return Result.failure("User lacks permission to manage events");
+        if (!compOpt.get().hasPermission(initiatorId, CompanyPermission.MANAGE_EVENTS)) {
+            logger.warn("User '{}' lacks MANAGE_EVENTS — addZoneToEvent for event '{}' denied.", initiatorId, eventId);
+            return Result.failure("User lacks permission to manage events");
+        }
+        if (spec == null || spec.type() == null) return Result.failure("Zone type must be specified");
+
+        try {
+            Zone zone;
+            if (spec.type() == ZoneType.SEATED && spec.rows() > 0 && spec.columns() > 0) {
+                zone = venueMapFactory.buildZone(spec.name(), spec.type(), spec.basePrice(), spec.rows(), spec.columns());
+            } else {
+                zone = venueMapFactory.buildZone(spec.name(), spec.type(), spec.basePrice(), spec.capacity());
+            }
+            event.addZoneToVenueMap(zone);
+            eventRepository.save(event);
+            logger.info("User '{}' added new zone '{}' to event '{}'.", initiatorId, spec.name(), eventId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("User '{}' failed to add zone to event '{}': {}", initiatorId, eventId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
     @Transactional
     public Result<Void> unpublishEvent(String tokeString, String eventId)
     {

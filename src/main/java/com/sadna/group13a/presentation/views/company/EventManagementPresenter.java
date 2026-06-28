@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class EventManagementPresenter {
@@ -287,6 +288,35 @@ public class EventManagementPresenter {
             }
         } catch (Exception e) {
             view.showError(e.getMessage());
+        }
+    }
+
+    public void handleExpandVenue(EventManagementView view, String companyId, String eventId,
+                                   Map<String, Integer> additionalSeatsPerZone,
+                                   List<ZoneCreationDTO> newZones) {
+        String token = getToken();
+        if (token == null) { UI.getCurrent().navigate("login"); return; }
+
+        boolean anyError = false;
+        for (Map.Entry<String, Integer> entry : additionalSeatsPerZone.entrySet()) {
+            if (entry.getValue() > 0) {
+                Result<Void> result = eventService.addSeatsToZone(token, eventId, entry.getKey(), entry.getValue());
+                if (!result.isSuccess()) {
+                    view.showError(result.getErrorMessage());
+                    anyError = true;
+                }
+            }
+        }
+        for (ZoneCreationDTO spec : newZones) {
+            Result<Void> result = eventService.addZoneToEvent(token, eventId, spec);
+            if (!result.isSuccess()) {
+                view.showError(result.getErrorMessage());
+                anyError = true;
+            }
+        }
+        if (!anyError) {
+            view.showSuccess("Venue expanded successfully.");
+            loadEvents(view, companyId);
         }
     }
 
