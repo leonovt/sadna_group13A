@@ -46,22 +46,26 @@ public class EventDetailPresenter {
         return eventService.getVenueMap(token, eventId);
     }
 
-    public void addSeatedTicket(String token, String eventId, String zoneId, String seatId, EventDetailView view) {
+    /** @return true if the seat was reserved, so the view can refresh the map to show it as taken. */
+    public boolean addSeatedTicket(String token, String eventId, String zoneId, String seatId, EventDetailView view) {
         Result<String> result = orderService.addItemToCart(token, eventId, zoneId, seatId);
         if (result.isSuccess()) {
             view.showSuccess("Ticket added to cart!");
-        } else {
-            view.showError(result.getErrorMessage());
+            return true;
         }
+        view.showError(result.getErrorMessage());
+        return false;
     }
 
-    public void addStandingTickets(String token, String eventId, String zoneId, int quantity, EventDetailView view) {
+    /** @return true if the tickets were reserved, so the view can refresh the map to show updated availability. */
+    public boolean addStandingTickets(String token, String eventId, String zoneId, int quantity, EventDetailView view) {
         Result<String> result = orderService.addBatchItemsToCart(token, eventId, zoneId, null, quantity);
         if (result.isSuccess()) {
             view.showSuccess(quantity + " ticket(s) added to cart!");
-        } else {
-            view.showError(result.getErrorMessage());
+            return true;
         }
+        view.showError(result.getErrorMessage());
+        return false;
     }
 
     /** Returns the raffle for the given event, or failure if none exists. */
