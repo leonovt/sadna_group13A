@@ -87,7 +87,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         header.setAlignItems(Alignment.CENTER);
-        header.add(new H2("Checkout"), new RouterLink("← Back to Home", HomeView.class));
+        header.add(new H2("Checkout"));
 
         // ── Status message ────────────────────────────────────────
         statusMessage.setVisible(false);
