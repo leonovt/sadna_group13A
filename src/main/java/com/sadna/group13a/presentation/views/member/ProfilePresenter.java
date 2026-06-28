@@ -7,6 +7,8 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+
 @Component
 public class ProfilePresenter {
 
@@ -56,6 +58,23 @@ public class ProfilePresenter {
         if (result.isSuccess()) {
             view.showProfile(result.getOrThrow());
             view.showInfo("Profile updated.");
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
+    /** Saves the user's birth date. */
+    public void handleUpdateBirthDate(LocalDate birthDate, ProfileView view) {
+        String token = currentToken();
+        if (token == null) {
+            UI.getCurrent().navigate("login");
+            return;
+        }
+
+        Result<UserDTO> result = userService.updateBirthDate(token, birthDate);
+        if (result.isSuccess()) {
+            view.showProfile(result.getOrThrow());
+            view.showInfo("Birth date saved.");
         } else {
             view.showError(result.getErrorMessage());
         }
