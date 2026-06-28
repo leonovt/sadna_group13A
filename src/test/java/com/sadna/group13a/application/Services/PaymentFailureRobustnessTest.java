@@ -226,7 +226,7 @@ class PaymentFailureRobustnessTest {
                     "Pre: seat must be HELD after addItemToCart");
 
             Result<OrderHistoryDTO> result =
-                    orderService.executeCheckout(VALID_TOKEN, cartId, null, "declined-card");
+                    orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "declined-card");
 
             // Checkout must fail.
             assertFalse(result.isSuccess(),
@@ -250,7 +250,7 @@ class PaymentFailureRobustnessTest {
             String cartId = placeItemInCart();
 
             Result<OrderHistoryDTO> result =
-                    orderService.executeCheckout(VALID_TOKEN, cartId, null, "card-timeout");
+                    orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card-timeout");
 
             assertFalse(result.isSuccess(),
                     "Checkout must fail when the payment gateway reports a timeout");
@@ -269,7 +269,7 @@ class PaymentFailureRobustnessTest {
                     .thenReturn(Result.failure("Card declined by issuing bank"));
 
             String cartId = placeItemInCart();
-            orderService.executeCheckout(VALID_TOKEN, cartId, null, "bad-card");
+            orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "bad-card");
 
             assertTrue(historyRepo.findByUserId(USER_ID).isEmpty(),
                     "No OrderHistory must be persisted when payment fails — "
@@ -284,7 +284,7 @@ class PaymentFailureRobustnessTest {
                     .thenReturn(Result.failure("Insufficient funds"));
 
             String cartId = placeItemInCart();
-            orderService.executeCheckout(VALID_TOKEN, cartId, null, "bad-card");
+            orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "bad-card");
 
             // Cart must not have been deleted.
             assertTrue(orderRepo.findById(cartId).isPresent(),
@@ -305,7 +305,7 @@ class PaymentFailureRobustnessTest {
                     .thenReturn(Result.failure("Declined"));
 
             String cartId = placeItemInCart();
-            orderService.executeCheckout(VALID_TOKEN, cartId, null, "bad-card");
+            orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "bad-card");
 
             // No retry logic must exist at this layer — one call, one failure.
             verify(paymentGateway, times(1)).processPayment(SEAT_PRICE, "bad-card");
@@ -318,7 +318,7 @@ class PaymentFailureRobustnessTest {
                     .thenReturn(Result.failure("Declined"));
 
             String cartId = placeItemInCart();
-            orderService.executeCheckout(VALID_TOKEN, cartId, null, "bad-card");
+            orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "bad-card");
 
             // A refund on a declined charge would be a double-error — must never happen.
             verify(paymentGateway, never()).refundPayment(anyString());
@@ -354,7 +354,7 @@ class PaymentFailureRobustnessTest {
             // Until #242 is implemented this assertion fails because the RuntimeException
             // propagates out of executeCheckout instead of being wrapped.
             Result<OrderHistoryDTO> result = assertDoesNotThrow(
-                    () -> orderService.executeCheckout(VALID_TOKEN, cartId, null, "card"),
+                    () -> orderService.executeCheckout(VALID_TOKEN, cartId, null, null, "card"),
                     "executeCheckout must catch RuntimeException from the payment gateway "
                             + "and return Result.failure instead of throwing (requires #242)");
 

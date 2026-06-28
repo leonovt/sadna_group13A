@@ -198,14 +198,14 @@ class OrderServiceTest {
     void givenInvalidToken_whenExecuteCheckout_thenReturnsFailure() {
         when(authGateway.validateToken("bad")).thenReturn(false);
 
-        assertFalse(orderService.executeCheckout("bad", ORDER_ID, null, "card").isSuccess());
+        assertFalse(orderService.executeCheckout("bad", ORDER_ID, null, null, "card").isSuccess());
     }
 
     @Test
     void givenCartNotFound_whenExecuteCheckout_thenReturnsFailure() {
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.empty());
 
-        assertFalse(orderService.executeCheckout(TOKEN, ORDER_ID, null, "card").isSuccess());
+        assertFalse(orderService.executeCheckout(TOKEN, ORDER_ID, null, null, "card").isSuccess());
     }
 
     @Test
@@ -213,7 +213,7 @@ class OrderServiceTest {
         ActiveOrder otherOrder = new ActiveOrder(ORDER_ID, "other-user");
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(otherOrder));
 
-        assertFalse(orderService.executeCheckout(TOKEN, ORDER_ID, null, "card").isSuccess());
+        assertFalse(orderService.executeCheckout(TOKEN, ORDER_ID, null, null, "card").isSuccess());
     }
 
     @Test
@@ -221,7 +221,7 @@ class OrderServiceTest {
         ActiveOrder emptyOrder = new ActiveOrder(ORDER_ID, USER_ID);
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(emptyOrder));
 
-        assertFalse(orderService.executeCheckout(TOKEN, ORDER_ID, null, "card").isSuccess());
+        assertFalse(orderService.executeCheckout(TOKEN, ORDER_ID, null, null, "card").isSuccess());
     }
 
     @Test
@@ -234,7 +234,7 @@ class OrderServiceTest {
         when(paymentGateway.processPayment(anyDouble(), anyString()))
                 .thenReturn(Result.failure("Declined"));
 
-        Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, "card");
+        Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, null, "card");
 
         assertFalse(result.isSuccess());
         assertTrue(result.getErrorMessage().contains("Payment declined"));
@@ -253,7 +253,7 @@ class OrderServiceTest {
         when(ticketSupplier.issueTickets(anyString(), any()))
                 .thenReturn(Result.success(List.of("TICKET-001")));
 
-        Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, "card");
+        Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, null, "card");
 
         assertTrue(result.isSuccess());
         verify(historyRepository).save(any(OrderHistory.class));
@@ -273,7 +273,7 @@ class OrderServiceTest {
         when(ticketSupplier.issueTickets(anyString(), any()))
                 .thenReturn(Result.failure("Ticket service unavailable"));
 
-        Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, "card");
+        Result<OrderHistoryDTO> result = orderService.executeCheckout(TOKEN, ORDER_ID, null, null, "card");
 
         assertFalse(result.isSuccess());
         verify(paymentGateway).refundPayment("TXN-123");
