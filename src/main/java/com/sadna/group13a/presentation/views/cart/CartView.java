@@ -5,7 +5,6 @@ import com.vaadin.flow.component.button.Button;
 import com.sadna.group13a.application.DTO.OrderDTO;
 import com.sadna.group13a.application.DTO.OrderItemDTO;
 import com.sadna.group13a.presentation.views.auth.LoginView;
-import com.sadna.group13a.presentation.views.home.HomeView;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
@@ -18,7 +17,6 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.router.RouterLink;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -62,7 +60,7 @@ public class CartView extends VerticalLayout implements BeforeEnterObserver {
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         header.setAlignItems(Alignment.CENTER);
-        header.add(new H2("Cart"), new RouterLink("← Back to Home", HomeView.class));
+        header.add(new H2("Cart"));
 
         // ── Status message ────────────────────────────────────────
         statusMessage.setVisible(false);
