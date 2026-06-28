@@ -43,11 +43,21 @@ public class NotificationsPresenter {
     }
 
     public Result<Void> acceptNomination(String token, String companyId) {
-        return companyService.acceptNomination(token, companyId);
+        Result<Void> result = companyService.acceptNomination(token, companyId);
+        if (result.isSuccess()) {
+            // Clear the persisted invitation so it does not reappear on refresh (issue #368).
+            userNotificationService.dismissNomination(auth.extractUserId(token), companyId);
+        }
+        return result;
     }
 
     public Result<Void> rejectNomination(String token, String companyId) {
-        return companyService.rejectNomination(token, companyId);
+        Result<Void> result = companyService.rejectNomination(token, companyId);
+        if (result.isSuccess()) {
+            // Clear the persisted invitation so it does not reappear on refresh (issue #368).
+            userNotificationService.dismissNomination(auth.extractUserId(token), companyId);
+        }
+        return result;
     }
 
     public void dismiss(String notificationId) {
