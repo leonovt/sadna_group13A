@@ -163,7 +163,7 @@ class PolicyCombinationTest {
     }
 
     private Result<OrderHistoryDTO> checkout(String orderId) {
-        return orderService.executeCheckout(TOKEN, orderId, null, "card-4242");
+        return orderService.executeCheckout(TOKEN, orderId, null, null, "card-4242");
     }
 
     // ── Purchase policy: event-level ──────────────────────────────────────────────

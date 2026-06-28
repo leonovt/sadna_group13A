@@ -264,7 +264,7 @@ class TicketReservationTest {
                 "Pre: user must have no active cart before attempting checkout");
 
         Result<com.sadna.group13a.application.DTO.OrderHistoryDTO> result =
-                orderService.executeCheckout(token, "non-existent-cart-id", null, "cc_good");
+                orderService.executeCheckout(token, "non-existent-cart-id", null, null, "cc_good");
 
         // Post-condition: checkout is blocked because no reservation was ever made
         assertFalse(result.isSuccess(), "Post: checkout must fail when user has no reserved cart");
@@ -309,7 +309,7 @@ class TicketReservationTest {
         Result<String> cartRes = orderService.addItemToCart(token, "e1", "z1", "s1");
         assertTrue(cartRes.isSuccess());
         
-        Result<OrderHistoryDTO> checkoutRes = orderService.executeCheckout(token, cartRes.getOrThrow(), null, "cc");
+        Result<OrderHistoryDTO> checkoutRes = orderService.executeCheckout(token, cartRes.getOrThrow(), null, null, "cc");
         assertFalse(checkoutRes.isSuccess());
     }
 
@@ -326,7 +326,7 @@ class TicketReservationTest {
         companyRepository.save(comp);
         // Pre-condition: company has a restrictive policy that blocks all purchases
         assertFalse(comp.getPurchasePolicy().isSatisfied(
-                new com.sadna.group13a.domain.shared.PurchaseContext("u1", 1, 0, null)),
+                new com.sadna.group13a.domain.shared.PurchaseContext("u1", 1, 0, java.util.List.of())),
                 "Pre: company purchase policy must block the purchase");
 
         String token = authGateway.generateToken("u1");
@@ -334,7 +334,7 @@ class TicketReservationTest {
         assertTrue(cartResult.isSuccess(), "Pre: item must be addable to cart (policy is checked at checkout)");
 
         Result<OrderHistoryDTO> checkoutResult = orderService.executeCheckout(
-                token, cartResult.getOrThrow(), null, "cc_good");
+                token, cartResult.getOrThrow(), null, null, "cc_good");
 
         // Post-condition: checkout is blocked by the purchase policy
         assertFalse(checkoutResult.isSuccess(), "Post: checkout must be rejected by the restrictive purchase policy");
