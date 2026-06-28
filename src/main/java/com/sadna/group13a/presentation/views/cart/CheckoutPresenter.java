@@ -11,6 +11,8 @@ import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
 
 import java.time.YearMonth;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class CheckoutPresenter {
@@ -64,7 +66,7 @@ public class CheckoutPresenter {
         }
     }
 
-    public void handleCheckout(String orderId, String authCode, PaymentDetails paymentDetails, CheckoutView view) {
+    public void handleCheckout(String orderId, String raffleAuthCode, List<String> couponCodes, PaymentDetails paymentDetails, CheckoutView view) {
         if (paymentDetails == null) {
             view.showError("Please enter your card details.");
             return;
@@ -120,8 +122,10 @@ public class CheckoutPresenter {
             view.showError("Could not process payment details.");
             return;
         }
-        String code = authCode.isBlank() ? null : authCode.trim();
-        Result<OrderHistoryDTO> result = orderService.executeCheckout(token, orderId, code, paymentJson);
+        String raffle = (raffleAuthCode == null || raffleAuthCode.isBlank()) ? null : raffleAuthCode.trim();
+        List<String> coupons = (couponCodes == null) ? List.of() :
+                couponCodes.stream().filter(c -> c != null && !c.isBlank()).map(String::trim).collect(Collectors.toList());
+        Result<OrderHistoryDTO> result = orderService.executeCheckout(token, orderId, raffle, coupons, paymentJson);
         if (result.isSuccess()) {
             OrderHistoryDTO receipt = result.getData().orElse(null);
             if (receipt != null) {
