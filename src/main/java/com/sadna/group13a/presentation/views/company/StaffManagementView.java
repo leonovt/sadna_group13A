@@ -66,6 +66,7 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
 
         // ── Staff grid ────────────────────────────────────────────
         staffGrid.addColumn(StaffMemberDTO::userId).setHeader("User ID").setFlexGrow(1);
+        staffGrid.addColumn(s -> s.username() != null ? s.username() : "—").setHeader("Username").setFlexGrow(1);
         staffGrid.addColumn(s -> s.role().name()).setHeader("Role").setFlexGrow(1);
         staffGrid.addColumn(s -> s.permissions() == null || s.permissions().isEmpty()
                 ? "—" : s.permissions().toString()).setHeader("Permissions").setFlexGrow(2);
