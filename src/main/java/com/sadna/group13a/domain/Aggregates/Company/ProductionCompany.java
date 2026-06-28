@@ -350,6 +350,37 @@ public class ProductionCompany {
     }
 
     /**
+     * Promotes or changes the role of an existing staff member (MANAGER ↔ OWNER).
+     * Since CompanyRole is final on CompanyStaffMember, the entry is replaced.
+     * The member's appointedByUserId and appointees are preserved unchanged.
+     *
+     * @param actingUserId the founder/owner performing the promotion
+     * @param targetUserId the existing staff member to promote
+     * @param newRole      MANAGER or OWNER (FOUNDER cannot be assigned)
+     * @param permissions  permissions to assign (only meaningful for MANAGER)
+     */
+    public void promoteStaff(String actingUserId, String targetUserId,
+                             CompanyRole newRole, Set<CompanyPermission> permissions) {
+        if (!isOwner(actingUserId)) {
+            throw new DomainException("Only founders and owners can promote staff");
+        }
+        CompanyStaffMember target = staff.get(targetUserId);
+        if (target == null) {
+            throw new DomainException("Target user is not part of the company");
+        }
+        if (target.getRole() == CompanyRole.FOUNDER) {
+            throw new DomainException("Cannot change the founder's role");
+        }
+        if (newRole == CompanyRole.FOUNDER) {
+            throw new DomainException("Cannot promote to Founder");
+        }
+        Set<CompanyPermission> newPerms = (newRole == CompanyRole.OWNER) ? null : permissions;
+        staff.put(targetUserId, new CompanyStaffMember(targetUserId, newRole,
+                target.getAppointedByUserId(), newPerms));
+        version++;
+    }
+
+    /**
      * Updates permissions for a MANAGER. Only the direct appointer can do this.
      * @param actingUserId the user making the change
      * @param targetManagerId the manager whose permissions are changing

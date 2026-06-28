@@ -4,6 +4,7 @@ import com.sadna.group13a.application.Result;
 import com.sadna.group13a.application.DTO.StaffMemberDTO;
 import com.sadna.group13a.application.Services.CompanyService;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.stereotype.Component;
@@ -98,6 +99,20 @@ public class StaffManagementPresenter {
         Result<Void> result = companyService.rejectNomination(getToken(), companyId);
         if (result.isSuccess()) {
             view.showSuccess("Nomination rejected.");
+        } else {
+            view.showError(result.getErrorMessage());
+        }
+    }
+
+    public void handlePromoteStaff(String username, CompanyRole newRole,
+                                    Set<CompanyPermission> permissions,
+                                    String companyId, StaffManagementView view) {
+        if (username == null || username.isBlank()) { view.showError("Username cannot be blank."); return; }
+        if (newRole == null) { view.showError("Please select a role."); return; }
+        Result<Void> result = companyService.promoteStaff(getToken(), companyId, username, newRole, permissions);
+        if (result.isSuccess()) {
+            view.showSuccess(username + " has been promoted to " + newRole.name() + ".");
+            loadStaff(view, companyId);
         } else {
             view.showError(result.getErrorMessage());
         }

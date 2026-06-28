@@ -528,6 +528,52 @@ public class CompanyService {
         return Result.success(new SalesReportDTO(companyId, company.getName(), orders.size(), totalRevenue, dtos));
     }
 
+    /**
+     * Promotes an existing staff member to a new role without requiring a nomination/acceptance cycle.
+     * Syncs the role in both ProductionCompany.staff and the Member's companyRoles map.
+     */
+    @Transactional
+    public Result<Void> promoteStaff(String token, String companyId,
+                                     String targetUsername, CompanyRole newRole,
+                                     Set<CompanyPermission> permissions) {
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized attempt to promote staff in company '{}'.", companyId);
+            return Result.failure("User not authenticated.");
+        }
+        String actingUserId = authGateway.extractUserId(token);
+
+        Optional<User> targetOpt = userRepository.findByUsername(targetUsername);
+        if (targetOpt.isEmpty()) {
+            logger.warn("promoteStaff failed: target user '{}' not found.", targetUsername);
+            return Result.failure("Target user not found.");
+        }
+
+        String targetUserId = targetOpt.get().getId();
+        Optional<ProductionCompany> compOpt = companyRepository.findById(companyId);
+        if (compOpt.isEmpty()) {
+            logger.warn("promoteStaff failed: company '{}' not found (actor='{}').", companyId, actingUserId);
+            return Result.failure("Company not found");
+        }
+
+        try {
+            ProductionCompany company = compOpt.get();
+            company.promoteStaff(actingUserId, targetUserId, newRole, permissions);
+            companyRepository.save(company);
+
+            if (targetOpt.get() instanceof com.sadna.group13a.domain.Aggregates.User.Member m) {
+                m.addCompanyRole(companyId, newRole, company.getStaff().get(targetUserId).getAppointedByUserId());
+                userRepository.save(m);
+            }
+            logger.info("User '{}' promoted '{}' to {} in company '{}'.",
+                    actingUserId, targetUserId, newRole, companyId);
+            return Result.success();
+        } catch (Exception e) {
+            logger.warn("promoteStaff failed for actor '{}' targeting '{}' in company '{}': {}",
+                    actingUserId, targetUsername, companyId, e.getMessage());
+            return Result.failure(e.getMessage());
+        }
+    }
+
     @Transactional
     public Result<Void> updatePermissions(String token, String companyId, String targetManagerUsername,
                                           Set<CompanyPermission> permissions) {
