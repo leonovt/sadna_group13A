@@ -577,6 +577,22 @@ public class EventService
                 .orElse(Result.failure("Event not found."));
     }
 
+    @Transactional(readOnly = true)
+    public Result<PurchasePolicy> getPurchasePolicy(String token, String eventId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return eventRepository.findById(eventId)
+                .map(e -> Result.success(e.getPurchasePolicy()))
+                .orElse(Result.failure("Event not found."));
+    }
+
+    @Transactional(readOnly = true)
+    public Result<DiscountPolicy> getDiscountPolicy(String token, String eventId) {
+        if (!authGateway.validateToken(token)) return Result.failure("User not authenticated.");
+        return eventRepository.findById(eventId)
+                .map(e -> Result.success(e.getDiscountPolicy()))
+                .orElse(Result.failure("Event not found."));
+    }
+
     private ZoneDTO toZoneDTO(Zone zone) {
         if (zone instanceof SeatedZone sz) {
             List<SeatDTO> seatDTOs = sz.getSeats().stream()

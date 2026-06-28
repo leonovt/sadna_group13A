@@ -38,14 +38,16 @@ public class EventPoliciesView extends VerticalLayout implements BeforeEnterObse
     private final Span currentDiscountSpan = new Span("—");
 
     // ── Purchase policy builder state ─────────────────────────────
-    private final List<PurchasePolicy> purchaseRules   = new ArrayList<>();
-    private final List<String>         purchaseLabels  = new ArrayList<>();
+    private final List<PurchasePolicy> purchaseRules    = new ArrayList<>();
+    private final List<String>         purchaseLabels   = new ArrayList<>();
     private final VerticalLayout       purchaseRuleList = new VerticalLayout();
+    private final Select<String>       purchaseModeSelect = new Select<>();
 
     // ── Discount policy builder state ─────────────────────────────
-    private final List<DiscountPolicy> discountRules   = new ArrayList<>();
-    private final List<String>         discountLabels  = new ArrayList<>();
+    private final List<DiscountPolicy> discountRules    = new ArrayList<>();
+    private final List<String>         discountLabels   = new ArrayList<>();
     private final VerticalLayout       discountRuleList = new VerticalLayout();
+    private final Select<String>       discountModeSelect = new Select<>();
 
     public EventPoliciesView(EventPoliciesPresenter presenter) {
         this.presenter = presenter;
@@ -152,14 +154,13 @@ public class EventPoliciesView extends VerticalLayout implements BeforeEnterObse
         });
         clearBtn.getStyle().set("color", "var(--lumo-error-color)");
 
-        Select<String> modeSelect = new Select<>();
-        modeSelect.setLabel("Combine rules with");
-        modeSelect.setItems("AND (all must pass)", "OR (any passes)");
-        modeSelect.setValue("AND (all must pass)");
-        modeSelect.setWidth("18rem");
+        purchaseModeSelect.setLabel("Combine rules with");
+        purchaseModeSelect.setItems("AND (all must pass)", "OR (any passes)");
+        purchaseModeSelect.setValue("AND (all must pass)");
+        purchaseModeSelect.setWidth("18rem");
 
         Button applyBtn = new Button("Apply Purchase Policy", e -> {
-            String mode = modeSelect.getValue() != null && modeSelect.getValue().startsWith("OR") ? "OR" : "AND";
+            String mode = purchaseModeSelect.getValue() != null && purchaseModeSelect.getValue().startsWith("OR") ? "OR" : "AND";
             presenter.handleSetPurchasePolicy(eventId, new ArrayList<>(purchaseRules), mode, this);
         });
 
@@ -167,8 +168,8 @@ public class EventPoliciesView extends VerticalLayout implements BeforeEnterObse
             new H3("Purchase Policy"),
             new HorizontalLayout(currentPurchaseLabel, currentPurchaseSpan),
             addRow,
-            new Span("New rules to apply:"), purchaseRuleList, clearBtn,
-            new HorizontalLayout(modeSelect, applyBtn)
+            new Span("Active rules:"), purchaseRuleList, clearBtn,
+            new HorizontalLayout(purchaseModeSelect, applyBtn)
         );
         return section;
     }
@@ -289,14 +290,13 @@ public class EventPoliciesView extends VerticalLayout implements BeforeEnterObse
         });
         clearBtn.getStyle().set("color", "var(--lumo-error-color)");
 
-        Select<String> modeSelect = new Select<>();
-        modeSelect.setLabel("Combine discounts");
-        modeSelect.setItems("Additive (sum all)", "Best (take highest)");
-        modeSelect.setValue("Additive (sum all)");
-        modeSelect.setWidth("18rem");
+        discountModeSelect.setLabel("Combine discounts");
+        discountModeSelect.setItems("Additive (sum all)", "Best (take highest)");
+        discountModeSelect.setValue("Additive (sum all)");
+        discountModeSelect.setWidth("18rem");
 
         Button applyBtn = new Button("Apply Discount Policy", e -> {
-            String mode = modeSelect.getValue() != null && modeSelect.getValue().startsWith("Best") ? "BEST" : "ADDITIVE";
+            String mode = discountModeSelect.getValue() != null && discountModeSelect.getValue().startsWith("Best") ? "BEST" : "ADDITIVE";
             presenter.handleSetDiscountPolicy(eventId, new ArrayList<>(discountRules), mode, this);
         });
 
@@ -304,8 +304,8 @@ public class EventPoliciesView extends VerticalLayout implements BeforeEnterObse
             new H3("Discount Policy"),
             new HorizontalLayout(currentDiscountLabel, currentDiscountSpan),
             addRow, paramBox,
-            new Span("New discounts to apply:"), discountRuleList, clearBtn,
-            new HorizontalLayout(modeSelect, applyBtn)
+            new Span("Active discounts:"), discountRuleList, clearBtn,
+            new HorizontalLayout(discountModeSelect, applyBtn)
         );
         return section;
     }
@@ -325,6 +325,26 @@ public class EventPoliciesView extends VerticalLayout implements BeforeEnterObse
         if (discountLabels.isEmpty()) {
             discountRuleList.add(new Span("(none — will apply No Discount)"));
         }
+    }
+
+    // ── Pre-populate active rules from backend ────────────────────
+
+    public void populatePurchaseRules(List<PurchasePolicy> rules, List<String> labels, String mode) {
+        purchaseRules.clear();
+        purchaseLabels.clear();
+        purchaseRules.addAll(rules);
+        purchaseLabels.addAll(labels);
+        purchaseModeSelect.setValue(mode);
+        refreshPurchaseList();
+    }
+
+    public void populateDiscountRules(List<DiscountPolicy> discounts, List<String> labels, String mode) {
+        discountRules.clear();
+        discountLabels.clear();
+        discountRules.addAll(discounts);
+        discountLabels.addAll(labels);
+        discountModeSelect.setValue(mode);
+        refreshDiscountList();
     }
 
     // ── Feedback ──────────────────────────────────────────────────
