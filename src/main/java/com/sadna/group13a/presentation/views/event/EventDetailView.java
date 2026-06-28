@@ -36,9 +36,14 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
 
     private final EventDetailPresenter presenter;
     private String eventId;
+    private String token;
 
     private final Span errorMessage = new Span();
     private final Span successMessage = new Span();
+
+    /** Holds the seat map / zone sections so they can be re-rendered in place after a
+     *  reservation, without reloading the whole page (issue #330). */
+    private final VerticalLayout venueSection = new VerticalLayout();
 
     public EventDetailView(EventDetailPresenter presenter) {
         this.presenter = presenter;
@@ -93,6 +98,7 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
             add(new Paragraph("Log in to view seating and purchase tickets."));
             return;
         }
+        this.token = token;
 
         if (event.saleMode() == EventSaleMode.QUEUE) {
             renderQueueGate(token, event);
@@ -169,18 +175,35 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
     }
 
     private void renderVenueSection(String token) {
+        venueSection.setPadding(false);
+        venueSection.setSpacing(true);
+        add(venueSection);
+        populateVenueSection(token);
+    }
+
+    /**
+     * (Re)builds the seat map / zone sections from the current backend state. Called both on
+     * initial render and after a successful reservation so a just-selected seat shows as taken
+     * and zone availability updates without a manual page refresh (issue #330).
+     */
+    private void populateVenueSection(String token) {
+        venueSection.removeAll();
         Result<VenueMapDTO> venueResult = presenter.loadVenueMap(token, eventId);
-        if (venueResult.isSuccess()) {
-            renderVenueMap(venueResult.getOrThrow(), token);
-        } else {
-            add(new Paragraph("Venue map not available: " + venueResult.getErrorMessage()));
+        if (!venueResult.isSuccess()) {
+            venueSection.add(new Paragraph("Venue map not available: " + venueResult.getErrorMessage()));
+            return;
+        }
+        VenueMapDTO venueMap = venueResult.getOrThrow();
+        venueSection.add(new H3("Venue: " + venueMap.getVenueName()));
+        for (ZoneDTO zone : venueMap.getZones()) {
+            venueSection.add(buildZoneSection(zone, token));
         }
     }
 
-    private void renderVenueMap(VenueMapDTO venueMap, String token) {
-        add(new H3("Venue: " + venueMap.getVenueName()));
-        for (ZoneDTO zone : venueMap.getZones()) {
-            add(buildZoneSection(zone, token));
+    /** Re-renders the seat map from fresh backend state after a reservation. */
+    private void refreshVenue() {
+        if (token != null) {
+            populateVenueSection(token);
         }
     }
 
@@ -237,7 +260,7 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
             for (SeatDTO seat : zone.getSeats()) {
                 boolean available = seat.getStatus() == SeatStatus.AVAILABLE;
                 grid.add(buildSeatComponent(seat, available,
-                        () -> presenter.addSeatedTicket(token, eventId, zone.getId(), seat.getId(), this)));
+                        () -> { if (presenter.addSeatedTicket(token, eventId, zone.getId(), seat.getId(), this)) refreshVenue(); }));
             }
         }
         wrapper.add(grid);
@@ -253,7 +276,7 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
             for (SeatDTO seat : zone.getSeats()) {
                 boolean available = seat.getStatus() == SeatStatus.AVAILABLE;
                 grid.add(buildSeatComponent(seat, available,
-                        () -> presenter.addSeatedTicket(token, eventId, zone.getId(), seat.getId(), this)));
+                        () -> { if (presenter.addSeatedTicket(token, eventId, zone.getId(), seat.getId(), this)) refreshVenue(); }));
             }
         }
         return grid;
@@ -324,7 +347,9 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
             qty.setValue(1);
             addBtn.addClickListener(e -> {
                 int quantity = qty.getValue() != null ? qty.getValue() : 1;
-                presenter.addStandingTickets(token, eventId, zone.getId(), quantity, this);
+                if (presenter.addStandingTickets(token, eventId, zone.getId(), quantity, this)) {
+                    refreshVenue();
+                }
             });
         }
 
