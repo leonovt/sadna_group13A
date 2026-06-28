@@ -55,8 +55,8 @@
       "eventId": "e1_id",
       "venueName": "Main Venue",
       "zones": [
-        { "name": "Standing Zone", "type": "STANDING", "basePrice": 50.0,  "capacity": 30  },
-        { "name": "Seated Zone",   "type": "SEATED",   "basePrice": 100.0, "capacity": 100 }
+        { "name": "Standing Zone", "type": "STANDING", "basePrice": 50.0,  "capacity": 30 },
+        { "name": "Seated Zone",   "type": "SEATED",   "basePrice": 100.0, "rows": 10, "columns": 10 }
       ]
     }
   },

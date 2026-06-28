@@ -20,6 +20,7 @@ import com.sadna.group13a.domain.Aggregates.OrderHistory.OrderHistory;
 import com.sadna.group13a.domain.Aggregates.User.Guest;
 import com.sadna.group13a.domain.Aggregates.User.Member;
 import com.sadna.group13a.domain.Aggregates.User.User;
+import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,7 +89,7 @@ public class UserService
 
             userRepository.save(newUser);
 
-            UserDTO dto = new UserDTO(newUser.getUsername(), newUser.getRole());
+            UserDTO dto = toDTO(newUser);
             logger.info("Successfully registered user: {}", username);
             
             return Result.success(dto);
@@ -154,7 +155,7 @@ public class UserService
         }
 
         User user = userOpt.get();
-        UserDTO dto = new UserDTO(user.getUsername(), user.getRole());
+        UserDTO dto = toDTO(user);
 
         logger.info("Successfully retrieved profile for user: {}", user.getUsername());
         return Result.success(dto);
@@ -204,7 +205,37 @@ public class UserService
         userRepository.save(user);
 
         logger.info("User '{}' changed username to '{}'.", userId, newUsername);
-        return Result.success(new UserDTO(user.getUsername(), user.getRole()));
+        return Result.success(toDTO(user));
+    }
+
+    @Transactional
+    public Result<UserDTO> updateBirthDate(String token, LocalDate birthDate) {
+        if (!authGateway.validateToken(token)) {
+            logger.warn("Unauthorized updateBirthDate attempt.");
+            return Result.failure("Unauthorized.");
+        }
+        String userId = authGateway.extractUserId(token);
+
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            logger.warn("updateBirthDate failed: user '{}' not found.", userId);
+            return Result.failure("User not found.");
+        }
+
+        User user = userOpt.get();
+        if (!(user instanceof Member member)) {
+            return Result.failure("Only registered members can set a birth date.");
+        }
+
+        if (birthDate != null && birthDate.isAfter(LocalDate.now())) {
+            return Result.failure("Birth date cannot be in the future.");
+        }
+
+        member.setDateOfBirth(birthDate);
+        userRepository.save(member);
+
+        logger.info("User '{}' updated birth date.", userId);
+        return Result.success(toDTO(member));
     }
 
     // ── Order History ─────────────────────────────────────────────
@@ -232,5 +263,12 @@ public class UserService
 
         logger.debug("viewOrderHistory: user '{}' retrieved {} order(s).", userId, dtos.size());
         return Result.success(dtos);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+
+    private UserDTO toDTO(User user) {
+        LocalDate dob = (user instanceof Member m) ? m.getDateOfBirth() : null;
+        return new UserDTO(user.getUsername(), user.getRole(), dob);
     }
 }
