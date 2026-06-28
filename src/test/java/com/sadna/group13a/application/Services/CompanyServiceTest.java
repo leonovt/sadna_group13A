@@ -202,6 +202,37 @@ class CompanyServiceTest {
         assertEquals("co-1", result.getData().get().id());
     }
 
+    @Test
+    void givenStaff_whenGetCompany_thenStaffDtoCarriesUsername() {
+        // Issue #340 — staff tables show the username, so the DTO must carry it.
+        when(userRepository.findById(FOUNDER_ID)).thenReturn(Optional.of(founder));
+
+        Result<CompanyDTO> result = companyService.getCompany(TOKEN, COMPANY_ID);
+
+        assertTrue(result.isSuccess());
+        var founderDto = result.getData().get().staff().stream()
+                .filter(s -> FOUNDER_ID.equals(s.userId()))
+                .findFirst().orElseThrow();
+        assertEquals("alice", founderDto.username(), "Staff DTO must expose the member's username");
+    }
+
+    // ── getRoleTree ───────────────────────────────────────────────
+
+    @Test
+    void givenStaff_whenGetRoleTree_thenEntriesCarryUsername() {
+        // Issue #340 — the role tree feeds the staff tables, so each entry needs the username.
+        when(userRepository.findById(FOUNDER_ID)).thenReturn(Optional.of(founder));
+
+        Result<List<com.sadna.group13a.application.DTO.StaffMemberDTO>> result =
+                companyService.getRoleTree(TOKEN, COMPANY_ID);
+
+        assertTrue(result.isSuccess());
+        var founderEntry = result.getData().get().stream()
+                .filter(s -> FOUNDER_ID.equals(s.userId()))
+                .findFirst().orElseThrow();
+        assertEquals("alice", founderEntry.username(), "Role-tree entry must expose the member's username");
+    }
+
     // ── updatePermissions ─────────────────────────────────────────
 
     @Test

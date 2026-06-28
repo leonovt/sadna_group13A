@@ -10,53 +10,49 @@ import java.util.Set;
 /**
  * Domain Service — pure Java, no Spring annotations.
  * Encapsulates staff removal business rules for a ProductionCompany:
- * firing or removing a staff member cascades to everyone they appointed
- * (their subtree), and resigning removes the actor together with their subtree.
+ * firing/removing a staff member, or resigning, removes only that single member.
+ * Their direct appointees are NOT removed — the aggregate re-parents them to the
+ * removed member's appointer so they stay active staff (see issue #367).
  */
 public class CompanyStaffDomainService {
 
     private static final Logger logger = LoggerFactory.getLogger(CompanyStaffDomainService.class);
 
     /**
-     * Fires {@code targetId} from the company and cascades the removal to all
-     * staff members that were appointed by them (their full subtree).
+     * Removes {@code targetId} from the company. Only that member is removed:
+     * the aggregate re-parents the target's direct appointees to the target's
+     * appointer (e.g. a fired owner's managers are transferred to the founder),
+     * keeping them active staff with their permissions intact (issue #367).
      * The company aggregate is mutated in-place; callers are responsible for
      * persisting it afterward.
      *
      * @param company  the company aggregate to mutate
      * @param actorId  the user performing the removal
-     * @param targetId the staff member being fired
-     * @return the full subtree of IDs that were removed (includes {@code targetId})
+     * @param targetId the staff member being removed
+     * @return the set of IDs actually removed — exactly {@code targetId}
      */
-    public Set<String> cascadeRemove(ProductionCompany company, String actorId, String targetId) {
-        Set<String> subtree = company.getStaffSubTree(targetId);
+    public Set<String> removeStaffMember(ProductionCompany company, String actorId, String targetId) {
         company.fireStaff(actorId, targetId);
-        for (String uid : subtree) {
-            if (!uid.equals(targetId) && company.getStaff().containsKey(uid)) {
-                company.fireStaff(actorId, uid);
-            }
-        }
-        logger.debug("cascadeRemove: actor '{}' removed '{}' and {} subtree member(s) from company '{}'.",
-                actorId, targetId, subtree.size() - 1, company.getId());
-        return subtree;
+        logger.debug("removeStaffMember: actor '{}' removed '{}' from company '{}'; appointees re-parented to the removed member's appointer.",
+                actorId, targetId, company.getId());
+        return Set.of(targetId);
     }
 
     /**
-     * Resigns {@code actorId} from the company and collects the subtree of staff
-     * members they had appointed (the calling service is responsible for removing
-     * those roles from the user aggregates).
+     * Resigns {@code actorId} from the company. Only the resigning member is
+     * removed: the aggregate re-parents their direct appointees to the resigning
+     * member's appointer, keeping them active staff (issue #367).
      * The company aggregate is mutated in-place; callers are responsible for
      * persisting it afterward.
      *
      * @param company the company aggregate to mutate
      * @param actorId the staff member who is resigning
-     * @return the subtree of IDs that were implicitly orphaned by the resignation
+     * @return the set of IDs actually removed — exactly {@code actorId}
      */
-    public Set<String> resignAndGetSubtree(ProductionCompany company, String actorId) {
-        Set<String> subtree = company.getStaffSubTree(actorId);
+    public Set<String> resign(ProductionCompany company, String actorId) {
         company.resign(actorId);
-        logger.debug("resignAndGetSubtree: user '{}' resigned from company '{}', {} subtree member(s) affected.",
-                actorId, company.getId(), subtree.size());
-        return subtree;
+        logger.debug("resign: user '{}' resigned from company '{}'; appointees re-parented to the resigning member's appointer.",
+                actorId, company.getId());
+        return Set.of(actorId);
     }
 }

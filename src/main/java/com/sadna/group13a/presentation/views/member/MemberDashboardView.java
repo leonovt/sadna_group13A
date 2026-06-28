@@ -71,8 +71,6 @@ public class MemberDashboardView extends VerticalLayout implements BeforeEnterOb
             );
         });
 
-        Button logoutButton = new Button("Log out", e -> presenter.handleLogout(this));
-
         Image easterEgg = new Image("images/prof.png", "🎓");
         easterEgg.setHeight("180px");
         easterEgg.getStyle().set("border-radius", "12px")
@@ -88,7 +86,6 @@ public class MemberDashboardView extends VerticalLayout implements BeforeEnterOb
             createCompanyButton,
             infoMessage,
             errorMessage,
-            logoutButton,
             easterEgg
         );
     }
