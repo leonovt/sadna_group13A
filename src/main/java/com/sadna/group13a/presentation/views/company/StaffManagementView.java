@@ -2,6 +2,7 @@ package com.sadna.group13a.presentation.views.company;
 
 import com.sadna.group13a.application.DTO.StaffMemberDTO;
 import com.sadna.group13a.domain.Aggregates.Company.CompanyPermission;
+import com.sadna.group13a.domain.Aggregates.Company.CompanyRole;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.CheckboxGroup;
@@ -11,6 +12,7 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -91,6 +93,36 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
         managerRow.setPadding(false);
         managerRow.setSpacing(false);
 
+        // ── Promote existing staff member ─────────────────────────
+        TextField promoteUsernameField = new TextField("Username");
+        Select<CompanyRole> promoteRoleSelect = new Select<>();
+        promoteRoleSelect.setLabel("New role");
+        promoteRoleSelect.setItems(CompanyRole.MANAGER, CompanyRole.OWNER);
+        promoteRoleSelect.setItemLabelGenerator(CompanyRole::name);
+
+        CheckboxGroup<CompanyPermission> promotePermissionsGroup = new CheckboxGroup<>("Permissions (if promoting to Manager)");
+        promotePermissionsGroup.setItems(CompanyPermission.values());
+        promotePermissionsGroup.setItemLabelGenerator(p -> p.name().replace('_', ' '));
+        promotePermissionsGroup.setVisible(false);
+
+        promoteRoleSelect.addValueChangeListener(e ->
+                promotePermissionsGroup.setVisible(e.getValue() == CompanyRole.MANAGER));
+
+        Button promoteBtn = new Button("Promote", e -> {
+            statusMessage.setVisible(false);
+            presenter.handlePromoteStaff(
+                    promoteUsernameField.getValue(),
+                    promoteRoleSelect.getValue(),
+                    promotePermissionsGroup.getValue(),
+                    companyId, this);
+        });
+
+        HorizontalLayout promoteBtnRow = new HorizontalLayout(promoteUsernameField, promoteRoleSelect, promoteBtn);
+        promoteBtnRow.setAlignItems(Alignment.BASELINE);
+        VerticalLayout promoteRow = new VerticalLayout(promoteBtnRow, promotePermissionsGroup);
+        promoteRow.setPadding(false);
+        promoteRow.setSpacing(false);
+
         // ── Owner actions ─────────────────────────────────────────
         Button appointOwnerBtn = new Button("Appoint Owner", e -> {
             statusMessage.setVisible(false);
@@ -115,6 +147,7 @@ public class StaffManagementView extends VerticalLayout implements BeforeEnterOb
                 statusMessage,
                 new H3("Current Staff"), staffGrid,
                 new H3("Manager Actions"), managerRow,
+                new H3("Promote Existing Staff Member"), promoteRow,
                 new H3("Owner Actions"), ownerRow,
                 resignBtn
         );
