@@ -26,7 +26,9 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Route("company/:companyId/events")
 @PageTitle("Event Management")
@@ -110,6 +112,12 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
                     openVenueDialog(event);
                 });
                 row2.addComponentAsFirst(venueBtn);
+            } else {
+                Button expandBtn = new Button("Expand Venue", click -> {
+                    statusMessage.setVisible(false);
+                    openExpandVenueDialog(event);
+                });
+                row2.addComponentAsFirst(expandBtn);
             }
 
             VerticalLayout actions = new VerticalLayout(row1, row2);
@@ -281,6 +289,70 @@ public class EventManagementView extends VerticalLayout implements BeforeEnterOb
         form.setPadding(false);
 
         dialog.add(form);
+        dialog.getFooter().add(new Button("Cancel", click -> dialog.close()), saveBtn);
+        dialog.open();
+    }
+
+    // ── Expand venue dialog (published events only) ───────────────
+
+    private void openExpandVenueDialog(EventDTO event) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Expand Venue — " + event.title());
+        dialog.setWidth("680px");
+
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+
+        // ── Section 1: add to existing zones ─────────────────────
+        VenueMapDTO existing = presenter.loadVenueMap(event.id());
+        Map<String, IntegerField> addCountByZoneId = new LinkedHashMap<>();
+
+        if (existing != null && existing.getZones() != null && !existing.getZones().isEmpty()) {
+            content.add(new H3("Add seats to existing zones"));
+            for (var zone : existing.getZones()) {
+                IntegerField addField = new IntegerField();
+                addField.setMin(0);
+                addField.setValue(0);
+                addField.setWidth("100px");
+                addCountByZoneId.put(zone.getId(), addField);
+
+                String label = zone.getName() + "  [" + zone.getType() + ", capacity: " + zone.getCapacity() + "]";
+                HorizontalLayout row = new HorizontalLayout(new Span(label), addField);
+                row.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+                row.setWidthFull();
+                content.add(row);
+            }
+        }
+
+        // ── Section 2: add new zones ──────────────────────────────
+        content.add(new H3("Add new zones"));
+        VerticalLayout newZonesContainer = new VerticalLayout();
+        newZonesContainer.setPadding(false);
+        List<ZoneRow> newZoneRows = new ArrayList<>();
+
+        Button addZoneBtn = new Button("+ Add Zone",
+                e -> addZoneRow(newZonesContainer, newZoneRows, null, null, null, null, null, null));
+        content.add(newZonesContainer, addZoneBtn);
+
+        dialog.add(content);
+
+        Button saveBtn = new Button("Save", click -> {
+            statusMessage.setVisible(false);
+            Map<String, Integer> additions = new LinkedHashMap<>();
+            for (Map.Entry<String, IntegerField> entry : addCountByZoneId.entrySet()) {
+                Integer val = entry.getValue().getValue();
+                if (val != null && val > 0) {
+                    additions.put(entry.getKey(), val);
+                }
+            }
+            List<ZoneCreationDTO> newZones = new ArrayList<>();
+            for (ZoneRow row : newZoneRows) {
+                if (!row.isBlank()) newZones.add(row.toDTO());
+            }
+            presenter.handleExpandVenue(this, companyId, event.id(), additions, newZones);
+            dialog.close();
+        });
+
         dialog.getFooter().add(new Button("Cancel", click -> dialog.close()), saveBtn);
         dialog.open();
     }
