@@ -235,17 +235,9 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
 
         if (zone.getSeats() != null) {
             for (SeatDTO seat : zone.getSeats()) {
-                Button btn = new Button(seat.getLabel());
-                btn.getStyle().set("min-width", "3em").set("padding", "0.2em 0.4em");
-                if (seat.getStatus() == SeatStatus.AVAILABLE) {
-                    btn.addClickListener(e ->
-                        presenter.addSeatedTicket(token, eventId, zone.getId(), seat.getId(), this)
-                    );
-                } else {
-                    btn.setEnabled(false);
-                    btn.getStyle().set("opacity", "0.4");
-                }
-                grid.add(btn);
+                boolean available = seat.getStatus() == SeatStatus.AVAILABLE;
+                grid.add(buildSeatComponent(seat, available,
+                        () -> presenter.addSeatedTicket(token, eventId, zone.getId(), seat.getId(), this)));
             }
         }
         wrapper.add(grid);
@@ -259,19 +251,60 @@ public class EventDetailView extends VerticalLayout implements BeforeEnterObserv
 
         if (zone.getSeats() != null) {
             for (SeatDTO seat : zone.getSeats()) {
-                Button btn = new Button(seat.getLabel());
-                if (seat.getStatus() == SeatStatus.AVAILABLE) {
-                    btn.addClickListener(e ->
-                        presenter.addSeatedTicket(token, eventId, zone.getId(), seat.getId(), this)
-                    );
-                } else {
-                    btn.setEnabled(false);
-                    btn.getStyle().set("opacity", "0.4");
-                }
-                grid.add(btn);
+                boolean available = seat.getStatus() == SeatStatus.AVAILABLE;
+                grid.add(buildSeatComponent(seat, available,
+                        () -> presenter.addSeatedTicket(token, eventId, zone.getId(), seat.getId(), this)));
             }
         }
         return grid;
+    }
+
+    private Div buildSeatComponent(SeatDTO seat, boolean available, Runnable onClick) {
+        Div wrapper = new Div();
+        wrapper.getStyle()
+                .set("position", "relative")
+                .set("display", "inline-flex")
+                .set("align-items", "center")
+                .set("justify-content", "center")
+                .set("width", "3.5em")
+                .set("height", "3.5em")
+                .set("border-radius", "4px")
+                .set("box-sizing", "border-box");
+
+        Span icon = new Span("🪑");
+        icon.getStyle()
+                .set("position", "absolute")
+                .set("font-size", "2.2em")
+                .set("opacity", available ? "0.25" : "0.15")
+                .set("user-select", "none")
+                .set("pointer-events", "none");
+
+        Span label = new Span(seat.getLabel());
+        label.getStyle()
+                .set("position", "relative")
+                .set("z-index", "1")
+                .set("font-size", "0.65em")
+                .set("font-weight", "700")
+                .set("letter-spacing", "0.02em");
+
+        wrapper.add(icon, label);
+
+        if (available) {
+            wrapper.getStyle()
+                    .set("border", "1.5px solid var(--lumo-primary-color)")
+                    .set("color", "var(--lumo-primary-color)")
+                    .set("cursor", "pointer")
+                    .set("background", "var(--lumo-primary-color-10pct)");
+            wrapper.getElement().addEventListener("click", e -> onClick.run());
+        } else {
+            wrapper.getStyle()
+                    .set("border", "1.5px solid var(--lumo-contrast-30pct)")
+                    .set("color", "var(--lumo-disabled-text-color)")
+                    .set("cursor", "default")
+                    .set("opacity", "0.5");
+        }
+
+        return wrapper;
     }
 
     private HorizontalLayout buildStandingContent(ZoneDTO zone, String token) {

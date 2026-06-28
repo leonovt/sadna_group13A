@@ -13,7 +13,7 @@ import java.util.List;
  */
 public class StandingZone extends Zone {
 
-    private final int maxCapacity;
+    private int maxCapacity;
     private final List<StandingHold> standingHolds;
     private int soldCount;
 
@@ -89,6 +89,13 @@ public class StandingZone extends Zone {
      */
     public synchronized void unsellStandingSpot() {
         if (soldCount > 0) soldCount--;
+    }
+
+    public synchronized void increaseCapacity(int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Capacity increase must be positive");
+        }
+        this.maxCapacity += amount;
     }
 
     public synchronized void releaseStandingSpot(String userId) {

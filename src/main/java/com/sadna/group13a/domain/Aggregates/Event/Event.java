@@ -9,6 +9,7 @@ import com.sadna.group13a.domain.shared.DomainException;
 import com.sadna.group13a.domain.shared.PurchasePolicy;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -261,6 +262,44 @@ public class Event {
         } else if (zone instanceof StandingZone stz) {
             stz.releaseStandingSpot(userId);
         }
+        version++;
+    }
+
+    // ── Additive venue mutations (safe on published events) ───────
+
+    /**
+     * Appends new seats to an existing seated zone without disturbing sold seats.
+     * Works on both published and unpublished events.
+     */
+    public void addSeatsToZone(String zoneId, List<Seat> newSeats) {
+        Zone zone = getZoneById(zoneId);
+        if (!(zone instanceof SeatedZone sz)) {
+            throw new DomainException("Zone " + zoneId + " is not a seated zone");
+        }
+        sz.addSeats(newSeats);
+        version++;
+    }
+
+    /**
+     * Increases the capacity of an existing standing zone.
+     * Works on both published and unpublished events.
+     */
+    public void increaseZoneCapacity(String zoneId, int amount) {
+        Zone zone = getZoneById(zoneId);
+        if (!(zone instanceof StandingZone stz)) {
+            throw new DomainException("Zone " + zoneId + " is not a standing zone");
+        }
+        stz.increaseCapacity(amount);
+        version++;
+    }
+
+    /**
+     * Adds a brand-new zone to the venue map.
+     * Works on both published and unpublished events.
+     */
+    public void addZoneToVenueMap(Zone zone) {
+        requireVenueMap();
+        venueMap.addZone(zone);
         version++;
     }
 
